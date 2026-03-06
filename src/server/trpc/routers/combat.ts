@@ -225,6 +225,11 @@ async function applyLevelUp(
     ...levelUp.newAbilities,
   ];
 
+  // Unlock base if reaching the unlock level
+  const unlockBase =
+    levelUp.newLevel >= GAME_CONFIG.BASE_UNLOCK_LEVEL &&
+    character.baseLevel < 1;
+
   await db
     .update(characters)
     .set({
@@ -235,6 +240,7 @@ async function applyLevelUp(
       xpNext: levelUp.xpNext,
       stats: updatedStats,
       abilities: updatedAbilities,
+      ...(unlockBase ? { baseLevel: 1 } : {}),
       updatedAt: new Date(),
     })
     .where(eq(characters.id, character.id));

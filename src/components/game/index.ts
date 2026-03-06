@@ -7,3 +7,7 @@ export { CombatPanel } from "./CombatPanel";
 export { LevelUpModal } from "./LevelUpModal";
 export { DeathScreen } from "./DeathScreen";
 export { VictoryScreen } from "./VictoryScreen";
+export { StorePanel } from "./StorePanel";
+export { NPCDialog } from "./NPCDialog";
+export { InventoryPanel } from "./InventoryPanel";
+export { CharacterSheet } from "./CharacterSheet";

@@ -723,6 +723,55 @@ export const gameRouter = router({
       return buildPlayer(updatedCharacter, items);
     }),
 
+  // ─── Visit Base ────────────────────────────────────────────────────────────
+  visitBase: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
+
+      if (character.baseLevel < 1) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Base is not yet unlocked. Reach level ${GAME_CONFIG.BASE_UNLOCK_LEVEL} to unlock your base.`,
+        });
+      }
+
+      // Save current position for return
+      const currentPosition = character.position as Position;
+      const basePosition: Position = { x: 0, y: 0 };
+
+      await ctx.db
+        .update(characters)
+        .set({
+          position: basePosition,
+          lastSafe: currentPosition,
+          updatedAt: new Date(),
+        })
+        .where(eq(characters.id, character.id));
+
+      // Get base room
+      const baseRoom = await getRoomAt(ctx.db, character.id, 0, 0);
+      if (!baseRoom) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Base room not found" });
+      }
+
+      const items = await ctx.db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.characterId, character.id));
+
+      const updatedCharacter = {
+        ...character,
+        position: basePosition,
+        lastSafe: currentPosition,
+      };
+      const player = buildPlayer(updatedCharacter, items);
+      const room = buildRoom(baseRoom);
+
+      return { player, room };
+    }),
+
   // ─── Fast Travel to Base ────────────────────────────────────────────────────
   fastTravelBase: protectedProcedure
     .input(z.object({ characterId: z.string().uuid() }))
