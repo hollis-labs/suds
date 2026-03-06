@@ -6,24 +6,10 @@ import { Terminal, TerminalText } from "@/components/terminal";
 import { cn } from "@/lib/utils";
 import { CLASS_DEFINITIONS, THEMES } from "@/lib/constants";
 import type { CharacterClass, Theme } from "@/lib/constants";
-// import { trpc } from "@/lib/trpc";
+import { trpc } from "@/lib/trpc";
 
-interface MockCharacter {
-  id: string;
-  name: string;
-  class: CharacterClass;
-  theme: Theme;
-  level: number;
-  createdAt: Date;
-}
-
-// Mock data for now — will be replaced with tRPC query
-const mockCharacters: MockCharacter[] = [
-  { id: "1", name: "Grimjaw", class: "warrior", theme: "epic", level: 3, createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
-  { id: "2", name: "Shadowmage", class: "mage", theme: "horror", level: 1, createdAt: new Date() },
-];
-
-function formatLastPlayed(date: Date): string {
+function formatLastPlayed(date: Date | null): string {
+  if (!date) return "New";
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -36,15 +22,11 @@ function formatLastPlayed(date: Date): string {
 export default function CharactersPage() {
   const router = useRouter();
 
-  // Will be replaced with tRPC query when backend is wired up:
-  // const { data: characters, isLoading } = trpc.character.list.useQuery();
-  const characters = mockCharacters;
-  const isLoading = false;
+  const { data: characters, isLoading } = trpc.character.list.useQuery();
 
   const handleSelect = useCallback(
     (id: string) => {
-      // TODO: Set active character in store/session
-      router.push("/play");
+      router.push(`/play/${id}`);
     },
     [router]
   );
@@ -71,6 +53,7 @@ export default function CharactersPage() {
         return;
       }
 
+      if (!characters) return;
       const num = parseInt(e.key, 10);
       if (num >= 1 && num <= characters.length) {
         e.preventDefault();
@@ -95,6 +78,8 @@ export default function CharactersPage() {
     );
   }
 
+  const chars = characters ?? [];
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Terminal title="CHARACTER ROSTER" className="w-full max-w-2xl">
@@ -103,7 +88,7 @@ export default function CharactersPage() {
             CHARACTER ROSTER
           </h1>
 
-          {characters.length === 0 ? (
+          {chars.length === 0 ? (
             <TerminalText
               text="No adventurers found. Create one to begin."
               speed={25}
@@ -111,9 +96,9 @@ export default function CharactersPage() {
             />
           ) : (
             <div className="space-y-1 font-mono">
-              {characters.map((char, index) => {
-                const classDef = CLASS_DEFINITIONS[char.class];
-                const themeDef = THEMES[char.theme];
+              {chars.map((char, index) => {
+                const classDef = CLASS_DEFINITIONS[char.class as CharacterClass];
+                const themeDef = THEMES[char.theme as Theme];
                 const lastPlayed = formatLastPlayed(char.createdAt);
 
                 return (
@@ -129,9 +114,9 @@ export default function CharactersPage() {
                     <span className="text-terminal-green font-bold">{char.name}</span>
                     {" — "}
                     <span className="text-terminal-green-dim">
-                      Level {char.level} {classDef.name}
+                      Level {char.level} {classDef?.name ?? char.class}
                     </span>{" "}
-                    <span className="text-terminal-amber">({themeDef.name})</span>
+                    <span className="text-terminal-amber">({themeDef?.name ?? char.theme})</span>
                     {" — "}
                     <span className="text-terminal-green-dim text-xs">{lastPlayed}</span>
                   </button>

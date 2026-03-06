@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: suds-postgres
+    environment:
+      POSTGRES_USER: suds
+      POSTGRES_PASSWORD: suds_dev_password
+      POSTGRES_DB: suds_v2
+    ports:
+      - "5433:5432"
+    volumes:
+      - suds_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U suds -d suds_v2"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  suds_pgdata:

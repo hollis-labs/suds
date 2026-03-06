@@ -13,7 +13,7 @@ import {
 } from "@/lib/constants";
 import type { CharacterClass, Theme } from "@/lib/constants";
 import type { Stats } from "@/lib/types";
-// import { trpc } from "@/lib/trpc";
+import { trpc } from "@/lib/trpc";
 
 type WizardStep = "name" | "class" | "theme" | "confirm";
 
@@ -52,8 +52,7 @@ export default function NewCharacterPage() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Will be replaced with tRPC mutation when backend is wired up:
-  // const createCharacter = trpc.character.create.useMutation();
+  const createCharacter = trpc.character.create.useMutation();
 
   const handleNameSubmit = useCallback(
     (value: string) => {
@@ -84,14 +83,12 @@ export default function NewCharacterPage() {
     setIsCreating(true);
 
     try {
-      // Mock creation — replace with tRPC mutation:
-      // await createCharacter.mutateAsync({
-      //   name: wizard.name,
-      //   class: wizard.characterClass,
-      //   theme: wizard.theme,
-      // });
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      router.push("/play");
+      const newChar = await createCharacter.mutateAsync({
+        name: wizard.name,
+        class: wizard.characterClass,
+        theme: wizard.theme,
+      });
+      router.push(`/play/${newChar.id}`);
     } catch {
       setIsCreating(false);
     }

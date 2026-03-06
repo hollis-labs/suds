@@ -1,0 +1,72 @@
+version: "0.4"
+
+blueprint:
+  name: docker-suds-dev
+  title: "Docker Dev — SUDS v2"
+  description: "Manage the SUDS v2 development Docker environment (PostgreSQL + app)"
+  author: mentat
+  tags: [docker, suds, dev, postgres]
+
+inputs:
+  - name: project_path
+    type: string
+    default: "~/Projects-apps/suds-v2"
+    description: "Path to the SUDS v2 project root"
+
+  - name: action
+    type: string
+    default: "up"
+    description: "Action: up, down, reset, logs, status"
+
+steps:
+  - section: Docker Compose Up
+    condition: "{{ eq .inputs.action \"up\" }}"
+    tasks:
+      - name: start-services
+        cmd: |
+          cd {{ .inputs.project_path }}
+          docker compose -f docker-compose.dev.yml up -d
+          echo "Waiting for PostgreSQL to be ready..."
+          sleep 3
+          docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds
+          echo "SUDS dev environment is running."
+          echo "  PostgreSQL: localhost:5432"
+          echo "  App: http://localhost:3000"
+        timeout_seconds: 120
+
+  - section: Docker Compose Down
+    condition: "{{ eq .inputs.action \"down\" }}"
+    tasks:
+      - name: stop-services
+        cmd: |
+          cd {{ .inputs.project_path }}
+          docker compose -f docker-compose.dev.yml down
+          echo "SUDS dev environment stopped."
+
+  - section: Reset Database
+    condition: "{{ eq .inputs.action \"reset\" }}"
+    tasks:
+      - name: reset-db
+        cmd: |
+          cd {{ .inputs.project_path }}
+          docker compose -f docker-compose.dev.yml down -v
+          docker compose -f docker-compose.dev.yml up -d postgres
+          sleep 3
+          docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds
+          echo "Database reset complete. Run 'pnpm db:push' to recreate schema."
+
+  - section: Show Logs
+    condition: "{{ eq .inputs.action \"logs\" }}"
+    tasks:
+      - name: show-logs
+        cmd: |
+          cd {{ .inputs.project_path }}
+          docker compose -f docker-compose.dev.yml logs --tail=50
+
+  - section: Status
+    condition: "{{ eq .inputs.action \"status\" }}"
+    tasks:
+      - name: check-status
+        cmd: |
+          cd {{ .inputs.project_path }}
+          docker compose -f docker-compose.dev.yml ps

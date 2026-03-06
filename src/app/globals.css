@@ -1,10 +1,44 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+
+  --color-terminal-bg: #0a0a0a;
+  --color-terminal-bg-alt: #111111;
+  --color-terminal-green: #33ff33;
+  --color-terminal-green-dim: #1a8a1a;
+  --color-terminal-amber: #ffaa00;
+  --color-terminal-amber-dim: #8a5500;
+  --color-terminal-blue: #3399ff;
+  --color-terminal-red: #ff3333;
+  --color-terminal-purple: #cc66ff;
+  --color-terminal-gold: #ffcc00;
+  --color-terminal-white: #cccccc;
+  --color-terminal-white-bright: #ffffff;
+  --color-terminal-border: #333333;
+  --color-terminal-border-bright: #555555;
+
+  --animate-blink: blink 1s step-end infinite;
+  --animate-typing-cursor: blink 0.7s step-end infinite;
+  --animate-scanline: scanline 8s linear infinite;
+  --animate-glow: glow 2s ease-in-out infinite alternate;
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+  @keyframes glow {
+    0% { text-shadow: 0 0 5px currentColor; }
+    100% { text-shadow: 0 0 15px currentColor, 0 0 30px currentColor; }
+  }
+}
 
 @layer base {
   :root {
-    --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
     --terminal-text: #33ff33;
     --terminal-text-dim: #1a8a1a;
   }
