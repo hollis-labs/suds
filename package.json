@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/server/db/seed.ts",
     "test": "vitest",
     "test:e2e": "playwright test"
   },
@@ -50,6 +51,7 @@
     "jsdom": "^25.0.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }
