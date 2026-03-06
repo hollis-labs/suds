@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+
+  body {
+    @apply bg-terminal-bg text-terminal-green font-mono;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-terminal-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-terminal-border rounded;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-terminal-border-bright;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-terminal-green text-terminal-bg;
+  }
+}
+
+@layer components {
+  .terminal-glow {
+    text-shadow: 0 0 5px currentColor;
+  }
+  .terminal-box {
+    @apply border border-terminal-border rounded-sm p-4;
+  }
+  .scanline-overlay {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+    z-index: 9999;
+  }
+}

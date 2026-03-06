@@ -1,0 +1,82 @@
+{
+  "horror": {
+    "roomDescriptions": [
+      "The walls weep with dark moisture, and something skitters in the shadows.",
+      "A putrid stench fills the air. The ground is sticky with something you'd rather not identify.",
+      "Pale light filters through cracks in the ceiling, illuminating dust motes that drift like tiny ghosts.",
+      "Chains hang from the walls, some still bearing their grim occupants.",
+      "The room pulses with an unnatural warmth, as if something living breathes within the walls."
+    ],
+    "encounterIntros": [
+      "From the shadows, something emerges...",
+      "A bone-chilling shriek echoes as creatures attack!",
+      "The darkness itself seems to lunge at you.",
+      "You hear a wet, scraping sound before they appear."
+    ],
+    "loreFragments": [
+      "Carved into the wall: 'They came from below. They always come from below.'",
+      "A tattered journal page reads: 'Day 47. The scratching has stopped. That's worse.'",
+      "Ancient runes glow faintly, warning of a sealed evil beneath."
+    ]
+  },
+  "funny": {
+    "roomDescriptions": [
+      "This room appears to have been decorated by a very enthusiastic, very drunk goblin.",
+      "A sign on the wall reads: 'DANGER: Wet Floor (also monsters).'",
+      "Someone has arranged the skulls on the shelf in order of sass level.",
+      "The torches here are scented. Lavender, if you're wondering.",
+      "A motivational poster on the wall says 'Hang in there!' above a skeleton dangling from chains."
+    ],
+    "encounterIntros": [
+      "A monster trips into the room. It seems as surprised as you.",
+      "Something waddles toward you menacingly. Well, it's trying to be menacing.",
+      "A creature pops out from behind a barrel yelling 'SURPRISE!' ...wrong room, apparently.",
+      "You hear a war cry that sounds suspiciously like a sneeze."
+    ],
+    "loreFragments": [
+      "Graffiti reads: 'Kilroy was here. Then Kilroy was eaten.'",
+      "A complaint box on the wall is overflowing with notes about dungeon WiFi.",
+      "A recipe for 'Monster Surprise' is pinned to the wall. The surprise is that it's just chicken."
+    ]
+  },
+  "epic": {
+    "roomDescriptions": [
+      "Massive pillars carved with the deeds of ancient heroes line this magnificent hall.",
+      "Golden light streams through crystal formations, casting rainbows across polished stone.",
+      "The chamber echoes with a faint, heroic melody as if the walls remember glory.",
+      "Murals depict great battles between gods and titans, their colors still vivid after millennia.",
+      "A vast space opens before you, the ceiling lost in shadow high above."
+    ],
+    "encounterIntros": [
+      "A worthy foe steps from the shadows, weapon drawn with practiced grace.",
+      "The ground trembles as a powerful creature enters the chamber.",
+      "Ancient guardians awaken, their eyes blazing with eternal duty.",
+      "A figure of legend blocks your path, testing the worthy."
+    ],
+    "loreFragments": [
+      "An inscription reads: 'Here fell Arathorn the Brave, who held the gate for seven days.'",
+      "A mural shows the founding of the First Kingdom, when heroes united the scattered peoples.",
+      "Crystal tablets record prophecies of a hero who would descend into the depths."
+    ]
+  },
+  "dark_fantasy": {
+    "roomDescriptions": [
+      "The stone is stained with old blood that no amount of time has washed away.",
+      "Twisted iron and broken dreams litter this forsaken place.",
+      "A cold wind carries whispers of those who perished here, their stories unfinished.",
+      "The architecture speaks of former grandeur, now corrupted beyond recognition.",
+      "Pale fungi grow in patterns that almost form words — almost form warnings."
+    ],
+    "encounterIntros": [
+      "Something that was once human shambles from the darkness.",
+      "A corrupted creature emerges, its eyes filled with an ancient sorrow.",
+      "The shadows coalesce into a form twisted by dark magic.",
+      "A cursed warrior rises, bound by duty even in death."
+    ],
+    "loreFragments": [
+      "A weary message etched in stone: 'We sought power. Power found us first.'",
+      "A faded banner of a fallen order still hangs, defiant against decay.",
+      "Scratched into the wall by desperate fingers: 'The corruption spreads. Trust no one.'"
+    ]
+  }
+}

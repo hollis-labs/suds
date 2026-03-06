@@ -1,0 +1,31 @@
+{
+  "roomAdjectives": [
+    "Dark", "Whispering", "Ancient", "Rusted", "Forgotten",
+    "Haunted", "Crystal", "Shadow", "Cursed", "Sacred",
+    "Rotting", "Gleaming", "Frozen", "Burning", "Silent",
+    "Echoing", "Thorned", "Moonlit", "Sunken", "Crumbling"
+  ],
+  "roomNouns": [
+    "Gallery", "Chamber", "Hall", "Corridor", "Crypt",
+    "Cavern", "Vault", "Passage", "Sanctum", "Dungeon",
+    "Cellar", "Tomb", "Grotto", "Lair", "Keep",
+    "Alcove", "Den", "Pit", "Archive", "Chapel"
+  ],
+  "npcFirstNames": [
+    "Grimjaw", "Elara", "Thorne", "Mira", "Drak",
+    "Vesper", "Ash", "Luna", "Bolt", "Sage",
+    "Raven", "Flint", "Ivy", "Storm", "Pike",
+    "Ember", "Wren", "Galt", "Nyx", "Reed"
+  ],
+  "npcTitles": [
+    "the Wise", "the Bold", "Ironhand", "Shadowcloak",
+    "the Lost", "Flameheart", "Stonefoot", "the Ancient",
+    "Doomwhisper", "the Forsaken", "Goldtongue", "the Wanderer"
+  ],
+  "storeNames": [
+    "The Rusty Blade", "Mystic Emporium", "Dungeon Surplus",
+    "The Golden Goblet", "Shadows & Steel", "The Wanderer's Pack",
+    "Arcane Oddities", "The Broken Shield", "Potions & Panaceas",
+    "The Last Chance Shop"
+  ]
+}
