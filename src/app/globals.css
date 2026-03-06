@@ -5,10 +5,27 @@
 @layer base {
   :root {
     --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    --terminal-text: #33ff33;
+    --terminal-text-dim: #1a8a1a;
+  }
+
+  /* Theme variants */
+  [data-theme="green"] {
+    --terminal-text: #33ff33;
+    --terminal-text-dim: #1a8a1a;
+  }
+  [data-theme="amber"] {
+    --terminal-text: #ffaa00;
+    --terminal-text-dim: #8a5500;
+  }
+  [data-theme="white"] {
+    --terminal-text: #cccccc;
+    --terminal-text-dim: #666666;
   }
 
   body {
-    @apply bg-terminal-bg text-terminal-green font-mono;
+    @apply bg-terminal-bg font-mono;
+    color: var(--terminal-text);
     font-size: 14px;
     line-height: 1.5;
   }
@@ -29,7 +46,8 @@
 
   /* Selection styling */
   ::selection {
-    @apply bg-terminal-green text-terminal-bg;
+    background-color: var(--terminal-text);
+    @apply text-terminal-bg;
   }
 }
 
@@ -53,4 +71,34 @@
     );
     z-index: 9999;
   }
+}
+
+/* Combat animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes flash-red {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(255, 0, 0, 0.1); }
+}
+
+@keyframes flash-green {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(0, 255, 0, 0.1); }
+}
+
+.animate-shake { animation: shake 0.3s ease-in-out; }
+.animate-flash-red { animation: flash-red 0.4s ease-in-out; }
+.animate-flash-green { animation: flash-green 0.4s ease-in-out; }
+
+/* Hide scrollbar for horizontal scroll areas */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

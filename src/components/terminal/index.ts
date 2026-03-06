@@ -4,3 +4,6 @@ export { TerminalModal } from "./TerminalModal";
 export { TerminalInput } from "./TerminalInput";
 export { TerminalHUD } from "./TerminalHUD";
 export { TerminalMenu } from "./TerminalMenu";
+export { TerminalLoading } from "./TerminalLoading";
+export { TerminalError } from "./TerminalError";
+export { TerminalThemeSelector } from "./TerminalThemeSelector";

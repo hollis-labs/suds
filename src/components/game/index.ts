@@ -11,3 +11,4 @@ export { StorePanel } from "./StorePanel";
 export { NPCDialog } from "./NPCDialog";
 export { InventoryPanel } from "./InventoryPanel";
 export { CharacterSheet } from "./CharacterSheet";
+export { HelpModal } from "./HelpModal";

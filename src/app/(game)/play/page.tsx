@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { TerminalHUD, TerminalModal } from "@/components/terminal";
 import {
   StatusBar,
@@ -11,6 +11,7 @@ import {
   NPCDialog,
   InventoryPanel,
   CharacterSheet,
+  HelpModal,
 } from "@/components/game";
 import { useGameStore } from "@/stores/gameStore";
 import { GAME_CONFIG } from "@/lib/constants";
@@ -252,9 +253,7 @@ export default function PlayPage() {
           setScreen("character");
           break;
         case "help":
-          addToGameLog(
-            "WASD/Arrows: Move | X: Search | I: Inventory | C: Character"
-          );
+          setShowHelp(true);
           break;
         // Combat actions
         case "attack":
@@ -329,6 +328,8 @@ export default function PlayPage() {
 
   // ── Determine which overlay is active ──
 
+  const [showHelp, setShowHelp] = useState(false);
+
   const showInventory = screen === "inventory";
   const showCharacter = screen === "character";
   const showStore = screen === "store";
@@ -350,18 +351,18 @@ export default function PlayPage() {
           />
         }
       >
-        {/* Main content: Map (left) | TextPanel (right) */}
-        <div className="flex h-full gap-4">
-          {/* Map panel — ~35% width */}
-          <div className="w-[35%] shrink-0 flex flex-col items-center justify-center border-r border-terminal-border pr-4">
+        {/* Main content: stacked on mobile, side-by-side on md+ */}
+        <div className="flex flex-col md:flex-row h-full gap-4">
+          {/* Map panel */}
+          <div className="w-full md:w-[35%] shrink-0 flex flex-col items-center justify-center md:border-r border-b md:border-b-0 border-terminal-border pb-4 md:pb-0 md:pr-4">
             <div className="text-terminal-green-dim text-[10px] uppercase tracking-wider mb-2">
               Dungeon Map
             </div>
             <Map viewport={activeMap} />
           </div>
 
-          {/* Text panel — ~65% width */}
-          <div className="flex-1 min-w-0">
+          {/* Text panel */}
+          <div className="flex-1 min-w-0 overflow-y-auto">
             <TextPanel room={activeRoom} gameLog={activeLog} />
           </div>
         </div>
@@ -436,6 +437,9 @@ export default function PlayPage() {
           />
         )}
       </TerminalModal>
+
+      {/* ── Help Modal ── */}
+      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { combatRouter } from "./routers/combat";
 import { storeRouter } from "./routers/store";
 import { npcRouter } from "./routers/npc";
 import { inventoryRouter } from "./routers/inventory";
+import { adminRouter } from "./routers/admin";
 
 export const appRouter = router({
   auth: authRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   store: storeRouter,
   npc: npcRouter,
   inventory: inventoryRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;

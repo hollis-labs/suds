@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jetbrainsMono.variable} dark`}>
+    <html lang="en" className={`${jetbrainsMono.variable} dark`} data-theme="green">
       <body className="antialiased">
         <Providers>{children}</Providers>
         <div className="scanline-overlay" aria-hidden="true" />

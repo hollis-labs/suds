@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { MapViewport, MapCell } from "@/lib/types";
 
@@ -89,16 +90,30 @@ function VerticalConnectorRow({
 }
 
 export function Map({ viewport, className }: MapProps) {
-  const { cells, height } = viewport;
+  const { cells, height, offsetX, offsetY } = viewport;
+  const prevOffsetRef = useRef({ x: offsetX, y: offsetY });
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    const prev = prevOffsetRef.current;
+    if (prev.x !== offsetX || prev.y !== offsetY) {
+      setIsTransitioning(true);
+      prevOffsetRef.current = { x: offsetX, y: offsetY };
+      const timer = setTimeout(() => setIsTransitioning(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [offsetX, offsetY]);
 
   return (
     <div
       className={cn(
-        "font-mono text-sm leading-tight select-none",
+        "font-mono text-sm leading-tight select-none overflow-hidden",
         className
       )}
     >
-      <pre className="m-0 p-0">
+      <pre
+        className={cn("m-0 p-0", isTransitioning && "transition-transform duration-300 ease-out")}
+      >
         {cells.map((row, rowIdx) => (
           <div key={`row-${rowIdx}`}>
             {/* Room row */}
@@ -107,8 +122,9 @@ export function Map({ viewport, className }: MapProps) {
                 <span
                   key={`cell-${rowIdx}-${colIdx}`}
                   className={cn(
-                    "inline-block text-center",
-                    cell.isCurrent && "bg-terminal-green/10"
+                    "inline-block text-center transition-colors duration-200",
+                    cell.isCurrent && "bg-terminal-green/10",
+                    cell.hasPlayer && isTransitioning && "animate-flash-green"
                   )}
                   style={{ width: "3ch" }}
                 >

@@ -88,7 +88,7 @@ export function ActionBar({ onAction, screen, className }: ActionBarProps) {
   return (
     <div
       className={cn(
-        "font-mono text-xs flex items-center gap-3 flex-wrap",
+        "font-mono text-xs flex items-center gap-3 flex-wrap md:flex-wrap overflow-x-auto md:overflow-x-visible flex-nowrap md:flex-wrap scrollbar-none",
         className
       )}
     >
