@@ -3,3 +3,7 @@ export { StatusBar } from "./StatusBar";
 export { ActionBar } from "./ActionBar";
 export { Map } from "./Map";
 export { TextPanel } from "./TextPanel";
+export { CombatPanel } from "./CombatPanel";
+export { LevelUpModal } from "./LevelUpModal";
+export { DeathScreen } from "./DeathScreen";
+export { VictoryScreen } from "./VictoryScreen";

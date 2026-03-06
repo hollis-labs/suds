@@ -319,7 +319,9 @@ export const gameRouter = router({
         buildRoomMap(allRooms)
       );
 
-      return { room, player, encounter, mapViewport };
+      const enterCombat = encounter !== null;
+
+      return { room, player, encounter, enterCombat, mapViewport };
     }),
 
   // ─── Get Map ────────────────────────────────────────────────────────────────
