@@ -19,19 +19,30 @@ export default function AdminPage() {
     retry: false,
   });
 
+  const isAdmin = adminCheck.data?.isAdmin === true;
+
   // Stats
   const stats = trpc.admin.getStats.useQuery(undefined, {
-    enabled: adminCheck.data?.isAdmin === true,
+    enabled: isAdmin,
+    refetchInterval: 30000,
   });
 
   // Users
   const userList = trpc.admin.listUsers.useQuery(undefined, {
-    enabled: adminCheck.data?.isAdmin === true,
+    enabled: isAdmin,
+    refetchInterval: 30000,
   });
 
   // Invites
   const inviteList = trpc.admin.listInvites.useQuery(undefined, {
-    enabled: adminCheck.data?.isAdmin === true,
+    enabled: isAdmin,
+    refetchInterval: 30000,
+  });
+
+  // Activity feed
+  const activity = trpc.admin.getActivity.useQuery(undefined, {
+    enabled: isAdmin,
+    refetchInterval: 30000,
   });
 
   // Generate invites mutation
@@ -55,7 +66,7 @@ export default function AdminPage() {
   }
 
   // Access denied
-  if (adminCheck.isError || !adminCheck.data?.isAdmin) {
+  if (adminCheck.isError || !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Terminal title="ADMIN" className="w-full max-w-3xl">
@@ -89,6 +100,7 @@ export default function AdminPage() {
     stats.refetch();
     userList.refetch();
     inviteList.refetch();
+    activity.refetch();
   }
 
   function timeAgo(date: Date | null): string {
@@ -112,13 +124,25 @@ export default function AdminPage() {
             <h1 className="text-terminal-amber text-lg font-bold">
               SUDS v2 ADMIN CONSOLE
             </h1>
-            <button
-              onClick={handleRefresh}
-              className="text-terminal-green hover:text-terminal-green-bright text-sm border border-terminal-border px-2 py-0.5 hover:border-terminal-green transition-colors"
-            >
-              [REFRESH]
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => router.push("/leaderboard")}
+                className="text-terminal-green hover:text-terminal-green-bright text-sm border border-terminal-border px-2 py-0.5 hover:border-terminal-green transition-colors"
+              >
+                [LEADERBOARD]
+              </button>
+              <button
+                onClick={handleRefresh}
+                className="text-terminal-green hover:text-terminal-green-bright text-sm border border-terminal-border px-2 py-0.5 hover:border-terminal-green transition-colors"
+              >
+                [REFRESH]
+              </button>
+            </div>
           </div>
+
+          <p className="text-terminal-dim text-xs">
+            Auto-refreshes every 30 seconds
+          </p>
 
           <div className="border-t border-terminal-border" />
 
@@ -128,7 +152,7 @@ export default function AdminPage() {
             {stats.isLoading ? (
               <p className="text-terminal-dim">Loading stats...</p>
             ) : stats.data ? (
-              <div className="space-y-1 pl-2">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1 pl-2">
                 <p>
                   Users:{" "}
                   <span className="text-terminal-green-bright">
@@ -158,6 +182,117 @@ export default function AdminPage() {
                   </span>{" "}
                   used
                 </p>
+                {activity.data && (
+                  <p>
+                    Active (24h):{" "}
+                    <span className="text-terminal-green-bright">
+                      {activity.data.activePlayers}
+                    </span>{" "}
+                    players
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </section>
+
+          <div className="border-t border-terminal-border" />
+
+          {/* Activity Feed */}
+          <section>
+            <h2 className="text-terminal-amber mb-2">=== ACTIVITY FEED ===</h2>
+            {activity.isLoading ? (
+              <p className="text-terminal-dim pl-2">Loading activity...</p>
+            ) : activity.data ? (
+              <div className="space-y-4 pl-2">
+                {/* Recent Signups */}
+                <div>
+                  <h3 className="text-terminal-green mb-1 text-sm font-bold">
+                    RECENT SIGNUPS
+                  </h3>
+                  {activity.data.recentSignups.length > 0 ? (
+                    <div className="space-y-0.5 pl-2">
+                      {activity.data.recentSignups.map((user) => (
+                        <p key={user.id} className="text-sm">
+                          <span className="text-terminal-green-bright">
+                            {user.email ?? user.name ?? "unknown"}
+                          </span>{" "}
+                          <span className="text-terminal-dim">
+                            — {timeAgo(user.createdAt)}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-terminal-dim text-sm pl-2">
+                      No signups yet.
+                    </p>
+                  )}
+                </div>
+
+                {/* Recent Characters */}
+                <div>
+                  <h3 className="text-terminal-green mb-1 text-sm font-bold">
+                    RECENT CHARACTERS
+                  </h3>
+                  {activity.data.recentCharacters.length > 0 ? (
+                    <div className="space-y-0.5 pl-2">
+                      {activity.data.recentCharacters.map((char) => (
+                        <p key={char.id} className="text-sm">
+                          <span className="text-terminal-green-bright">
+                            {char.name}
+                          </span>{" "}
+                          <span className="text-terminal-dim">—</span>{" "}
+                          <span className="text-terminal-amber">
+                            Lvl {char.level} {char.class}
+                          </span>{" "}
+                          <span className="text-terminal-dim">
+                            ({char.theme}) — {timeAgo(char.createdAt)}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-terminal-dim text-sm pl-2">
+                      No characters yet.
+                    </p>
+                  )}
+                </div>
+
+                {/* Top Characters */}
+                <div>
+                  <h3 className="text-terminal-green mb-1 text-sm font-bold">
+                    TOP CHARACTERS
+                  </h3>
+                  {activity.data.topCharacters.length > 0 ? (
+                    <div className="space-y-0.5 pl-2">
+                      {activity.data.topCharacters.map((char, i) => (
+                        <p key={char.id} className="text-sm">
+                          <span className="text-terminal-amber">
+                            #{i + 1}
+                          </span>{" "}
+                          <span className="text-terminal-green-bright">
+                            {char.name}
+                          </span>{" "}
+                          <span className="text-terminal-dim">—</span>{" "}
+                          Lvl {char.level} {char.class}{" "}
+                          <span className="text-terminal-dim">
+                            ({char.theme})
+                          </span>{" "}
+                          <span className="text-terminal-amber">
+                            {char.gold}g
+                          </span>{" "}
+                          <span className="text-terminal-dim">
+                            {char.xp} XP
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-terminal-dim text-sm pl-2">
+                      No characters yet.
+                    </p>
+                  )}
+                </div>
               </div>
             ) : null}
           </section>

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { sql, count, eq, isNotNull } from "drizzle-orm";
+import { sql, count, eq, isNotNull, desc, gte } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import {
@@ -125,5 +125,84 @@ export const adminRouter = router({
 
   isAdmin: protectedProcedure.query(({ ctx }) => {
     return { isAdmin: isAdmin(ctx.session.user?.email) };
+  }),
+
+  getActivity: adminProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [recentSignups, recentCharacters, topCharacters, [activeCount]] =
+      await Promise.all([
+        // Recent user signups (last 10)
+        ctx.db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt))
+          .limit(10),
+
+        // Recent character creations (last 10)
+        ctx.db
+          .select({
+            id: characters.id,
+            name: characters.name,
+            class: characters.class,
+            theme: characters.theme,
+            level: characters.level,
+            createdAt: characters.createdAt,
+          })
+          .from(characters)
+          .orderBy(desc(characters.createdAt))
+          .limit(10),
+
+        // Highest level characters (top 5)
+        ctx.db
+          .select({
+            id: characters.id,
+            name: characters.name,
+            class: characters.class,
+            theme: characters.theme,
+            level: characters.level,
+            xp: characters.xp,
+            gold: characters.gold,
+          })
+          .from(characters)
+          .orderBy(desc(characters.level), desc(characters.xp))
+          .limit(5),
+
+        // Active players count (characters updated in last 24h)
+        ctx.db
+          .select({ value: count() })
+          .from(characters)
+          .where(gte(characters.updatedAt, oneDayAgo)),
+      ]);
+
+    return {
+      recentSignups,
+      recentCharacters,
+      topCharacters,
+      activePlayers: activeCount?.value ?? 0,
+    };
+  }),
+
+  getLeaderboard: protectedProcedure.query(async ({ ctx }) => {
+    const topCharacters = await ctx.db
+      .select({
+        name: characters.name,
+        level: characters.level,
+        class: characters.class,
+        theme: characters.theme,
+        gold: characters.gold,
+        xp: characters.xp,
+      })
+      .from(characters)
+      .orderBy(desc(characters.level), desc(characters.xp))
+      .limit(20);
+
+    return topCharacters;
   }),
 });

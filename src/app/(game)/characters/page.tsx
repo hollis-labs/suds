@@ -53,6 +53,12 @@ export default function CharactersPage() {
         return;
       }
 
+      if (key === "h") {
+        e.preventDefault();
+        router.push("/leaderboard");
+        return;
+      }
+
       if (!characters) return;
       const num = parseInt(e.key, 10);
       if (num >= 1 && num <= characters.length) {
@@ -139,6 +145,12 @@ export default function CharactersPage() {
               className="block w-full text-left px-2 py-0.5 text-terminal-green-dim hover:text-terminal-green hover:terminal-glow transition-colors"
             >
               <span className="text-terminal-amber">[D]</span> Delete Character
+            </button>
+            <button
+              onClick={() => router.push("/leaderboard")}
+              className="block w-full text-left px-2 py-0.5 text-terminal-green-dim hover:text-terminal-green hover:terminal-glow transition-colors"
+            >
+              <span className="text-terminal-amber">[H]</span> Hall of Fame
             </button>
             <button
               onClick={() => router.push("/login")}
