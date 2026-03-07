@@ -217,6 +217,25 @@
   animation: dice-land 0.25s ease-out;
 }
 
+/* Thin terminal scrollbar for in-panel use */
+.terminal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 transparent;
+}
+.terminal-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.terminal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.terminal-scrollbar::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+.terminal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
 /* Hide scrollbar for horizontal scroll areas */
 .scrollbar-none {
   -ms-overflow-style: none;

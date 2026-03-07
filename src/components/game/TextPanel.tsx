@@ -46,6 +46,7 @@ function RoomTypeBadge({ type }: { type: string }) {
 }
 
 export function TextPanel({ room, gameLog, isLoading, className }: TextPanelProps) {
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const [lastRoomId, setLastRoomId] = useState<string | null>(null);
   const [prevLogLength, setPrevLogLength] = useState(0);
@@ -69,9 +70,14 @@ export function TextPanel({ room, gameLog, isLoading, className }: TextPanelProp
     }
   }, [gameLog.length, prevLogLength]);
 
-  // Auto-scroll game log
+  // Auto-scroll game log — scroll the container directly to avoid jumping outer elements
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = logContainerRef.current;
+    if (container) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
   }, [gameLog.length]);
 
   // Loading transition text
@@ -201,7 +207,7 @@ export function TextPanel({ room, gameLog, isLoading, className }: TextPanelProp
       <div className="shrink-0 border-t border-terminal-border my-1" />
 
       {/* Game log section */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div ref={logContainerRef} className="flex-1 overflow-y-auto min-h-0 terminal-scrollbar">
         <div className="space-y-0.5 text-[11px]">
           {gameLog.length === 0 ? (
             <p className="text-terminal-border-bright italic">

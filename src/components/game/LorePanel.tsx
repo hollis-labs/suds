@@ -84,7 +84,7 @@ export function LorePanel({ characterId, onClose, className }: LorePanelProps) {
                 : "text-terminal-border-bright hover:text-terminal-green-dim"
             )}
           >
-            [1] Lore
+            [1] Lore ({loreEntries.length})
           </button>
           <button
             onClick={() => setTab("notes")}
@@ -95,7 +95,7 @@ export function LorePanel({ characterId, onClose, className }: LorePanelProps) {
                 : "text-terminal-border-bright hover:text-terminal-green-dim"
             )}
           >
-            [2] Notes
+            [2] Notes ({notes.length})
           </button>
         </div>
         <button
@@ -108,7 +108,7 @@ export function LorePanel({ characterId, onClose, className }: LorePanelProps) {
 
       {/* Lore Tab */}
       {tab === "lore" && (
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 terminal-scrollbar">
           {loreQuery.isLoading ? (
             <div className="text-terminal-border-bright animate-pulse">
               Loading codex...
@@ -187,7 +187,7 @@ export function LorePanel({ characterId, onClose, className }: LorePanelProps) {
           </div>
 
           {/* Notes list */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0 terminal-scrollbar">
             {notesQuery.isLoading ? (
               <div className="text-terminal-border-bright animate-pulse">
                 Loading notes...

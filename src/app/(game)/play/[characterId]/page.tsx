@@ -924,23 +924,17 @@ export default function PlayCharacterPage() {
     (e: React.KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
-      // Don't intercept when modifier keys are held (e.g. Cmd+C for copy)
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      if (screen === "exploring") {
-        const handler = exploringKeyHandlers[e.key];
-        if (handler) {
-          e.preventDefault();
-          handler();
-        }
-      } else if (screen === "death") {
+      // Only handle keys NOT covered by useKeyboard (which handles exploring)
+      if (screen === "death") {
         if (e.key === "r" || e.key === "R") {
           e.preventDefault();
           handleRespawn();
         }
       }
     },
-    [screen, exploringKeyHandlers, handleRespawn]
+    [screen, handleRespawn]
   );
 
   // ── Loading state ──
@@ -1037,7 +1031,7 @@ export default function PlayCharacterPage() {
               /* ── Exploring View ── */
               <>
                 {/* Text panel (room desc + game log) */}
-                <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-hidden">
                   <TextPanel
                     room={currentRoom}
                     gameLog={gameLog}
