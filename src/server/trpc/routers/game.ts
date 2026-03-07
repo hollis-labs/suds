@@ -10,6 +10,7 @@ import { rollCheck, rollDice } from "@/server/game/dice";
 import { statModifier, GAME_CONFIG } from "@/lib/constants";
 import type { Theme, RoomType } from "@/lib/constants";
 import { generateRoomDescriptionAI, generateLoreFragmentAI } from "@/server/game/ai";
+import { logGameEvent } from "@/server/game/events";
 import itemsData from "@/server/gamedata/items.json";
 import type {
   Player,
@@ -346,6 +347,17 @@ export const gameRouter = router({
 
       const enterCombat = encounter !== null;
 
+      logGameEvent({
+        characterId: character.id,
+        characterName: character.name,
+        userId,
+        type: enterCombat ? "combat_start" : "move",
+        detail: enterCombat
+          ? `Encountered ${encounter!.monsters.map((m) => m.name).join(", ")} in ${room.name}`
+          : `Moved ${input.direction} to ${room.name}`,
+        metadata: { x: targetX, y: targetY, direction: input.direction, roomType: room.type },
+      });
+
       return { room, player, encounter, enterCombat, mapViewport };
     }),
 
@@ -470,6 +482,19 @@ export const gameRouter = router({
           results.message = fragment;
         }
 
+        logGameEvent({
+          characterId: character.id,
+          characterName: character.name,
+          userId,
+          type: "search",
+          detail: results.items
+            ? `Found ${results.items.length} item(s)`
+            : results.newExits
+              ? "Discovered hidden passage"
+              : "Found lore fragment",
+          metadata: { x: position.x, y: position.y, roll: check.total },
+        });
+
         return results;
       }
 
@@ -478,6 +503,15 @@ export const gameRouter = router({
         .update(rooms)
         .set({ roomFeatures: updatedFeatures })
         .where(eq(rooms.id, currentRoom.id));
+
+      logGameEvent({
+        characterId: character.id,
+        characterName: character.name,
+        userId,
+        type: "search",
+        detail: "Search failed",
+        metadata: { x: position.x, y: position.y, roll: check.total },
+      });
 
       return {
         success: false,
@@ -766,6 +800,15 @@ export const gameRouter = router({
         ? `You rest by the campfire. Restored ${hpGained} HP and ${mpGained} MP.`
         : `You take a moment to rest. Restored ${hpGained} HP and ${mpGained} MP.`;
 
+      logGameEvent({
+        characterId: character.id,
+        characterName: character.name,
+        userId,
+        type: "rest",
+        detail: `Rested (+${hpGained} HP, +${mpGained} MP)`,
+        metadata: { x: position.x, y: position.y, hpGained, mpGained, campfire: hasCampfire },
+      });
+
       return { player, message };
     }),
 
@@ -894,6 +937,15 @@ export const gameRouter = router({
       } else {
         message += " The shrine grows dim...";
       }
+
+      logGameEvent({
+        characterId: character.id,
+        characterName: character.name,
+        userId,
+        type: "shrine",
+        detail: `Used ${shrineData.shrineType} shrine`,
+        metadata: { x: position.x, y: position.y, shrineType: shrineData.shrineType },
+      });
 
       return { player, message };
     }),

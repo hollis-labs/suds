@@ -289,6 +289,36 @@ export const playerNotes = pgTable("player_notes", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });
 
+// ─── Game Events ────────────────────────────────────────────────────────────
+
+export const gameEvents = pgTable("game_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  characterId: uuid("character_id")
+    .notNull()
+    .references(() => characters.id, { onDelete: "cascade" }),
+  characterName: text("character_name").notNull(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  type: text("type").notNull(),
+  detail: text("detail"),
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
+// ─── AI Usage ───────────────────────────────────────────────────────────────
+
+export const aiUsage = pgTable("ai_usage", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  model: text("model").notNull(),
+  feature: text("feature").notNull(),
+  inputTokens: integer("input_tokens").notNull(),
+  outputTokens: integer("output_tokens").notNull(),
+  durationMs: integer("duration_ms"),
+  characterId: uuid("character_id"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
 // ─── Type Exports ────────────────────────────────────────────────────────────
 
 export type User = InferSelectModel<typeof users>;
@@ -341,3 +371,9 @@ export type NewLoreEntry = InferInsertModel<typeof loreEntries>;
 
 export type PlayerNote = InferSelectModel<typeof playerNotes>;
 export type NewPlayerNote = InferInsertModel<typeof playerNotes>;
+
+export type GameEvent = InferSelectModel<typeof gameEvents>;
+export type NewGameEvent = InferInsertModel<typeof gameEvents>;
+
+export type AiUsage = InferSelectModel<typeof aiUsage>;
+export type NewAiUsage = InferInsertModel<typeof aiUsage>;

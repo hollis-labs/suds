@@ -7,6 +7,8 @@ import {
   characters,
   rooms,
   invites,
+  gameEvents,
+  aiUsage,
 } from "@/server/db/schema";
 import crypto from "crypto";
 
@@ -186,6 +188,75 @@ export const adminRouter = router({
       recentCharacters,
       topCharacters,
       activePlayers: activeCount?.value ?? 0,
+    };
+  }),
+
+  getGameEvents: adminProcedure
+    .input(z.object({ limit: z.number().min(1).max(200).default(50) }).optional())
+    .query(async ({ ctx, input }) => {
+      const eventLimit = input?.limit ?? 50;
+      const events = await ctx.db
+        .select()
+        .from(gameEvents)
+        .orderBy(desc(gameEvents.createdAt))
+        .limit(eventLimit);
+
+      return events;
+    }),
+
+  getAIUsage: adminProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [dailyStats, weeklyStats, recentCalls] = await Promise.all([
+      // Last 24h totals
+      ctx.db
+        .select({
+          totalCalls: count(),
+          totalInput: sql<number>`coalesce(sum(${aiUsage.inputTokens}), 0)::int`,
+          totalOutput: sql<number>`coalesce(sum(${aiUsage.outputTokens}), 0)::int`,
+        })
+        .from(aiUsage)
+        .where(gte(aiUsage.createdAt, oneDayAgo)),
+      // Last 7d totals
+      ctx.db
+        .select({
+          totalCalls: count(),
+          totalInput: sql<number>`coalesce(sum(${aiUsage.inputTokens}), 0)::int`,
+          totalOutput: sql<number>`coalesce(sum(${aiUsage.outputTokens}), 0)::int`,
+        })
+        .from(aiUsage)
+        .where(gte(aiUsage.createdAt, oneWeekAgo)),
+      // Last 20 calls
+      ctx.db
+        .select()
+        .from(aiUsage)
+        .orderBy(desc(aiUsage.createdAt))
+        .limit(20),
+    ]);
+
+    const daily = dailyStats[0]!;
+    const weekly = weeklyStats[0]!;
+
+    // Rough cost estimate: Haiku input $0.80/MTok, output $4/MTok
+    const estimateCost = (input: number, output: number) =>
+      (input / 1_000_000) * 0.80 + (output / 1_000_000) * 4.0;
+
+    return {
+      daily: {
+        calls: daily.totalCalls,
+        inputTokens: daily.totalInput,
+        outputTokens: daily.totalOutput,
+        estimatedCost: estimateCost(daily.totalInput, daily.totalOutput),
+      },
+      weekly: {
+        calls: weekly.totalCalls,
+        inputTokens: weekly.totalInput,
+        outputTokens: weekly.totalOutput,
+        estimatedCost: estimateCost(weekly.totalInput, weekly.totalOutput),
+      },
+      recentCalls,
     };
   }),
 

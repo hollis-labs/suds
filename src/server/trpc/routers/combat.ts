@@ -15,6 +15,7 @@ import { calculateLevelUp } from "@/server/game/player";
 import { directionToOffset, computeMapViewport, roomKey } from "@/server/game/map";
 import { generateAdventurer, rollAdventurerAppearance, rollAdventurerHelps } from "@/server/game/companion";
 import { GAME_CONFIG } from "@/lib/constants";
+import { logGameEvent } from "@/server/game/events";
 import type { CharacterClass, Theme } from "@/lib/constants";
 import type {
   Player,
@@ -920,6 +921,25 @@ export const combatRouter = router({
             .where(eq(inventoryItems.characterId, character.id));
           const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
 
+          logGameEvent({
+            characterId: character.id,
+            characterName: character.name,
+            userId,
+            type: "combat_victory",
+            detail: `Defeated ${turnResult.state.monsters.map((m: Monster) => m.name).join(", ")} (+${rewards.xp} XP, +${totalGold}g)`,
+            metadata: { xp: rewards.xp, gold: totalGold, loot: lootItems.length },
+          });
+          if (levelUp) {
+            logGameEvent({
+              characterId: character.id,
+              characterName: character.name,
+              userId,
+              type: "level_up",
+              detail: `Leveled up to ${levelUp.newLevel}`,
+              metadata: { newLevel: levelUp.newLevel },
+            });
+          }
+
           return {
             combatOver: true as const,
             victory: true as const,
@@ -1053,6 +1073,15 @@ export const combatRouter = router({
               // Get full room data for client transition
               const fleeRoomData = await getFleeRoomData(ctx.db, character.id, newX, newY);
 
+              logGameEvent({
+                characterId: character.id,
+                characterName: character.name,
+                userId,
+                type: "combat_flee",
+                detail: `Fled ${exitDir} (chased!)`,
+                metadata: { direction: exitDir, chased: true },
+              });
+
               return {
                 combatOver: true as const,
                 victory: false as const,
@@ -1147,6 +1176,15 @@ export const combatRouter = router({
               }
             }
 
+            logGameEvent({
+              characterId: character.id,
+              characterName: character.name,
+              userId,
+              type: "combat_flee",
+              detail: `Fled ${exitDir} successfully`,
+              metadata: { direction: exitDir, chased: false },
+            });
+
             return {
               combatOver: true as const,
               victory: false as const,
@@ -1164,6 +1202,15 @@ export const combatRouter = router({
 
         // ── Defeat ──────────────────────────────────────────────────────────
         const deathResult = await calculateDeathPenalty(character, ctx.db);
+
+        logGameEvent({
+          characterId: character.id,
+          characterName: character.name,
+          userId,
+          type: "death",
+          detail: `Defeated in combat (-${deathResult.goldLost}g)`,
+          metadata: { goldLost: deathResult.goldLost },
+        });
 
         // Refresh player
         const [updatedChar] = await ctx.db
@@ -1272,6 +1319,15 @@ export const combatRouter = router({
           message: "Respawn room not found",
         });
       }
+
+      logGameEvent({
+        characterId: character.id,
+        characterName: character.name,
+        userId,
+        type: "respawn",
+        detail: `Respawned at ${respawnRoom.name} (-${deathResult.goldLost}g)`,
+        metadata: { goldLost: deathResult.goldLost, x: deathResult.respawnPosition.x, y: deathResult.respawnPosition.y },
+      });
 
       return {
         player,

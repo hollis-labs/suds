@@ -1,17 +1,58 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { trpc } from "@/lib/trpc";
 import { Terminal, TerminalText } from "@/components/terminal";
+
+type LeaderboardEntry = {
+  name: string;
+  level: number;
+  class: string;
+  theme: string;
+  gold: number;
+  xp: number;
+};
+
+function useLeaderboardSSE() {
+  const [data, setData] = useState<LeaderboardEntry[] | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    const es = new EventSource("/api/leaderboard");
+    eventSourceRef.current = es;
+
+    es.onopen = () => {
+      setIsConnected(true);
+    };
+
+    es.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data) as LeaderboardEntry[];
+        setData(parsed);
+        setIsConnected(true);
+      } catch {
+        // Ignore malformed messages
+      }
+    };
+
+    es.onerror = () => {
+      setIsConnected(false);
+    };
+
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, []);
+
+  return { data, isLoading: data === null, isConnected };
+}
 
 export default function LeaderboardPage() {
   const router = useRouter();
 
-  const { data: leaderboard, isLoading } = trpc.admin.getLeaderboard.useQuery(
-    undefined,
-    { refetchInterval: 30000 }
-  );
+  const { data: leaderboard, isLoading, isConnected } = useLeaderboardSSE();
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -48,9 +89,17 @@ export default function LeaderboardPage() {
       <Terminal title="LEADERBOARD" className="w-full max-w-2xl">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-terminal-amber text-lg font-bold">
-              HALL OF FAME — TOP ADVENTURERS
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-terminal-amber text-lg font-bold">
+                HALL OF FAME — TOP ADVENTURERS
+              </h1>
+              {isConnected && (
+                <span className="flex items-center gap-1 text-xs text-terminal-green">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  LIVE
+                </span>
+              )}
+            </div>
             <button
               onClick={() => router.push("/characters")}
               className="text-terminal-green hover:text-terminal-green-bright text-sm border border-terminal-border px-2 py-0.5 hover:border-terminal-green transition-colors"
@@ -121,7 +170,7 @@ export default function LeaderboardPage() {
           <div className="border-t border-terminal-border" />
 
           <p className="text-terminal-dim text-xs">
-            Ranked by level, then XP. Auto-refreshes every 30 seconds. Press{" "}
+            Ranked by level, then XP. Live updates every 10 seconds. Press{" "}
             <span className="text-terminal-amber">[Q]</span> or{" "}
             <span className="text-terminal-amber">[Esc]</span> to return.
           </p>

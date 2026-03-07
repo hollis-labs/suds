@@ -126,6 +126,12 @@ export default function AdminPage() {
             </h1>
             <div className="flex gap-2">
               <button
+                onClick={() => router.push("/activity")}
+                className="text-terminal-green hover:text-terminal-green-bright text-sm border border-terminal-border px-2 py-0.5 hover:border-terminal-green transition-colors"
+              >
+                [ACTIVITY]
+              </button>
+              <button
                 onClick={() => router.push("/leaderboard")}
                 className="text-terminal-green hover:text-terminal-green-bright text-sm border border-terminal-border px-2 py-0.5 hover:border-terminal-green transition-colors"
               >

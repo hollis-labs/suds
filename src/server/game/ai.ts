@@ -10,6 +10,8 @@ import { generateRoomDescription } from "@/server/game/world";
 import { generateDialogueTree } from "@/server/game/npc";
 import { sanitizeAIContent } from "@/server/game/safety";
 import themesData from "@/server/gamedata/themes.json";
+import { db } from "@/server/db";
+import { aiUsage } from "@/server/db/schema";
 
 // ─── Singleton Client ────────────────────────────────────────────────────────
 
@@ -79,12 +81,14 @@ async function callClaude(
   systemPrompt: string,
   userPrompt: string,
   maxTokens: number,
+  feature: string,
 ): Promise<string> {
   const client = getClient();
   if (!client) {
     throw new Error("AI client not available");
   }
 
+  const start = Date.now();
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: maxTokens,
@@ -92,6 +96,16 @@ async function callClaude(
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
+  const durationMs = Date.now() - start;
+
+  // Fire and forget — don't block the response
+  db.insert(aiUsage).values({
+    model: MODEL,
+    feature,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    durationMs,
+  }).catch(() => {}); // silent fail
 
   const block = response.content[0];
   if (!block || block.type !== "text") {
@@ -134,7 +148,7 @@ export async function generateRoomDescriptionAI(
       `Do not include the room name in the description. ` +
       `Do not use second person ("you"). Use present tense descriptions of the space itself.`;
 
-    return await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 200);
+    return await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 200, "room_description");
   } catch {
     return generateRoomDescription(theme, roomType);
   }
@@ -179,7 +193,7 @@ export async function generateNPCDialogueAI(
       `- All dialogue should be in-character for "${npcName}" and fit the theme\n` +
       `- Keep each text field to 1-3 sentences`;
 
-    const raw = await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 400);
+    const raw = await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 400, "npc_dialogue");
 
     const parsed = JSON.parse(raw) as Record<string, DialogueNode>;
 
@@ -239,7 +253,7 @@ export async function generateLoreFragmentAI(
       `"Carved into the wall:" or "A faded note reads:" before the actual content.\n` +
       `Match the theme's tone precisely.`;
 
-    return await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 200);
+    return await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 200, "lore_fragment");
   } catch {
     return pickFallbackLore(theme);
   }
@@ -288,7 +302,7 @@ export async function generateQuestAI(
       `}\n\n` +
       `The quest should feel personal to the NPC and fit the theme.`;
 
-    const raw = await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 300);
+    const raw = await callClaude(THEME_SYSTEM_PROMPTS[theme], prompt, 300, "quest");
     const parsed = JSON.parse(raw) as QuestDescription;
 
     // Validate fields
