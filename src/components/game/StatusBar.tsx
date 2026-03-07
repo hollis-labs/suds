@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Player } from "@/lib/types";
 
@@ -23,6 +24,43 @@ function hpColor(current: number, max: number): string {
 }
 
 export function StatusBar({ player, className }: StatusBarProps) {
+  const prevHpRef = useRef<number | null>(null);
+  const prevMpRef = useRef<number | null>(null);
+  const [hpAnim, setHpAnim] = useState<"damage" | "heal" | null>(null);
+  const [mpAnim, setMpAnim] = useState<"damage" | "heal" | null>(null);
+
+  // Detect HP changes for animation
+  useEffect(() => {
+    if (!player || prevHpRef.current === null) {
+      prevHpRef.current = player?.hp ?? null;
+      return;
+    }
+    if (player.hp < prevHpRef.current) {
+      setHpAnim("damage");
+    } else if (player.hp > prevHpRef.current) {
+      setHpAnim("heal");
+    }
+    prevHpRef.current = player.hp;
+    const timer = setTimeout(() => setHpAnim(null), 800);
+    return () => clearTimeout(timer);
+  }, [player?.hp]);
+
+  // Detect MP changes for animation
+  useEffect(() => {
+    if (!player || prevMpRef.current === null) {
+      prevMpRef.current = player?.mp ?? null;
+      return;
+    }
+    if (player.mp < prevMpRef.current) {
+      setMpAnim("damage");
+    } else if (player.mp > prevMpRef.current) {
+      setMpAnim("heal");
+    }
+    prevMpRef.current = player.mp;
+    const timer = setTimeout(() => setMpAnim(null), 800);
+    return () => clearTimeout(timer);
+  }, [player?.mp]);
+
   if (!player) {
     return (
       <div
@@ -61,7 +99,11 @@ export function StatusBar({ player, className }: StatusBarProps) {
       {/* Line 2: Bars */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* HP */}
-        <span className="text-terminal-green-dim">
+        <span className={cn(
+          "text-terminal-green-dim transition-all",
+          hpAnim === "damage" && "animate-bar-damage",
+          hpAnim === "heal" && "animate-bar-heal"
+        )}>
           HP:{" "}
           <span className={hpColor(player.hp, player.hpMax)}>
             [{asciiBar(player.hp, player.hpMax)}]
@@ -72,7 +114,11 @@ export function StatusBar({ player, className }: StatusBarProps) {
         </span>
 
         {/* MP */}
-        <span className="text-terminal-green-dim">
+        <span className={cn(
+          "text-terminal-green-dim transition-all",
+          mpAnim === "damage" && "animate-bar-damage",
+          mpAnim === "heal" && "animate-bar-heal"
+        )}>
           MP:{" "}
           <span className="text-terminal-blue">
             [{asciiBar(player.mp, player.mpMax)}]
@@ -98,6 +144,32 @@ export function StatusBar({ player, className }: StatusBarProps) {
             {player.xp}/{player.xpNext}
           </span>
         </span>
+
+        {/* Companion */}
+        {player.companion && player.companion.hp > 0 && (
+          <span className="text-terminal-blue">
+            Ally: {player.companion.name} ({player.companion.hp}/{player.companion.hpMax})
+          </span>
+        )}
+
+        {/* Active Buffs */}
+        {player.buffs && player.buffs.length > 0 && player.buffs.map((buff, i) => {
+          if (buff.type === "shield" && buff.value > 0) {
+            return (
+              <span key={`buff-${i}`} className="text-terminal-blue">
+                Shield: {buff.value}
+              </span>
+            );
+          }
+          if (buff.type === "blessing" && buff.combatsRemaining && buff.combatsRemaining > 0) {
+            return (
+              <span key={`buff-${i}`} className="text-terminal-amber">
+                {buff.stat === "attack" ? `+${buff.value} ATK` : `+${buff.value} AC`} ({buff.combatsRemaining})
+              </span>
+            );
+          }
+          return null;
+        })}
       </div>
     </div>
   );

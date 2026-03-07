@@ -35,6 +35,24 @@ export interface Equipment {
   accessory?: GameItem;
 }
 
+// Active buffs (shield, blessing, etc.)
+export interface PlayerBuff {
+  type: "shield" | "blessing";
+  /** For shield: remaining absorb points. For blessing: bonus value. */
+  value: number;
+  /** For blessing: "attack" or "ac" */
+  stat?: "attack" | "ac";
+  /** For blessing: combats remaining before expiry */
+  combatsRemaining?: number;
+}
+
+// Shrine data stored in roomFeatures
+export interface ShrineData {
+  shrineType: "healing" | "shield" | "blessing";
+  usesRemaining: number;
+  maxUses: number;
+}
+
 // Player
 export interface Player {
   id: string;
@@ -56,6 +74,8 @@ export interface Player {
   abilities: string[];
   lastSafe: Position;
   baseLevel: number;
+  companion?: Companion | null;
+  buffs?: PlayerBuff[];
 }
 
 // Room
@@ -74,6 +94,21 @@ export interface Room {
   lootData: GameItem[] | null;
   visited: boolean;
   roomFeatures: Record<string, unknown>;
+}
+
+// Companion (NPC adventurer ally)
+export interface Companion {
+  id: string;
+  name: string;
+  class: string;
+  level: number;
+  hp: number;
+  hpMax: number;
+  ac: number;
+  attack: number;
+  damage: string; // dice notation
+  abilities: string[];
+  personality: string;
 }
 
 // Monster
@@ -99,7 +134,8 @@ export interface MonsterEncounter {
 export interface CombatState {
   id: string;
   monsters: Monster[];
-  turnOrder: { type: "player" | "monster"; index?: number }[];
+  companion?: Companion | null;
+  turnOrder: { type: "player" | "monster" | "companion"; index?: number }[];
   currentTurn: number;
   round: number;
   log: CombatLogEntry[];
@@ -190,5 +226,7 @@ export interface GameState {
     | "inventory"
     | "character"
     | "death"
-    | "level_up";
+    | "level_up"
+    | "lore"
+    | "party";
 }

@@ -1,5 +1,6 @@
 import type { MonsterEncounter, Monster } from "@/lib/types";
 import type { Theme } from "@/lib/constants";
+import { GAME_CONFIG } from "@/lib/constants";
 import { roll } from "@/server/game/dice";
 import monstersData from "@/server/gamedata/monsters.json";
 
@@ -17,13 +18,6 @@ interface MonsterTemplate {
 }
 
 const MONSTERS: MonsterTemplate[] = monstersData as MonsterTemplate[];
-
-/**
- * Pick a random element from an array.
- */
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]!;
-}
 
 /**
  * Generate a unique monster ID for this encounter instance.
@@ -45,56 +39,100 @@ function scaleMonsterHp(template: MonsterTemplate): number {
 }
 
 /**
- * Generate a monster encounter for the player.
- *
- * @param playerLevel - The player's current level
- * @param depth - How far from origin the room is (Manhattan distance)
- * @param theme - The dungeon theme
- * @returns A MonsterEncounter with 1-3 monsters
+ * Weighted random selection: monsters closer to player level get higher weight.
+ * Weight = max(1, 5 - |monsterLevel - playerLevel|)
+ * So same-level = 5, ±1 = 4, ±2 = 3, ±3 = 2
  */
-export function generateEncounter(
-  playerLevel: number,
-  depth: number,
-  theme: Theme
-): MonsterEncounter {
-  // Filter monsters by level range (playerLevel +/- 2) and theme match
-  const eligible = MONSTERS.filter((m) => {
-    const levelOk = m.level >= playerLevel - 2 && m.level <= playerLevel + 2;
+function weightedPick(pool: MonsterTemplate[], playerLevel: number): MonsterTemplate {
+  const weights = pool.map((m) => Math.max(1, 5 - Math.abs(m.level - playerLevel)));
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  let r = Math.random() * totalWeight;
+
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i]!;
+    if (r <= 0) return pool[i]!;
+  }
+  return pool[pool.length - 1]!;
+}
+
+/**
+ * Build eligible monster pool filtered by level range and theme.
+ */
+function buildPool(playerLevel: number, theme: Theme): MonsterTemplate[] {
+  const minLevel = Math.max(1, playerLevel + GAME_CONFIG.ENCOUNTER_LEVEL_MIN_OFFSET);
+  const maxLevel = playerLevel + GAME_CONFIG.ENCOUNTER_LEVEL_MAX_OFFSET;
+
+  // Primary: level range + theme match
+  const themed = MONSTERS.filter((m) => {
+    const levelOk = m.level >= minLevel && m.level <= maxLevel;
     const themeOk = m.themes.includes(theme);
     return levelOk && themeOk;
   });
+  if (themed.length > 0) return themed;
 
-  // Fallback: if no theme match, allow all monsters in level range
-  const pool =
-    eligible.length > 0
-      ? eligible
-      : MONSTERS.filter(
-          (m) => m.level >= playerLevel - 2 && m.level <= playerLevel + 2
-        );
+  // Fallback: level range only (any theme)
+  const levelOnly = MONSTERS.filter(
+    (m) => m.level >= minLevel && m.level <= maxLevel
+  );
+  if (levelOnly.length > 0) return levelOnly;
 
-  // If still nothing (edge case), just pick from all monsters
-  const finalPool = pool.length > 0 ? pool : MONSTERS;
+  // Last resort: find closest monsters by level
+  const sorted = [...MONSTERS].sort(
+    (a, b) => Math.abs(a.level - playerLevel) - Math.abs(b.level - playerLevel)
+  );
+  return sorted.slice(0, 5);
+}
 
-  // Determine number of monsters: 1-3 based on depth
-  // Deeper = more chance of multiple monsters
-  let monsterCount: number;
-  const multiRoll = Math.random();
-  if (depth >= 8 && multiRoll < 0.3) {
-    monsterCount = 3;
-  } else if (depth >= 4 && multiRoll < 0.5) {
-    monsterCount = 2;
-  } else if (depth >= 2 && multiRoll < 0.3) {
-    monsterCount = 2;
-  } else {
-    monsterCount = 1;
+/**
+ * Determine encounter group using a difficulty budget.
+ *
+ * Budget = ENCOUNTER_DIFFICULTY_BUDGET (default 1.5).
+ * Each monster costs (monsterLevel / playerLevel).
+ * Keeps adding monsters until budget is spent, up to 3 max.
+ */
+function selectMonsters(
+  pool: MonsterTemplate[],
+  playerLevel: number
+): MonsterTemplate[] {
+  const budget = GAME_CONFIG.ENCOUNTER_DIFFICULTY_BUDGET;
+  const selected: MonsterTemplate[] = [];
+  let spent = 0;
+  const maxMonsters = 3;
+
+  // Always pick at least one
+  const first = weightedPick(pool, playerLevel);
+  selected.push(first);
+  spent += first.level / Math.max(1, playerLevel);
+
+  // Try adding more monsters within budget
+  for (let i = 1; i < maxMonsters; i++) {
+    const candidate = weightedPick(pool, playerLevel);
+    const cost = candidate.level / Math.max(1, playerLevel);
+    if (spent + cost > budget) break;
+    selected.push(candidate);
+    spent += cost;
   }
 
-  const monsters: Monster[] = [];
-  for (let i = 0; i < monsterCount; i++) {
-    const template = pickRandom(finalPool);
-    const hp = scaleMonsterHp(template);
+  return selected;
+}
 
-    monsters.push({
+/**
+ * Generate a monster encounter scaled to the player's level.
+ *
+ * Uses configurable level offsets, weighted random selection (favoring
+ * monsters near player level), and a difficulty budget to control group size.
+ */
+export function generateEncounter(
+  playerLevel: number,
+  _depth: number,
+  theme: Theme
+): MonsterEncounter {
+  const pool = buildPool(playerLevel, theme);
+  const templates = selectMonsters(pool, playerLevel);
+
+  const monsters: Monster[] = templates.map((template) => {
+    const hp = scaleMonsterHp(template);
+    return {
       id: generateMonsterId(),
       name: template.name,
       level: template.level,
@@ -106,8 +144,8 @@ export function generateEncounter(
       xp: template.xp,
       abilities: [...template.abilities],
       description: `A level ${template.level} ${template.name}.`,
-    });
-  }
+    };
+  });
 
   return { monsters };
 }

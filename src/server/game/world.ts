@@ -205,8 +205,20 @@ function generateRoomFeatures(
   switch (roomType) {
     case "safe_room":
       return { campfire: true };
-    case "shrine":
-      return { altar: true, blessing_available: true };
+    case "shrine": {
+      const shrineTypes = ["healing", "shield", "blessing"] as const;
+      const shrineType = shrineTypes[roll(shrineTypes.length) - 1]!;
+      const maxUses = roll(3); // 1-3 uses
+      return {
+        altar: true,
+        blessing_available: true,
+        shrine: {
+          shrineType,
+          usesRemaining: maxUses,
+          maxUses,
+        },
+      };
+    }
     case "trap_room": {
       const trapIdx = roll(TRAP_TYPES.length) - 1;
       return {

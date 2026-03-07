@@ -1,6 +1,7 @@
 import type {
   Player,
   Monster,
+  Companion,
   MonsterEncounter,
   CombatState,
   CombatLogEntry,
@@ -27,6 +28,7 @@ export interface CombatExtra {
   playerBuffs: Buff[];
   monsterBuffs: Map<number, Buff[]>; // keyed by monster index
   roundNumber: number;
+  aggro: number; // 0-10, affects chase rolls. Starts at monster level avg, cools each flee.
 }
 
 function createCombatExtra(): CombatExtra {
@@ -34,6 +36,7 @@ function createCombatExtra(): CombatExtra {
     playerBuffs: [],
     monsterBuffs: new Map(),
     roundNumber: 1,
+    aggro: 5,
   };
 }
 
@@ -46,7 +49,30 @@ function cloneCombatExtra(extra: CombatExtra): CombatExtra {
     playerBuffs: extra.playerBuffs.map((b) => ({ ...b })),
     monsterBuffs,
     roundNumber: extra.roundNumber,
+    aggro: extra.aggro,
   };
+}
+
+/**
+ * Roll chase check for each alive monster.
+ * Chase DC = 10. Roll = d20 + aggro modifier.
+ * Returns array of monster indexes that give chase.
+ */
+export function rollChase(
+  monsters: Monster[],
+  aggro: number
+): { chasers: number[]; aggroAfter: number } {
+  const chasers: number[] = [];
+  for (let i = 0; i < monsters.length; i++) {
+    if (monsters[i]!.hp <= 0) continue;
+    const chaseRoll = rollD20() + Math.floor(aggro / 2);
+    if (chaseRoll >= 10) {
+      chasers.push(i);
+    }
+  }
+  // Aggro cools by 2 each flee attempt (min 0)
+  const aggroAfter = Math.max(0, aggro - 2);
+  return { chasers, aggroAfter };
 }
 
 function getPlayerACBonus(extra: CombatExtra): number {
@@ -342,14 +368,21 @@ function generateCombatId(): string {
 
 export function initCombat(
   player: Player,
-  encounter: MonsterEncounter
+  encounter: MonsterEncounter,
+  companion?: Companion | null,
 ): { state: CombatState; extra: CombatExtra } {
   const dexMod = statModifier(player.stats.dex);
   const playerInit = rollD20() + dexMod;
 
-  const initiatives: { type: "player" | "monster"; index?: number; init: number }[] = [
+  const initiatives: { type: "player" | "monster" | "companion"; index?: number; init: number }[] = [
     { type: "player", init: playerInit },
   ];
+
+  // Add companion to initiative if present and alive
+  if (companion && companion.hp > 0) {
+    const companionInit = rollD20() + Math.floor(companion.attack / 3);
+    initiatives.push({ type: "companion", init: companionInit });
+  }
 
   encounter.monsters.forEach((monster, i) => {
     const monsterDexApprox = Math.floor(monster.attack / 3);
@@ -360,20 +393,28 @@ export function initCombat(
   // Sort by initiative descending (highest goes first)
   initiatives.sort((a, b) => b.init - a.init);
 
-  const turnOrder = initiatives.map(({ type, index }) =>
-    type === "player" ? { type: "player" as const } : { type: "monster" as const, index }
-  );
+  const turnOrder = initiatives.map(({ type, index }) => {
+    if (type === "player") return { type: "player" as const };
+    if (type === "companion") return { type: "companion" as const };
+    return { type: "monster" as const, index };
+  });
 
   const state: CombatState = {
     id: generateCombatId(),
     monsters: encounter.monsters.map((m) => ({ ...m })),
+    companion: companion && companion.hp > 0 ? { ...companion } : null,
     turnOrder,
     currentTurn: 0,
     round: 1,
     log: [],
   };
 
-  return { state, extra: createCombatExtra() };
+  const extra = createCombatExtra();
+  // Initial aggro = average monster level, clamped 2-8
+  const avgLevel = encounter.monsters.reduce((s, m) => s + m.level, 0) / encounter.monsters.length;
+  extra.aggro = Math.min(8, Math.max(2, Math.round(avgLevel)));
+
+  return { state, extra };
 }
 
 // ---------------------------------------------------------------------------
@@ -399,6 +440,7 @@ export function resolveTurn(
   const newState: CombatState = {
     ...state,
     monsters: state.monsters.map((m) => ({ ...m })),
+    companion: state.companion ? { ...state.companion } : null,
     turnOrder: state.turnOrder.map((t) => ({ ...t })),
     log: [...state.log],
   };
@@ -419,6 +461,8 @@ export function resolveTurn(
 
   if (currentTurnEntry.type === "player") {
     resolvePlayerTurn(newState, newPlayer, newExtra, action, targetIndex, itemId, result);
+  } else if (currentTurnEntry.type === "companion") {
+    resolveCompanionTurn(newState, newPlayer, newExtra, result);
   } else {
     resolveMonsterTurn(newState, newPlayer, newExtra, currentTurnEntry.index!, result);
   }
@@ -660,7 +704,7 @@ function resolvePlayerFlee(
   result: CombatLogEntry[]
 ): void {
   const dexMod = statModifier(player.stats.dex);
-  const check = rollCheck(dexMod, 12);
+  const check = rollCheck(dexMod, 10);
 
   if (check.success) {
     // Signal flee by setting a special marker on the state
@@ -766,6 +810,13 @@ function resolveMonsterAttack(
   result: CombatLogEntry[]
 ): void {
   const monster = state.monsters[monsterIndex]!;
+
+  // 30% chance to target companion if alive
+  if (state.companion && state.companion.hp > 0 && Math.random() < 0.30) {
+    resolveMonsterAttackCompanion(state, monster, result);
+    return;
+  }
+
   const playerAC = player.ac + getPlayerACBonus(extra);
   const check = rollCheck(monster.attack, playerAC);
 
@@ -779,6 +830,9 @@ function resolveMonsterAttack(
     // Apply damage absorption
     const { remaining } = absorbDamage(extra, damage);
     player.hp = Math.max(0, player.hp - remaining);
+
+    // Hitting the player increases aggro (blood in the water)
+    extra.aggro = Math.min(10, extra.aggro + 1);
 
     // Clean up expired absorb buffs
     extra.playerBuffs = extra.playerBuffs.filter((b) => b.roundsRemaining > 0);
@@ -800,6 +854,43 @@ function resolveMonsterAttack(
       action: "attack",
       target: player.name,
       result: "Misses",
+      damage: 0,
+    });
+  }
+}
+
+function resolveMonsterAttackCompanion(
+  state: CombatState,
+  monster: Monster,
+  result: CombatLogEntry[]
+): void {
+  const companion = state.companion!;
+  const check = rollCheck(monster.attack, companion.ac);
+
+  if (check.success) {
+    let damage = rollDice(monster.damage);
+    if (check.critical) damage += rollDice(monster.damage);
+    damage = Math.max(1, damage);
+    companion.hp = Math.max(0, companion.hp - damage);
+
+    const defeatedMsg = companion.hp <= 0 ? ` ${companion.name} has fallen!` : "";
+    result.push({
+      round: state.round,
+      actor: monster.name,
+      action: "attack",
+      target: companion.name,
+      result: check.critical
+        ? `CRITICAL HIT on ${companion.name}! Deals ${damage} damage.${defeatedMsg}`
+        : `Hits ${companion.name} for ${damage} damage.${defeatedMsg}`,
+      damage,
+    });
+  } else {
+    result.push({
+      round: state.round,
+      actor: monster.name,
+      action: "attack",
+      target: companion.name,
+      result: `Attacks ${companion.name} but misses`,
       damage: 0,
     });
   }
@@ -894,19 +985,85 @@ function resolveMonsterFlee(
 }
 
 // ---------------------------------------------------------------------------
+// Companion turn resolution
+// ---------------------------------------------------------------------------
+
+function resolveCompanionTurn(
+  state: CombatState,
+  _player: Player,
+  _extra: CombatExtra,
+  result: CombatLogEntry[]
+): void {
+  const companion = state.companion;
+  if (!companion || companion.hp <= 0) return;
+
+  // Simple AI: attack lowest HP alive monster
+  let targetIndex = -1;
+  let lowestHp = Infinity;
+  for (let i = 0; i < state.monsters.length; i++) {
+    if (state.monsters[i]!.hp > 0 && state.monsters[i]!.hp < lowestHp) {
+      lowestHp = state.monsters[i]!.hp;
+      targetIndex = i;
+    }
+  }
+
+  if (targetIndex === -1) return;
+
+  const target = state.monsters[targetIndex]!;
+  const check = rollCheck(companion.attack, target.ac);
+
+  if (check.success) {
+    let damage = rollDice(companion.damage);
+    if (check.critical) damage += rollDice(companion.damage);
+    damage = Math.max(1, damage);
+    target.hp = Math.max(0, target.hp - damage);
+
+    result.push({
+      round: state.round,
+      actor: companion.name,
+      action: "attack",
+      target: target.name,
+      result: check.critical
+        ? `CRITICAL! Strikes for ${damage} damage${target.hp <= 0 ? " (defeated)" : ""}`
+        : `Hits for ${damage} damage${target.hp <= 0 ? " (defeated)" : ""}`,
+      damage,
+    });
+  } else {
+    result.push({
+      round: state.round,
+      actor: companion.name,
+      action: "attack",
+      target: target.name,
+      result: "Misses",
+      damage: 0,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Turn advancement
 // ---------------------------------------------------------------------------
 
 function advanceTurn(state: CombatState, extra: CombatExtra): void {
+  // Don't advance if player fled (round === -1 is the flee sentinel)
+  if (state.round === -1) return;
+
   let nextTurn = (state.currentTurn + 1) % state.turnOrder.length;
 
-  // Skip dead monsters
+  // Skip dead monsters and dead companions
   let safety = 0;
   while (safety < state.turnOrder.length) {
     const entry = state.turnOrder[nextTurn]!;
     if (entry.type === "monster") {
       const monster = state.monsters[entry.index!];
       if (!monster || monster.hp <= 0) {
+        nextTurn = (nextTurn + 1) % state.turnOrder.length;
+        safety++;
+        continue;
+      }
+    }
+    if (entry.type === "companion") {
+      if (!state.companion || state.companion.hp <= 0) {
         nextTurn = (nextTurn + 1) % state.turnOrder.length;
         safety++;
         continue;

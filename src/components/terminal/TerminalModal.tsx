@@ -99,7 +99,7 @@ export function TerminalModal({
         </div>
 
         {/* Content */}
-        <div className="p-4">{children}</div>
+        <div className="p-4 overflow-y-auto max-h-[80vh]">{children}</div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { characters, rooms, npcs } from "@/server/db/schema";
 import { generateNPC } from "@/server/game/npc";
+import { generateNPCDialogueAI } from "@/server/game/ai";
 import type { Position, DialogueNode, NPC } from "@/lib/types";
 import type { Theme } from "@/lib/constants";
 
@@ -95,7 +96,12 @@ export const npcRouter = router({
       // Generate NPC if none exists
       if (!npcRow) {
         const depth = Math.abs(position.x) + Math.abs(position.y);
-        const generated = generateNPC(character.theme as Theme, depth);
+        const theme = character.theme as Theme;
+        const generated = generateNPC(theme, depth);
+
+        // Enhance dialogue with AI (falls back to word bank automatically)
+        const aiDialogue = await generateNPCDialogueAI(theme, generated.name, depth);
+        generated.dialogue = aiDialogue;
 
         const [inserted] = await ctx.db
           .insert(npcs)

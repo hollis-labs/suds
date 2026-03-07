@@ -80,6 +80,7 @@ function makeExtra(): CombatExtra {
     playerBuffs: [],
     monsterBuffs: new Map(),
     roundNumber: 1,
+    aggro: 5,
   };
 }
 

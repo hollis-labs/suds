@@ -1,32 +1,200 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useState, useEffect, useMemo, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { TerminalHUD, TerminalModal, TerminalLoading } from "@/components/terminal";
 import {
   StatusBar,
-  ActionBar,
   Map,
   TextPanel,
+  CombatPanel,
+  DeathScreen,
+  VictoryScreen,
+  LevelUpModal,
   StorePanel,
   NPCDialog,
   InventoryPanel,
   CharacterSheet,
   HelpModal,
+  LorePanel,
+  PartyPanel,
 } from "@/components/game";
 import { useGameStore } from "@/stores/gameStore";
+import { useKeyboard } from "@/hooks/useKeyboard";
 import { GAME_CONFIG } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
-import type { Store, NPC, DialogueNode, GameItem, Direction } from "@/lib/types";
+import type { Store, NPC, DialogueNode, GameItem, Direction, CombatAction, CombatState, Player } from "@/lib/types";
+
+// ── Directional Pad Component ─────────────────────────────────────────
+
+interface DPadProps {
+  onMove: (direction: Direction) => void;
+  onSearch: () => void;
+  disabled?: boolean;
+  availableExits?: string[];
+}
+
+function DPad({ onMove, onSearch, disabled, availableExits = [] }: DPadProps) {
+  // Blur after click so keyboard shortcuts continue to work
+  const clickAndBlur = (handler: () => void) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    handler();
+    e.currentTarget.blur();
+  };
+
+  const dirBtn = (dir: Direction, label: string) => {
+    const hasExit = availableExits.includes(dir);
+    return cn(
+      "font-mono text-xs font-bold border",
+      "w-10 h-8 flex items-center justify-center transition-all",
+      disabled
+        ? "text-terminal-border border-terminal-border cursor-not-allowed opacity-40"
+        : hasExit
+          ? "text-terminal-green border-terminal-green bg-terminal-green/5 hover:bg-terminal-green/15 active:bg-terminal-green/25 cursor-pointer terminal-glow"
+          : "text-terminal-border border-terminal-border/50 opacity-30 cursor-not-allowed"
+    );
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-0.5 select-none">
+      {/* North */}
+      <div className="flex justify-center">
+        <button
+          className={dirBtn("north", "N")}
+          onClick={clickAndBlur(() => !disabled && availableExits.includes("north") && onMove("north"))}
+          disabled={disabled || !availableExits.includes("north")}
+          title="North (W)"
+        >
+          N
+        </button>
+      </div>
+      {/* West / Search / East */}
+      <div className="flex gap-0.5">
+        <button
+          className={dirBtn("west", "W")}
+          onClick={clickAndBlur(() => !disabled && availableExits.includes("west") && onMove("west"))}
+          disabled={disabled || !availableExits.includes("west")}
+          title="West (A)"
+        >
+          W
+        </button>
+        <button
+          className={cn(
+            "font-mono text-xs font-bold border border-terminal-border",
+            "w-10 h-8 flex items-center justify-center transition-colors",
+            disabled
+              ? "text-terminal-border cursor-not-allowed opacity-40"
+              : "text-terminal-amber border-terminal-amber/50 hover:border-terminal-amber hover:bg-terminal-amber/10 cursor-pointer"
+          )}
+          onClick={clickAndBlur(() => !disabled && onSearch())}
+          disabled={disabled}
+          title="Search (X)"
+        >
+          {"\u00B7"}
+        </button>
+        <button
+          className={dirBtn("east", "E")}
+          onClick={clickAndBlur(() => !disabled && availableExits.includes("east") && onMove("east"))}
+          disabled={disabled || !availableExits.includes("east")}
+          title="East (D)"
+        >
+          E
+        </button>
+      </div>
+      {/* South */}
+      <div className="flex justify-center">
+        <button
+          className={dirBtn("south", "S")}
+          onClick={clickAndBlur(() => !disabled && availableExits.includes("south") && onMove("south"))}
+          disabled={disabled || !availableExits.includes("south")}
+          title="South (S)"
+        >
+          S
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Exploring Action Buttons ──────────────────────────────────────────
+
+interface ExploringActionsProps {
+  onAction: (action: string) => void;
+  roomType?: string;
+}
+
+function ExploringActions({ onAction, roomType }: ExploringActionsProps) {
+  const RESTABLE_ROOMS = ["safe_room", "shrine", "npc_room"];
+  const canRest = roomType ? RESTABLE_ROOMS.includes(roomType) : false;
+
+  const buttons = [
+    { key: "X", label: "Search", action: "search" },
+    ...(canRest
+      ? [{ key: "R", label: "Rest", action: "rest" }]
+      : []),
+    ...(roomType === "shrine"
+      ? [{ key: "F", label: "Shrine", action: "interact_shrine" }]
+      : []),
+    ...(roomType === "npc_room"
+      ? [{ key: "T", label: "Talk", action: "talk" }]
+      : []),
+    ...(roomType === "store"
+      ? [{ key: "B", label: "Shop", action: "shop" }]
+      : []),
+    { key: "I", label: "Inventory", action: "inventory" },
+    { key: "C", label: "Character", action: "character" },
+    { key: "P", label: "Party", action: "party" },
+    { key: "L", label: "Codex", action: "lore" },
+    { key: "Q", label: "Exit", action: "exit" },
+    { key: "?", label: "Help", action: "help" },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2 font-mono text-xs">
+      {buttons.map((btn) => (
+        <button
+          key={btn.action}
+          onClick={(e) => { onAction(btn.action); e.currentTarget.blur(); }}
+          className="text-terminal-green-dim hover:text-terminal-green transition-colors px-2 py-1 border border-terminal-border hover:border-terminal-green"
+        >
+          <span className="text-terminal-green">[{btn.key}]</span> {btn.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Key Hints Bar ─────────────────────────────────────────────────────
+
+function KeyHintsBar({ screen, roomType }: { screen: string; roomType?: string }) {
+  const RESTABLE_ROOMS = ["safe_room", "shrine", "npc_room"];
+  const canRest = roomType ? RESTABLE_ROOMS.includes(roomType) : false;
+  const restHint = canRest ? " | R: Rest" : "";
+  const shrineHint = roomType === "shrine" ? " | F: Shrine" : "";
+  const npcHint = roomType === "npc_room" ? " | T: Talk" : "";
+  const storeHint = roomType === "store" ? " | B: Shop" : "";
+  const exploringHints = `WASD/Arrows: Move | X: Search${restHint}${shrineHint}${npcHint}${storeHint} | I: Inventory | C: Character | P: Party | L: Codex | Q: Exit | ?: Help`;
+  const combatHints = "1: Attack | 2: Defend | 3: Cast | 4: Flee | 5: Use Item | Esc: Back";
+
+  return (
+    <div className="font-mono text-[10px] text-terminal-border-bright tracking-wide">
+      {screen === "combat" ? combatHints : exploringHints}
+    </div>
+  );
+}
+
+// ── Main Page Component ───────────────────────────────────────────────
 
 export default function PlayCharacterPage() {
   const params = useParams();
+  const router = useRouter();
   const characterId = params.characterId as string;
 
   const {
     player,
     currentRoom,
     mapViewport,
+    combatState,
     gameLog,
     screen,
     activeStore,
@@ -38,7 +206,28 @@ export default function PlayCharacterPage() {
     setPlayer,
     setCurrentRoom,
     setMapViewport,
+    setCombatState,
   } = useGameStore();
+
+  // Ref to avoid stale player in keyboard handlers
+  const playerRef = useRef(player);
+  playerRef.current = player;
+
+  // ── Victory / Death / LevelUp overlay state ──
+  const [victoryData, setVictoryData] = useState<{
+    xp: number;
+    gold: number;
+    items: GameItem[];
+  } | null>(null);
+  const [deathData, setDeathData] = useState<{ goldLost: number } | null>(null);
+  const [pendingAdventurer, setPendingAdventurer] = useState<import("@/lib/types").Companion | null>(null);
+  const [levelUpData, setLevelUpData] = useState<{
+    newLevel: number;
+    hpGained: number;
+    statIncreased: string;
+    statValue: number;
+    newAbilities: string[];
+  } | null>(null);
 
   // ── Load character data ──
   const characterQuery = trpc.character.get.useQuery(
@@ -62,7 +251,6 @@ export default function PlayCharacterPage() {
   useEffect(() => {
     if (mapQuery.data) {
       setMapViewport(mapQuery.data);
-      // Extract current room from map viewport
       for (const row of mapQuery.data.cells) {
         for (const cell of row) {
           if (cell.isCurrent && cell.room) {
@@ -75,6 +263,9 @@ export default function PlayCharacterPage() {
   }, [mapQuery.data, setMapViewport, setCurrentRoom]);
 
   // ── Mutations ──
+
+  const loreAddMutation = trpc.lore.add.useMutation();
+
   const moveMutation = trpc.game.move.useMutation({
     onSuccess(data) {
       setPlayer(data.player);
@@ -82,11 +273,22 @@ export default function PlayCharacterPage() {
       setMapViewport(data.mapViewport);
       addToGameLog(`You enter ${data.room.name}.`);
 
+      // Auto-discover room lore
+      if (data.room.description) {
+        loreAddMutation.mutate({
+          characterId,
+          title: data.room.name,
+          content: data.room.description,
+          source: "room",
+          sourceId: data.room.id,
+        });
+      }
+
       if (data.enterCombat && data.encounter) {
         addToGameLog("Enemies block your path!");
-        setScreen("combat");
+        // Start combat
+        combatStartMutation.mutate({ characterId });
       } else if (data.room.type === "store") {
-        // Store rooms are handled by entering the store
         addToGameLog("You see a merchant's stall.");
       } else if (data.room.type === "npc_room") {
         addToGameLog("Someone is here...");
@@ -97,16 +299,228 @@ export default function PlayCharacterPage() {
     },
   });
 
+  const restMutation = trpc.game.rest.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      addToGameLog(data.message);
+    },
+    onError(err) {
+      addToGameLog(`Cannot rest: ${err.message}`);
+    },
+  });
+
+  const shrineMutation = trpc.game.shrine.useMutation({
+    onSuccess(data) {
+      if (data.player) {
+        setPlayer(data.player);
+      }
+      addToGameLog(data.message);
+    },
+    onError(err) {
+      addToGameLog(`Shrine interaction failed: ${err.message}`);
+    },
+  });
+
   const searchMutation = trpc.game.searchRoom.useMutation({
     onSuccess(data) {
       addToGameLog(data.message);
       if (data.success && "items" in data && data.items) {
-        // Refetch character to update inventory
         characterQuery.refetch();
+        // Discover search lore
+        const itemNames = (data.items as { name: string }[]).map((i) => i.name).join(", ");
+        if (itemNames) {
+          loreAddMutation.mutate({
+            characterId,
+            title: `Found: ${itemNames}`,
+            content: data.message,
+            source: "search",
+          });
+        }
       }
     },
     onError(err) {
       addToGameLog(`Search failed: ${err.message}`);
+    },
+  });
+
+  // ── Combat Mutations ──
+
+  const combatStartMutation = trpc.combat.start.useMutation({
+    onSuccess(data) {
+      if (!data) return;
+
+      // Check if combat ended during monster auto-resolution (e.g. player died before first turn)
+      if ("combatOver" in data && data.combatOver) {
+        const result = data as { combatOver: true; victory: boolean; player: Player; log: unknown[]; goldLost?: number };
+        setPlayer(result.player);
+        setCombatState(null);
+
+        if (!result.victory) {
+          setDeathData({ goldLost: result.goldLost ?? 0 });
+          setScreen("death");
+          addToGameLog("You were slain before you could act...");
+        }
+        return;
+      }
+
+      // Ongoing combat — extract state and player
+      const result = data as { combatOver: false; state: CombatState; player: Player; log: unknown[] };
+      setCombatState(result.state);
+      setPlayer(result.player);
+      setScreen("combat");
+      addToGameLog("Combat begins!");
+    },
+    onError(err) {
+      addToGameLog(`Combat failed to start: ${err.message}`);
+    },
+  });
+
+  const combatActionMutation = trpc.combat.action.useMutation({
+    onSuccess(data) {
+      if (data.combatOver) {
+        // Capture monster names before clearing state
+        const defeatedMonsters = combatState?.monsters.map((m) => m.name) ?? [];
+
+        // Combat is over
+        setCombatState(null);
+        setPlayer(data.player);
+
+        if (data.victory) {
+          // Show victory screen
+          const rewards = "rewards" in data ? data.rewards : undefined;
+          setVictoryData({
+            xp: rewards?.xp ?? 0,
+            gold: rewards?.gold ?? 0,
+            items: rewards?.items ?? [],
+          });
+
+          // Check for level up
+          const levelUp = "levelUp" in data ? data.levelUp : undefined;
+          if (levelUp) {
+            setLevelUpData({
+              newLevel: levelUp.newLevel,
+              hpGained: levelUp.hpGained,
+              statIncreased: levelUp.statIncreased,
+              statValue: 0, // We don't have old stat value; the modal handles it
+              newAbilities: levelUp.newAbilities,
+            });
+          }
+
+          addToGameLog("Victory! The enemies are defeated.");
+
+          // Discover combat lore
+          const monsterNames = defeatedMonsters.length > 0
+            ? [...new Set(defeatedMonsters)].join(", ")
+            : "unknown foes";
+          loreAddMutation.mutate({
+            characterId,
+            title: `Battle: ${monsterNames}`,
+            content: `Defeated ${monsterNames}. Earned ${rewards?.xp ?? 0} XP and ${rewards?.gold ?? 0} gold.`,
+            source: "combat",
+          });
+        } else if ("fled" in data && data.fled) {
+          // Fled — transition to new room
+          const newRoom = "newRoom" in data ? data.newRoom as import("@/lib/types").Room : null;
+          const viewport = "mapViewport" in data ? data.mapViewport as import("@/lib/types").MapViewport : null;
+
+          if (newRoom) {
+            setCurrentRoom(newRoom);
+            addToGameLog(`You flee into ${newRoom.name}.`);
+          }
+          if (viewport) {
+            setMapViewport(viewport);
+          }
+
+          if ("chased" in data && data.chased) {
+            // Chased — monsters followed into the new room
+            // Brief exploring state so player sees the room transition
+            setScreen("exploring");
+            addToGameLog("They're right behind you!");
+            setTimeout(() => {
+              combatStartMutation.mutate({ characterId });
+            }, 1200);
+          } else {
+            // Clean escape
+            addToGameLog("You lost them!");
+            setScreen("exploring");
+
+            // Check for adventurer encounter
+            if ("adventurerMet" in data && data.adventurerMet) {
+              const adventurer = data.adventurerMet as import("@/lib/types").Companion;
+              setPendingAdventurer(adventurer);
+              addToGameLog(`You encounter ${adventurer.name}! They offer to fight alongside you.`);
+            }
+
+            // Check for new encounter in the room we fled to
+            if ("newEncounter" in data && data.newEncounter) {
+              setTimeout(() => {
+                addToGameLog("But something else lurks here...");
+                combatStartMutation.mutate({ characterId });
+              }, 1500);
+            }
+          }
+        } else {
+          // Player died
+          const goldLost = "goldLost" in data ? (data.goldLost as number) : 0;
+          setDeathData({ goldLost });
+          setScreen("death");
+          addToGameLog("You have been defeated...");
+        }
+      } else {
+        // Combat continues
+        if ("state" in data && data.state) {
+          setCombatState(data.state as CombatState);
+        }
+        setPlayer(data.player);
+      }
+    },
+    onError(err) {
+      addToGameLog(`Combat action failed: ${err.message}`);
+      // Re-start combat to refetch state and unstick the UI
+      combatStartMutation.mutate({ characterId });
+    },
+  });
+
+  const combatRespawnMutation = trpc.combat.respawn.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      setCurrentRoom(data.room);
+      setDeathData(null);
+      setCombatState(null);
+      setScreen("exploring");
+      addToGameLog(`You respawn at ${data.room.name}. Lost ${data.goldLost} gold.`);
+      // Refetch map for new position
+      mapQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Respawn failed: ${err.message}`);
+    },
+  });
+
+  // ── Companion mutations ──
+  const partyUpMutation = trpc.combat.partyUp.useMutation({
+    onSuccess(data) {
+      if (data.companion && player) {
+        setPlayer({ ...player, companion: data.companion });
+        addToGameLog(`${data.companion.name} joins your party!`);
+      }
+      setPendingAdventurer(null);
+    },
+    onError(err) {
+      addToGameLog(`Failed to party up: ${err.message}`);
+      setPendingAdventurer(null);
+    },
+  });
+
+  const dismissCompanionMutation = trpc.combat.dismissCompanion.useMutation({
+    onSuccess() {
+      if (player) {
+        setPlayer({ ...player, companion: null });
+      }
+      addToGameLog("Your companion parts ways with you.");
+    },
+    onError(err) {
+      addToGameLog(`Failed to dismiss companion: ${err.message}`);
     },
   });
 
@@ -123,7 +537,43 @@ export default function PlayCharacterPage() {
     setActiveNPC(null);
   }, [setScreen, setActiveStore, setActiveNPC]);
 
-  // ── Action handler ──
+  // ── Combat action handler ──
+  const handleCombatAction = useCallback(
+    (action: CombatAction, targetIndex?: number, itemId?: string) => {
+      combatActionMutation.mutate({
+        characterId,
+        action,
+        targetIndex,
+        itemId,
+      });
+    },
+    [combatActionMutation, characterId]
+  );
+
+  // ── Respawn handler ──
+  const handleRespawn = useCallback(() => {
+    combatRespawnMutation.mutate({ characterId });
+  }, [combatRespawnMutation, characterId]);
+
+  // ── NPC node tracking (must be before handleAction) ──
+  const [npcNodeId, setNpcNodeId] = useState<string | undefined>(undefined);
+
+  // ── Victory continue handler ──
+  const handleVictoryContinue = useCallback(() => {
+    setVictoryData(null);
+    setScreen("exploring");
+    characterQuery.refetch();
+    mapQuery.refetch();
+  }, [setScreen, characterQuery, mapQuery]);
+
+  // ── Level up dismiss handler ──
+  const handleLevelUpClose = useCallback(() => {
+    setLevelUpData(null);
+    setScreen("exploring");
+    characterQuery.refetch();
+  }, [setScreen, characterQuery]);
+
+  // ── Action handler (exploring) ──
   const handleAction = useCallback(
     (action: string) => {
       switch (action) {
@@ -140,6 +590,41 @@ export default function PlayCharacterPage() {
           addToGameLog("You search the room carefully...");
           searchMutation.mutate({ characterId });
           break;
+        case "rest": {
+          const RESTABLE = ["safe_room", "shrine", "npc_room"];
+          if (currentRoom && RESTABLE.includes(currentRoom.type)) {
+            addToGameLog("You take a moment to rest...");
+            restMutation.mutate({ characterId });
+          } else {
+            addToGameLog("You cannot rest here. Find a safe room or shrine.");
+          }
+          break;
+        }
+        case "interact_shrine":
+          if (currentRoom?.type === "shrine") {
+            addToGameLog("You approach the shrine...");
+            shrineMutation.mutate({ characterId });
+          } else {
+            addToGameLog("There is no shrine here.");
+          }
+          break;
+        case "talk":
+          if (currentRoom?.type === "npc_room") {
+            addToGameLog("You approach to speak...");
+            setNpcNodeId(undefined); // start from root
+            setScreen("npc");
+          } else {
+            addToGameLog("There is no one to talk to here.");
+          }
+          break;
+        case "shop":
+          if (currentRoom?.type === "store") {
+            addToGameLog("You browse the wares...");
+            setScreen("store");
+          } else {
+            addToGameLog("There is no store here.");
+          }
+          break;
         case "inventory":
           setScreen("inventory");
           break;
@@ -149,82 +634,314 @@ export default function PlayCharacterPage() {
         case "help":
           setShowHelp(true);
           break;
-        // Combat actions
-        case "attack":
-        case "defend":
-        case "cast":
-        case "flee":
-        case "use_item":
-          addToGameLog(`You chose to ${action.replace("_", " ")}!`);
+        case "lore":
+          setScreen("lore");
+          break;
+        case "party":
+          setScreen("party");
+          break;
+        case "exit":
+          router.push("/characters");
+          break;
+        case "dismiss_companion":
+          if (playerRef.current?.companion) {
+            dismissCompanionMutation.mutate({ characterId });
+          } else {
+            addToGameLog("You have no companion to dismiss.");
+          }
           break;
         default:
           addToGameLog(`Unknown action: ${action}`);
       }
     },
-    [addToGameLog, setScreen, moveMutation, searchMutation, characterId]
+    [addToGameLog, setScreen, moveMutation, searchMutation, restMutation, shrineMutation, dismissCompanionMutation, characterId, currentRoom, setNpcNodeId]
   );
+
+  // ── DPad handlers ──
+  const handleDPadMove = useCallback(
+    (direction: Direction) => {
+      handleAction(`move_${direction}`);
+    },
+    [handleAction]
+  );
+
+  const handleDPadSearch = useCallback(() => {
+    handleAction("search");
+  }, [handleAction]);
+
+  // ── Keyboard shortcuts for exploring (WASD + arrows) ──
+  const exploringKeyHandlers = useMemo((): Record<string, () => void> => {
+    if (screen !== "exploring") return {};
+    return {
+      w: () => handleAction("move_north"),
+      W: () => handleAction("move_north"),
+      ArrowUp: () => handleAction("move_north"),
+      s: () => handleAction("move_south"),
+      S: () => handleAction("move_south"),
+      ArrowDown: () => handleAction("move_south"),
+      d: () => handleAction("move_east"),
+      D: () => handleAction("move_east"),
+      ArrowRight: () => handleAction("move_east"),
+      a: () => handleAction("move_west"),
+      A: () => handleAction("move_west"),
+      ArrowLeft: () => handleAction("move_west"),
+      x: () => handleAction("search"),
+      X: () => handleAction("search"),
+      r: () => handleAction("rest"),
+      R: () => handleAction("rest"),
+      f: () => handleAction("interact_shrine"),
+      F: () => handleAction("interact_shrine"),
+      t: () => handleAction("talk"),
+      T: () => handleAction("talk"),
+      b: () => handleAction("shop"),
+      B: () => handleAction("shop"),
+      i: () => handleAction("inventory"),
+      I: () => handleAction("inventory"),
+      c: () => handleAction("character"),
+      C: () => handleAction("character"),
+      "?": () => handleAction("help"),
+      l: () => handleAction("lore"),
+      L: () => handleAction("lore"),
+      p: () => handleAction("party"),
+      P: () => handleAction("party"),
+      q: () => handleAction("exit"),
+      Q: () => handleAction("exit"),
+    };
+  }, [screen, handleAction]);
+
+  useKeyboard(exploringKeyHandlers, screen === "exploring");
+
+  // ── Store mutations ──
+  const storeBuyMutation = trpc.store.buy.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      setActiveStore(data.store);
+      addToGameLog("Purchase complete!");
+      characterQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Purchase failed: ${err.message}`);
+    },
+  });
+
+  const storeSellMutation = trpc.store.sell.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      addToGameLog(`Sold ${data.soldItem} for ${data.goldReceived}g.`);
+      characterQuery.refetch();
+      // Refetch store to update the panel
+      storeQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Sale failed: ${err.message}`);
+    },
+  });
+
+  // ── Store query (lazy — only when screen is store) ──
+  const storeQuery = trpc.store.getInventory.useQuery(
+    { characterId },
+    {
+      enabled: screen === "store",
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  // Sync store data into game store when query resolves
+  useEffect(() => {
+    if (storeQuery.data) {
+      setActiveStore(storeQuery.data.store);
+    }
+  }, [storeQuery.data, setActiveStore]);
+
+  // ── Inventory query (lazy — only when screen is inventory) ──
+  const inventoryQuery = trpc.inventory.list.useQuery(
+    { characterId },
+    {
+      enabled: screen === "inventory",
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  // ── NPC query (lazy — only when screen is npc) ──
+  const npcQuery = trpc.npc.talk.useQuery(
+    { characterId, nodeId: npcNodeId },
+    {
+      enabled: screen === "npc",
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  // Sync NPC data into game store when query resolves + discover lore
+  const lastNpcLoreId = useRef<string | null>(null);
+  useEffect(() => {
+    if (npcQuery.data) {
+      setActiveNPC(npcQuery.data.npc);
+      // Auto-discover NPC lore from root dialogue (once per NPC)
+      const npc = npcQuery.data.npc;
+      if (npc.id !== lastNpcLoreId.current) {
+        lastNpcLoreId.current = npc.id;
+        const rootNode = npc.dialogue["root"];
+        if (rootNode?.text) {
+          loreAddMutation.mutate({
+            characterId,
+            title: `${npc.name}'s words`,
+            content: rootNode.text,
+            source: "npc",
+            sourceId: npc.id,
+          });
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [npcQuery.data, setActiveNPC, characterId]);
 
   // ── Store handlers ──
   const handleBuy = useCallback(
-    (itemId: string) => {
-      addToGameLog(`Purchased item ${itemId}`);
-      // TODO: Wire to store.buy tRPC mutation
+    (instanceId: string) => {
+      if (!activeStore) return;
+      // The StorePanel passes item.id (instance ID), but the server
+      // matches on item.itemId (template/catalog ID). Look it up.
+      const allItems = [
+        ...activeStore.localInventory,
+        ...activeStore.marketplaceInventory,
+      ];
+      const match = allItems.find((si) => si.item.id === instanceId);
+      const itemId = match?.item.itemId ?? instanceId;
+      storeBuyMutation.mutate({
+        characterId,
+        itemId,
+        storeId: activeStore.id,
+      });
     },
-    [addToGameLog]
+    [activeStore, storeBuyMutation, characterId]
   );
 
   const handleSell = useCallback(
     (itemId: string) => {
-      addToGameLog(`Sold item ${itemId}`);
-      // TODO: Wire to store.sell tRPC mutation
+      storeSellMutation.mutate({
+        characterId,
+        itemId,
+      });
     },
-    [addToGameLog]
+    [storeSellMutation, characterId]
   );
 
   // ── NPC handlers ──
   const handleNPCChoice = useCallback(
     (choiceIndex: number) => {
-      addToGameLog(`Chose dialogue option ${choiceIndex + 1}`);
-      // TODO: Wire to npc.advanceDialogue tRPC mutation
+      if (!activeNPC) return;
+      const node = activeNPC.dialogue[activeNPC.currentNode];
+      if (!node) return;
+      const choice = node.choices[choiceIndex];
+      if (!choice) return;
+
+      if (choice.nextId === null) {
+        // End of conversation
+        addToGameLog(`You finish talking to ${activeNPC.name}.`);
+        closeOverlay();
+        return;
+      }
+
+      // Advance dialogue client-side
+      setActiveNPC({
+        ...activeNPC,
+        currentNode: choice.nextId,
+      });
     },
-    [addToGameLog]
+    [activeNPC, setActiveNPC, addToGameLog, closeOverlay]
   );
 
-  // ── Inventory handlers ──
-  const handleEquip = useCallback(
-    (itemId: string) => {
-      addToGameLog(`Equipped ${itemId}`);
-      // TODO: Wire to inventory.equip tRPC mutation
+  // ── Inventory mutations ──
+  const equipMutation = trpc.inventory.equip.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      addToGameLog("Item equipped.");
+      inventoryQuery.refetch();
     },
-    [addToGameLog]
+    onError(err) { addToGameLog(`Equip failed: ${err.message}`); },
+  });
+
+  const unequipMutation = trpc.inventory.unequip.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      addToGameLog("Item unequipped.");
+      inventoryQuery.refetch();
+    },
+    onError(err) { addToGameLog(`Unequip failed: ${err.message}`); },
+  });
+
+  const useItemMutation = trpc.inventory.useItem.useMutation({
+    onSuccess(data) {
+      setPlayer(data.player);
+      addToGameLog(data.message);
+      inventoryQuery.refetch();
+    },
+    onError(err) { addToGameLog(`Use failed: ${err.message}`); },
+  });
+
+  const dropMutation = trpc.inventory.drop.useMutation({
+    onSuccess(data) {
+      addToGameLog(`Dropped ${data.droppedItem}.`);
+      inventoryQuery.refetch();
+    },
+    onError(err) { addToGameLog(`Drop failed: ${err.message}`); },
+  });
+
+  const handleEquip = useCallback(
+    (itemId: string) => { equipMutation.mutate({ characterId, itemId }); },
+    [equipMutation, characterId]
   );
 
   const handleUnequip = useCallback(
-    (itemId: string) => {
-      addToGameLog(`Unequipped ${itemId}`);
-      // TODO: Wire to inventory.unequip tRPC mutation
-    },
-    [addToGameLog]
+    (itemId: string) => { unequipMutation.mutate({ characterId, itemId }); },
+    [unequipMutation, characterId]
   );
 
   const handleUseItem = useCallback(
-    (itemId: string) => {
-      addToGameLog(`Used ${itemId}`);
-      // TODO: Wire to inventory.use tRPC mutation
-    },
-    [addToGameLog]
+    (itemId: string) => { useItemMutation.mutate({ characterId, itemId }); },
+    [useItemMutation, characterId]
   );
 
   const handleDrop = useCallback(
-    (itemId: string) => {
-      addToGameLog(`Dropped ${itemId}`);
-      // TODO: Wire to inventory.drop tRPC mutation
-    },
-    [addToGameLog]
+    (itemId: string) => { dropMutation.mutate({ characterId, itemId }); },
+    [dropMutation, characterId]
   );
 
   // ── Help modal ──
   const [showHelp, setShowHelp] = useState(false);
+
+  // Backup keyboard handler on root div — some browsers/frameworks
+  // swallow document-level keydown events
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Re-focus root div on screen change so keyboard shortcuts work.
+    // Also runs when player loads (initial data fetch), ensuring focus is
+    // set after the loading skeleton is replaced by the actual game UI.
+    rootRef.current?.focus();
+  }, [screen, player]);
+
+  const handleRootKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      // Don't intercept when modifier keys are held (e.g. Cmd+C for copy)
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (screen === "exploring") {
+        const handler = exploringKeyHandlers[e.key];
+        if (handler) {
+          e.preventDefault();
+          handler();
+        }
+      } else if (screen === "death") {
+        if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          handleRespawn();
+        }
+      }
+    },
+    [screen, exploringKeyHandlers, handleRespawn]
+  );
 
   // ── Loading state ──
   if (characterQuery.isLoading || mapQuery.isLoading) {
@@ -255,6 +972,10 @@ export default function PlayCharacterPage() {
   const showCharacter = screen === "character";
   const showStore = screen === "store";
   const showNPC = screen === "npc";
+  const showLore = screen === "lore";
+  const showParty = screen === "party";
+  const inCombat = screen === "combat";
+  const isDead = screen === "death";
 
   // Placeholder data for store/NPC overlays until those are wired
   const storeData: Store = activeStore ?? {
@@ -271,34 +992,92 @@ export default function PlayCharacterPage() {
     currentNode: "start",
   };
 
+
   return (
-    <div className="h-screen w-screen overflow-hidden">
+    <div
+      className="h-screen w-screen overflow-hidden outline-none"
+      tabIndex={-1}
+      ref={rootRef}
+      onKeyDown={handleRootKeyDown}
+    >
       <TerminalHUD
         className="h-full"
         topBar={<StatusBar player={player} />}
-        bottomBar={
-          <ActionBar
-            onAction={handleAction}
-            screen={screen}
-          />
-        }
+        bottomBar={<KeyHintsBar screen={screen} roomType={currentRoom?.type} />}
       >
         {/* Main content: stacked on mobile, side-by-side on md+ */}
         <div className="flex flex-col md:flex-row h-full gap-4">
-          {/* Map panel */}
-          <div className="w-full md:w-[35%] shrink-0 flex flex-col items-center justify-center md:border-r border-b md:border-b-0 border-terminal-border pb-4 md:pb-0 md:pr-4">
-            <div className="text-terminal-green-dim text-[10px] uppercase tracking-wider mb-2">
+          {/* ── Left panel (35%): Map + DPad ── */}
+          <div className="w-full md:w-[35%] shrink-0 flex flex-col items-center justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-4 md:pb-0 md:pr-4 gap-4">
+            <div className="text-terminal-green-dim text-[10px] uppercase tracking-wider">
               Dungeon Map
             </div>
             <Map viewport={mapViewport} />
+            {!inCombat && (
+              <DPad
+                onMove={handleDPadMove}
+                onSearch={handleDPadSearch}
+                disabled={moveMutation.isPending || searchMutation.isPending}
+                availableExits={currentRoom?.exits ?? []}
+              />
+            )}
           </div>
 
-          {/* Text panel */}
-          <div className="flex-1 min-w-0 overflow-y-auto">
-            <TextPanel room={currentRoom} gameLog={gameLog} />
+          {/* ── Right panel (65%): Text + Actions/Combat ── */}
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+            {inCombat && combatState ? (
+              /* ── Combat View ── */
+              <CombatPanel
+                combatState={combatState}
+                player={player}
+                onAction={handleCombatAction}
+                className="flex-1 min-h-0"
+              />
+            ) : (
+              /* ── Exploring View ── */
+              <>
+                {/* Text panel (room desc + game log) */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <TextPanel
+                    room={currentRoom}
+                    gameLog={gameLog}
+                    isLoading={moveMutation.isPending}
+                  />
+                </div>
+
+                {/* Action buttons below text */}
+                <div className="shrink-0 pt-3 border-t border-terminal-border mt-2">
+                  <ExploringActions onAction={handleAction} roomType={currentRoom?.type} />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </TerminalHUD>
+
+      {/* ── Death Screen Overlay ── */}
+      {isDead && deathData && (
+        <DeathScreen goldLost={deathData.goldLost} onRespawn={handleRespawn} />
+      )}
+
+      {/* ── Victory Screen Overlay ── */}
+      {victoryData && (
+        <VictoryScreen
+          xpGained={victoryData.xp}
+          goldGained={victoryData.gold}
+          loot={victoryData.items}
+          onContinue={handleVictoryContinue}
+        />
+      )}
+
+      {/* ── Level Up Modal ── */}
+      {levelUpData && (
+        <LevelUpModal
+          open={true}
+          onClose={handleLevelUpClose}
+          levelData={levelUpData}
+        />
+      )}
 
       {/* ── Inventory Overlay ── */}
       <TerminalModal
@@ -308,7 +1087,7 @@ export default function PlayCharacterPage() {
         className="max-w-2xl"
       >
         <InventoryPanel
-          items={[]}
+          items={inventoryQuery.data ?? []}
           maxSlots={GAME_CONFIG.MAX_INVENTORY_SLOTS}
           onEquip={handleEquip}
           onUnequip={handleUnequip}
@@ -348,10 +1127,30 @@ export default function PlayCharacterPage() {
       <TerminalModal
         open={showNPC}
         onClose={closeOverlay}
-        title={npcData.name}
+        title={npcData.name || "???"}
         className="max-w-lg"
       >
-        {currentNPCNode ? (
+        {npcQuery.isLoading ? (
+          /* NPC loading state — shown while AI generates dialogue */
+          <div className="font-mono text-sm space-y-4 p-2">
+            <div className="text-terminal-amber-dim text-xs italic text-center animate-pulse">
+              {(() => {
+                const phrases = [
+                  "A shadowy figure turns to face you...",
+                  "Someone eyes you cautiously...",
+                  "A stranger notices your approach...",
+                  "Footsteps halt as you draw near...",
+                  "A weary traveler looks up at you...",
+                ];
+                return phrases[Math.floor(Math.random() * phrases.length)];
+              })()}
+            </div>
+            <div className="flex items-center justify-center gap-2 text-terminal-border-bright text-[10px]">
+              <span className="inline-block w-3 h-3 border border-terminal-amber/50 border-t-terminal-amber rounded-full animate-spin" />
+              <span>Preparing dialogue</span>
+            </div>
+          </div>
+        ) : currentNPCNode ? (
           <NPCDialog
             npc={npcData}
             currentNode={currentNPCNode}
@@ -366,6 +1165,67 @@ export default function PlayCharacterPage() {
             onClose={closeOverlay}
           />
         ) : null}
+      </TerminalModal>
+
+      {/* ── Lore / Codex Modal ── */}
+      <TerminalModal open={showLore} onClose={closeOverlay} title="Codex">
+        <LorePanel characterId={characterId} onClose={closeOverlay} />
+      </TerminalModal>
+
+      {/* ── Party Panel ── */}
+      <TerminalModal open={showParty} onClose={closeOverlay} title="PARTY" className="max-w-lg">
+        <PartyPanel
+          companion={player.companion ?? null}
+          onKick={() => {
+            dismissCompanionMutation.mutate({ characterId });
+            closeOverlay();
+          }}
+          onClose={closeOverlay}
+        />
+      </TerminalModal>
+
+      {/* ── Party Up Dialog ── */}
+      <TerminalModal
+        open={!!pendingAdventurer}
+        onClose={() => setPendingAdventurer(null)}
+        title="Adventurer Encountered"
+      >
+        {pendingAdventurer && (
+          <div className="space-y-3 font-mono text-sm">
+            <p className="text-terminal-blue font-bold">{pendingAdventurer.name}</p>
+            <p className="text-terminal-green-dim text-xs">
+              Level {pendingAdventurer.level} {pendingAdventurer.class} — {pendingAdventurer.personality}
+            </p>
+            <p className="text-terminal-green-dim text-xs">
+              HP: {pendingAdventurer.hp}/{pendingAdventurer.hpMax} | AC: {pendingAdventurer.ac} | ATK: +{pendingAdventurer.attack} | DMG: {pendingAdventurer.damage}
+            </p>
+            <p className="text-terminal-amber text-xs mt-2">
+              &quot;Hey, want to team up? These dungeons are no place to go alone.&quot;
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                className="px-3 py-1 border border-terminal-green text-terminal-green text-xs hover:bg-terminal-green/10"
+                onClick={() => {
+                  partyUpMutation.mutate({
+                    characterId,
+                    companion: pendingAdventurer,
+                  });
+                }}
+              >
+                [Y] Party Up
+              </button>
+              <button
+                className="px-3 py-1 border border-terminal-border text-terminal-border-bright text-xs hover:bg-terminal-border/10"
+                onClick={() => {
+                  addToGameLog(`You decline ${pendingAdventurer.name}'s offer.`);
+                  setPendingAdventurer(null);
+                }}
+              >
+                [N] Decline
+              </button>
+            </div>
+          </div>
+        )}
       </TerminalModal>
 
       {/* ── Help Modal ── */}

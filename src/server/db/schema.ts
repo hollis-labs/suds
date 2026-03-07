@@ -102,6 +102,8 @@ export const characters = pgTable("characters", {
   abilities: text("abilities").array().default([]).notNull(),
   lastSafe: jsonb("last_safe").default({ x: 0, y: 0 }).notNull(),
   baseLevel: integer("base_level").default(0).notNull(),
+  companion: jsonb("companion"), // NPC adventurer companion, nullable
+  buffs: jsonb("buffs").default([]).notNull(), // active buffs (shield, blessing)
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });
@@ -261,6 +263,32 @@ export const roomAnnotations = pgTable(
   (table) => [unique().on(table.characterId, table.roomX, table.roomY)]
 );
 
+// ─── Lore Entries ───────────────────────────────────────────────────────────
+
+export const loreEntries = pgTable("lore_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  characterId: uuid("character_id")
+    .notNull()
+    .references(() => characters.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  source: text("source").notNull(), // "room" | "npc" | "item" | "search" | "combat"
+  sourceId: text("source_id"), // optional reference to originating entity
+  discoveredAt: timestamp("discovered_at", { mode: "date" }).defaultNow(),
+});
+
+// ─── Player Notes ───────────────────────────────────────────────────────────
+
+export const playerNotes = pgTable("player_notes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  characterId: uuid("character_id")
+    .notNull()
+    .references(() => characters.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
+});
+
 // ─── Type Exports ────────────────────────────────────────────────────────────
 
 export type User = InferSelectModel<typeof users>;
@@ -307,3 +335,9 @@ export type NewTravelStone = InferInsertModel<typeof travelStones>;
 
 export type RoomAnnotation = InferSelectModel<typeof roomAnnotations>;
 export type NewRoomAnnotation = InferInsertModel<typeof roomAnnotations>;
+
+export type LoreEntry = InferSelectModel<typeof loreEntries>;
+export type NewLoreEntry = InferInsertModel<typeof loreEntries>;
+
+export type PlayerNote = InferSelectModel<typeof playerNotes>;
+export type NewPlayerNote = InferInsertModel<typeof playerNotes>;

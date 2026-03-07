@@ -6,8 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Terminal, TerminalText, TerminalMenu, TerminalInput } from "@/components/terminal";
 import { trpc } from "@/lib/trpc";
 
-const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === "true";
-
 export default function LoginPage() {
   return (
     <Suspense
@@ -47,6 +45,8 @@ function LoginContent() {
   if (session?.user) {
     return null;
   }
+
+  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
   const providers = [
     ...(isDevMode

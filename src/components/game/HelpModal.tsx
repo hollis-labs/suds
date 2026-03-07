@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useKeyboard } from "@/hooks/useKeyboard";
 
 interface HelpModalProps {
   open: boolean;
@@ -31,6 +33,15 @@ const TIPS = [
 ];
 
 export function HelpModal({ open, onClose }: HelpModalProps) {
+  const keyboardHandlers = useMemo(
+    () => ({
+      Escape: onClose,
+    }),
+    [onClose]
+  );
+
+  useKeyboard(keyboardHandlers, open);
+
   if (!open) return null;
 
   return (

@@ -2,10 +2,10 @@ version: "0.4"
 
 blueprint:
   name: docker-suds-dev
-  title: "Docker Dev — SUDS v2"
-  description: "Manage the SUDS v2 development Docker environment (PostgreSQL + app)"
+  title: "Docker Dev — SUDS v2 PostgreSQL"
+  description: "Manage the SUDS v2 development PostgreSQL container (postgres:16-alpine on port 5433)"
   author: mentat
-  tags: [docker, suds, dev, postgres]
+  tags: [docker, suds, postgres, dev]
 
 inputs:
   - name: project_path
@@ -15,53 +15,41 @@ inputs:
 
   - name: action
     type: string
-    default: "up"
-    description: "Action: up, down, reset, logs, status"
+    default: "status"
+    description: "Action: start, stop, status, logs, reset"
 
 steps:
-  - section: Docker Compose Up
-    condition: "{{ eq .inputs.action \"up\" }}"
+  - section: Start PostgreSQL
+    condition: "{{ eq .inputs.action \"start\" }}"
     tasks:
-      - name: start-services
+      - name: start-postgres
         cmd: |
           cd {{ .inputs.project_path }}
           docker compose -f docker-compose.dev.yml up -d
           echo "Waiting for PostgreSQL to be ready..."
-          sleep 3
-          docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds
-          echo "SUDS dev environment is running."
-          echo "  PostgreSQL: localhost:5432"
-          echo "  App: http://localhost:3000"
+          for i in $(seq 1 10); do
+            if docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds -d suds_v2 2>/dev/null; then
+              echo ""
+              echo "PostgreSQL is ready."
+              echo "  Host: localhost:5433"
+              echo "  User: suds"
+              echo "  DB:   suds_v2"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Warning: PostgreSQL did not become ready within 10 seconds."
+          docker compose -f docker-compose.dev.yml ps
         timeout_seconds: 120
 
-  - section: Docker Compose Down
-    condition: "{{ eq .inputs.action \"down\" }}"
+  - section: Stop PostgreSQL
+    condition: "{{ eq .inputs.action \"stop\" }}"
     tasks:
-      - name: stop-services
+      - name: stop-postgres
         cmd: |
           cd {{ .inputs.project_path }}
           docker compose -f docker-compose.dev.yml down
-          echo "SUDS dev environment stopped."
-
-  - section: Reset Database
-    condition: "{{ eq .inputs.action \"reset\" }}"
-    tasks:
-      - name: reset-db
-        cmd: |
-          cd {{ .inputs.project_path }}
-          docker compose -f docker-compose.dev.yml down -v
-          docker compose -f docker-compose.dev.yml up -d postgres
-          sleep 3
-          docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds
-          echo "Database reset complete. Run 'pnpm db:push' to recreate schema."
-
-  - section: Show Logs
-    condition: "{{ eq .inputs.action \"logs\" }}"
-    tasks:
-      - name: show-logs
-        cmd: |
-          cd {{ .inputs.project_path }}
-          docker compose -f docker-compose.dev.yml logs --tail=50
+          echo "SUDS dev PostgreSQL stopped."
 
   - section: Status
     condition: "{{ eq .inputs.action \"status\" }}"
@@ -70,3 +58,44 @@ steps:
         cmd: |
           cd {{ .inputs.project_path }}
           docker compose -f docker-compose.dev.yml ps
+          echo ""
+          if docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds -d suds_v2 2>/dev/null; then
+            echo "PostgreSQL: healthy (localhost:5433)"
+          else
+            echo "PostgreSQL: not running"
+          fi
+
+  - section: Show Logs
+    condition: "{{ eq .inputs.action \"logs\" }}"
+    tasks:
+      - name: show-logs
+        cmd: |
+          cd {{ .inputs.project_path }}
+          docker compose -f docker-compose.dev.yml logs --tail=50 postgres
+
+  - section: Reset Database
+    condition: "{{ eq .inputs.action \"reset\" }}"
+    tasks:
+      - name: reset-db
+        cmd: |
+          cd {{ .inputs.project_path }}
+          echo "Stopping containers and removing volumes..."
+          docker compose -f docker-compose.dev.yml down -v
+          echo "Starting fresh PostgreSQL..."
+          docker compose -f docker-compose.dev.yml up -d
+          for i in $(seq 1 10); do
+            if docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U suds -d suds_v2 2>/dev/null; then
+              echo ""
+              echo "Database reset complete."
+              echo "  Host: localhost:5433"
+              echo "  User: suds"
+              echo "  DB:   suds_v2"
+              echo ""
+              echo "Run migrations to recreate schema."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Warning: PostgreSQL did not become ready within 10 seconds."
+          docker compose -f docker-compose.dev.yml ps
+        timeout_seconds: 120

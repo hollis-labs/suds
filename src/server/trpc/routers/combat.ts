@@ -8,22 +8,28 @@ import {
   inventoryItems,
   combatState as combatStateTable,
 } from "@/server/db/schema";
-import { initCombat, resolveTurn, calculateRewards, type CombatExtra } from "@/server/game/combat";
+import { initCombat, resolveTurn, calculateRewards, rollChase, type CombatExtra } from "@/server/game/combat";
 import { generateLoot, generateGoldDrop } from "@/server/game/loot";
+import { generateEncounter } from "@/server/game/encounters";
 import { calculateLevelUp } from "@/server/game/player";
+import { directionToOffset, computeMapViewport, roomKey } from "@/server/game/map";
+import { generateAdventurer, rollAdventurerAppearance, rollAdventurerHelps } from "@/server/game/companion";
 import { GAME_CONFIG } from "@/lib/constants";
 import type { CharacterClass, Theme } from "@/lib/constants";
 import type {
   Player,
+  PlayerBuff,
   Room as RoomType,
   Position,
   MonsterEncounter,
+  Companion,
   GameItem,
   Stats,
   CombatState,
   CombatAction,
   CombatLogEntry,
   Monster,
+  MapViewport,
 } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -75,7 +81,71 @@ function buildPlayer(
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,
     baseLevel: character.baseLevel,
+    companion: (character.companion as Player["companion"]) ?? null,
+    buffs: (character.buffs as PlayerBuff[]) ?? [],
   };
+}
+
+/**
+ * Inject player-level buffs (shield, blessing) into combat extra at combat start.
+ * Shield -> damageAbsorb buff. Blessing -> attackBonus or acBonus buff.
+ */
+function injectPlayerBuffs(extra: CombatExtra, playerBuffs: PlayerBuff[]): void {
+  for (const buff of playerBuffs) {
+    if (buff.type === "shield" && buff.value > 0) {
+      extra.playerBuffs.push({
+        name: "shrine_shield",
+        damageAbsorb: buff.value,
+        roundsRemaining: 999, // lasts until depleted
+      });
+    }
+    if (buff.type === "blessing" && buff.combatsRemaining && buff.combatsRemaining > 0) {
+      if (buff.stat === "attack") {
+        extra.playerBuffs.push({
+          name: "shrine_blessing_attack",
+          attackBonus: buff.value,
+          roundsRemaining: 999, // lasts entire combat
+        });
+      } else if (buff.stat === "ac") {
+        extra.playerBuffs.push({
+          name: "shrine_blessing_ac",
+          acBonus: buff.value,
+          roundsRemaining: 999, // lasts entire combat
+        });
+      }
+    }
+  }
+}
+
+/**
+ * After combat ends, decrement blessing combatsRemaining and deplete shield if used.
+ * Returns updated buffs array for DB persistence.
+ */
+function decrementPlayerBuffs(
+  playerBuffs: PlayerBuff[],
+  combatExtra: CombatExtra
+): PlayerBuff[] {
+  const updated: PlayerBuff[] = [];
+  for (const buff of playerBuffs) {
+    if (buff.type === "shield") {
+      // Check if shield was consumed in combat
+      const shieldBuff = combatExtra.playerBuffs.find((b) => b.name === "shrine_shield");
+      const remainingAbsorb = shieldBuff?.damageAbsorb ?? 0;
+      if (remainingAbsorb > 0) {
+        updated.push({ ...buff, value: remainingAbsorb });
+      }
+      // If depleted, don't add back
+    } else if (buff.type === "blessing") {
+      const remaining = (buff.combatsRemaining ?? 1) - 1;
+      if (remaining > 0) {
+        updated.push({ ...buff, combatsRemaining: remaining });
+      }
+      // If expired, don't add back
+    } else {
+      updated.push(buff);
+    }
+  }
+  return updated;
 }
 
 type DbClient = typeof import("@/server/db").db;
@@ -100,6 +170,67 @@ async function getOwnedCharacter(
   return character;
 }
 
+/** Get room at position */
+async function getRoomAt(db: DbClient, characterId: string, x: number, y: number) {
+  const [room] = await db
+    .select()
+    .from(rooms)
+    .where(and(eq(rooms.characterId, characterId), eq(rooms.x, x), eq(rooms.y, y)));
+  return room ?? null;
+}
+
+/** Build typed Room from a DB row */
+function buildRoom(row: typeof rooms.$inferSelect): RoomType {
+  return {
+    id: row.id,
+    x: row.x,
+    y: row.y,
+    name: row.name,
+    type: row.type,
+    description: row.description,
+    exits: row.exits,
+    depth: row.depth,
+    hasEncounter: row.hasEncounter,
+    encounterData: row.encounterData as MonsterEncounter | null,
+    hasLoot: row.hasLoot,
+    lootData: row.lootData as GameItem[] | null,
+    visited: row.visited,
+    roomFeatures: (row.roomFeatures ?? {}) as Record<string, unknown>,
+  };
+}
+
+/** Build room map for viewport computation */
+function buildRoomMap(rows: (typeof rooms.$inferSelect)[]): Map<string, RoomType> {
+  const map = new Map<string, RoomType>();
+  for (const row of rows) {
+    map.set(roomKey(row.x, row.y), buildRoom(row));
+  }
+  return map;
+}
+
+/** Get full room + mapViewport data for a flee destination */
+async function getFleeRoomData(
+  db: DbClient,
+  characterId: string,
+  x: number,
+  y: number,
+): Promise<{ room: RoomType; mapViewport: MapViewport }> {
+  const roomRow = await getRoomAt(db, characterId, x, y);
+  if (!roomRow) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Flee destination room not found" });
+  }
+  const room = buildRoom(roomRow);
+
+  const allRooms = await db
+    .select()
+    .from(rooms)
+    .where(eq(rooms.characterId, characterId));
+
+  const mapViewport = computeMapViewport({ x, y }, buildRoomMap(allRooms));
+
+  return { room, mapViewport };
+}
+
 /** Get active combat state for a character, or null */
 async function getActiveCombat(db: DbClient, characterId: string) {
   const [state] = await db
@@ -115,19 +246,21 @@ function serializeExtra(extra: CombatExtra): Record<string, unknown> {
     playerBuffs: extra.playerBuffs,
     monsterBuffs: Object.fromEntries(extra.monsterBuffs),
     roundNumber: extra.roundNumber,
+    aggro: extra.aggro,
   };
 }
 
 /** Deserialize CombatExtra from JSONB */
 function deserializeExtra(data: Record<string, unknown> | null): CombatExtra {
   if (!data) {
-    return { playerBuffs: [], monsterBuffs: new Map(), roundNumber: 1 };
+    return { playerBuffs: [], monsterBuffs: new Map(), roundNumber: 1, aggro: 5 };
   }
   const mb = (data.monsterBuffs ?? {}) as Record<string, unknown[]>;
   return {
     playerBuffs: (data.playerBuffs ?? []) as CombatExtra["playerBuffs"],
     monsterBuffs: new Map(Object.entries(mb).map(([k, v]) => [Number(k), v as CombatExtra["playerBuffs"]])),
     roundNumber: (data.roundNumber ?? 1) as number,
+    aggro: (data.aggro ?? 5) as number,
   };
 }
 
@@ -153,7 +286,25 @@ function buildCombatState(
 // Death / Respawn
 // ---------------------------------------------------------------------------
 
-export async function handleDeath(
+/** Preview death penalty without applying it (save hp=0 to DB) */
+async function calculateDeathPenalty(
+  character: typeof characters.$inferSelect,
+  db: DbClient
+): Promise<{ respawnPosition: Position; goldLost: number }> {
+  const goldLost = Math.floor(character.gold * GAME_CONFIG.DEATH_GOLD_PENALTY);
+  const respawnPosition = character.lastSafe as Position;
+
+  // Save the character as dead (hp=0) but don't heal/move yet — respawn does that
+  await db
+    .update(characters)
+    .set({ hp: 0, updatedAt: new Date() })
+    .where(eq(characters.id, character.id));
+
+  return { respawnPosition, goldLost };
+}
+
+/** Actually apply death: heal, reposition, deduct gold. Called by combat.respawn. */
+async function applyRespawn(
   characterId: string,
   db: DbClient
 ): Promise<{ respawnPosition: Position; goldLost: number }> {
@@ -175,7 +326,7 @@ export async function handleDeath(
       hp: character.hpMax,
       mp: character.mpMax,
       position: respawnPosition,
-      gold: character.gold - goldLost,
+      gold: Math.max(0, character.gold - goldLost),
       updatedAt: new Date(),
     })
     .where(eq(characters.id, characterId));
@@ -271,7 +422,11 @@ export const combatRouter = router({
       const row = await getActiveCombat(ctx.db, input.characterId);
       if (!row) return null;
 
-      return buildCombatState(row).state;
+      const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
+      const combatResult = buildCombatState(row);
+      // Populate companion from character data
+      combatResult.state.companion = (character.companion as Companion) ?? null;
+      return combatResult.state;
     }),
 
   // ─── Start Combat ───────────────────────────────────────────────────────────
@@ -281,10 +436,107 @@ export const combatRouter = router({
       const userId = ctx.session.user.id!;
       const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
 
-      // Check for existing combat
+      // Check for existing combat — clean up stale state
       const existing = await getActiveCombat(ctx.db, input.characterId);
       if (existing) {
-        return buildCombatState(existing);
+        // If it's from a different encounter (no matching room encounter),
+        // or the player already won/fled, delete it and start fresh.
+        const { state: existingState, extra: existingExtra } = buildCombatState(existing);
+        existingState.companion = (character.companion as Companion) ?? null;
+
+        // Auto-resolve any pending monster turns so the client gets a player-turn state
+        let currentState = existingState;
+        let currentExtra = existingExtra;
+        const existingItems = await ctx.db
+          .select()
+          .from(inventoryItems)
+          .where(eq(inventoryItems.characterId, character.id));
+        let existingPlayer = buildPlayer(character, existingItems);
+        let existingCombatOver = false;
+        let existingVictory = false;
+
+        while (
+          currentState.turnOrder[currentState.currentTurn]?.type === "monster" ||
+          currentState.turnOrder[currentState.currentTurn]?.type === "companion"
+        ) {
+          const entry = currentState.turnOrder[currentState.currentTurn]!;
+          const turnResult = resolveTurn(
+            currentState,
+            existingPlayer,
+            "attack" as CombatAction,
+            currentExtra,
+            entry.type === "monster" ? (entry.index ?? 0) : undefined,
+          );
+          currentState = turnResult.state;
+          currentExtra = turnResult.extra;
+          existingPlayer = turnResult.player;
+          if (turnResult.combatOver) {
+            existingCombatOver = true;
+            existingVictory = turnResult.victory;
+            break;
+          }
+        }
+
+        // If player died during auto-resolution of existing combat
+        if (existingCombatOver && !existingVictory) {
+          await ctx.db
+            .delete(combatStateTable)
+            .where(eq(combatStateTable.characterId, character.id));
+          const deathResult = await calculateDeathPenalty(character, ctx.db);
+          const [updatedChar] = await ctx.db
+            .select()
+            .from(characters)
+            .where(eq(characters.id, character.id));
+          const updatedItems = await ctx.db
+            .select()
+            .from(inventoryItems)
+            .where(eq(inventoryItems.characterId, character.id));
+          const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
+          return {
+            combatOver: true as const,
+            victory: false as const,
+            player: updatedPlayer,
+            log: currentState.log,
+            goldLost: deathResult.goldLost,
+            respawnPosition: deathResult.respawnPosition,
+          };
+        }
+
+        // Save player HP/MP changes + updated combat state
+        if (existingPlayer.hp !== character.hp || existingPlayer.mp !== character.mp) {
+          await ctx.db
+            .update(characters)
+            .set({ hp: existingPlayer.hp, mp: existingPlayer.mp, updatedAt: new Date() })
+            .where(eq(characters.id, character.id));
+        }
+
+        await ctx.db
+          .update(combatStateTable)
+          .set({
+            monsters: currentState.monsters,
+            turnOrder: { order: currentState.turnOrder, extra: serializeExtra(currentExtra) },
+            currentTurn: currentState.currentTurn,
+            round: currentState.round,
+            log: currentState.log,
+          })
+          .where(eq(combatStateTable.characterId, character.id));
+
+        const [refreshedChar] = await ctx.db
+          .select()
+          .from(characters)
+          .where(eq(characters.id, character.id));
+        const refreshedItems = await ctx.db
+          .select()
+          .from(inventoryItems)
+          .where(eq(inventoryItems.characterId, character.id));
+        const refreshedPlayer = buildPlayer(refreshedChar!, refreshedItems);
+
+        return {
+          combatOver: false as const,
+          state: currentState,
+          player: refreshedPlayer,
+          log: currentState.log,
+        };
       }
 
       // Get current room
@@ -323,23 +575,167 @@ export const combatRouter = router({
         .where(eq(inventoryItems.characterId, character.id));
       const player = buildPlayer(character, items);
 
-      // Initialize combat via engine
-      const { state, extra } = initCombat(player, encounter);
+      // Initialize combat via engine (include companion if active)
+      const companion = player.companion ?? null;
+      const { state, extra } = initCombat(player, encounter, companion);
 
-      // Persist to DB (store extra in turnOrder JSONB)
+      // Inject player-level buffs (shield, blessing) into combat
+      if (player.buffs && player.buffs.length > 0) {
+        injectPlayerBuffs(extra, player.buffs);
+        // Log active buffs
+        for (const buff of player.buffs) {
+          if (buff.type === "shield" && buff.value > 0) {
+            state.log.push({
+              round: 0,
+              actor: "system",
+              action: "info",
+              result: `Your shrine shield absorbs up to ${buff.value} damage.`,
+            });
+          }
+          if (buff.type === "blessing" && buff.combatsRemaining && buff.combatsRemaining > 0) {
+            state.log.push({
+              round: 0,
+              actor: "system",
+              action: "info",
+              result: `Shrine blessing active: +${buff.value} ${buff.stat} (${buff.combatsRemaining} combats remaining).`,
+            });
+          }
+        }
+      }
+
+      // Add initiative log messages
+      const monsterNames = encounter.monsters.map((m) => m.name).join(", ");
+      state.log.push({
+        round: 0,
+        actor: "system",
+        action: "info",
+        result: `Rolling for initiative... You face: ${monsterNames}!`,
+      });
+
+      if (companion && companion.hp > 0) {
+        state.log.push({
+          round: 0,
+          actor: "system",
+          action: "info",
+          result: `${companion.name} fights alongside you!`,
+        });
+      }
+
+      const playerTurnEntry = state.turnOrder.findIndex((e) => e.type === "player");
+      if (playerTurnEntry === 0) {
+        state.log.push({
+          round: 0,
+          actor: "system",
+          action: "info",
+          result: `${player.name} wins initiative and goes first!`,
+        });
+      } else {
+        state.log.push({
+          round: 0,
+          actor: "system",
+          action: "info",
+          result: `The enemies seize the initiative!`,
+        });
+      }
+
+      // If monsters go first, auto-resolve their turns
+      let currentState = state;
+      let currentExtra = extra;
+      let autoResolvePlayer = player;
+      let autoResolveCombatOver = false;
+      let autoResolveVictory = false;
+      while (
+        currentState.turnOrder[currentState.currentTurn]?.type === "monster" ||
+        currentState.turnOrder[currentState.currentTurn]?.type === "companion"
+      ) {
+        const entry = currentState.turnOrder[currentState.currentTurn]!;
+        const turnResult = resolveTurn(
+          currentState,
+          autoResolvePlayer,
+          "attack" as CombatAction,
+          currentExtra,
+          entry.type === "monster" ? (entry.index ?? 0) : undefined,
+        );
+        currentState = turnResult.state;
+        currentExtra = turnResult.extra;
+        autoResolvePlayer = turnResult.player;
+        if (turnResult.combatOver) {
+          autoResolveCombatOver = true;
+          autoResolveVictory = turnResult.victory;
+          break;
+        }
+      }
+
+      // If player died during monster auto-resolution (before their first turn)
+      if (autoResolveCombatOver && !autoResolveVictory) {
+        // Player killed before getting a turn — save as dead, don't heal yet
+        const deathResult = await calculateDeathPenalty(character, ctx.db);
+
+        // Refresh player
+        const [updatedChar] = await ctx.db
+          .select()
+          .from(characters)
+          .where(eq(characters.id, character.id));
+        const updatedItems = await ctx.db
+          .select()
+          .from(inventoryItems)
+          .where(eq(inventoryItems.characterId, character.id));
+        const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
+
+        return {
+          combatOver: true as const,
+          victory: false as const,
+          player: updatedPlayer,
+          log: currentState.log,
+          goldLost: deathResult.goldLost,
+          respawnPosition: deathResult.respawnPosition,
+        };
+      }
+
+      // Save player HP/MP if monsters dealt damage during auto-resolution
+      if (autoResolvePlayer.hp !== player.hp || autoResolvePlayer.mp !== player.mp) {
+        await ctx.db
+          .update(characters)
+          .set({
+            hp: autoResolvePlayer.hp,
+            mp: autoResolvePlayer.mp,
+            updatedAt: new Date(),
+          })
+          .where(eq(characters.id, character.id));
+      }
+
+      // Persist combat state to DB
       const [inserted] = await ctx.db
         .insert(combatStateTable)
         .values({
           characterId: character.id,
-          monsters: state.monsters,
-          turnOrder: { order: state.turnOrder, extra: serializeExtra(extra) },
-          currentTurn: state.currentTurn,
-          round: state.round,
-          log: state.log,
+          monsters: currentState.monsters,
+          turnOrder: { order: currentState.turnOrder, extra: serializeExtra(currentExtra) },
+          currentTurn: currentState.currentTurn,
+          round: currentState.round,
+          log: currentState.log,
         })
         .returning();
 
-      return buildCombatState(inserted!).state;
+      const built = buildCombatState(inserted!);
+
+      // Return combat state + updated player so client reflects HP changes
+      const refreshedItems = await ctx.db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.characterId, character.id));
+      const [refreshedChar] = await ctx.db
+        .select()
+        .from(characters)
+        .where(eq(characters.id, character.id));
+      const refreshedPlayer = buildPlayer(refreshedChar!, refreshedItems);
+
+      return {
+        combatOver: false as const,
+        state: built.state,
+        player: refreshedPlayer,
+        log: currentState.log,
+      };
     }),
 
   // ─── Combat Action ──────────────────────────────────────────────────────────
@@ -365,6 +761,7 @@ export const combatRouter = router({
       }
 
       const { state: currentState, extra: currentExtra } = buildCombatState(combatRow);
+      currentState.companion = (character.companion as Companion) ?? null;
 
       // Build player
       const items = await ctx.db
@@ -373,8 +770,8 @@ export const combatRouter = router({
         .where(eq(inventoryItems.characterId, character.id));
       const player = buildPlayer(character, items);
 
-      // Resolve turn
-      const turnResult = resolveTurn(
+      // Resolve player turn
+      let turnResult = resolveTurn(
         currentState,
         player,
         input.action as CombatAction,
@@ -382,6 +779,22 @@ export const combatRouter = router({
         input.targetIndex,
         input.itemId
       );
+
+      // Resolve monster + companion turns until it's the player's turn again (or combat ends)
+      while (
+        !turnResult.combatOver &&
+        (turnResult.state.turnOrder[turnResult.state.currentTurn]?.type === "monster" ||
+         turnResult.state.turnOrder[turnResult.state.currentTurn]?.type === "companion")
+      ) {
+        const entry = turnResult.state.turnOrder[turnResult.state.currentTurn]!;
+        turnResult = resolveTurn(
+          turnResult.state,
+          turnResult.player,
+          "attack" as CombatAction,
+          turnResult.extra,
+          entry.type === "monster" ? (entry.index ?? 0) : undefined,
+        );
+      }
 
       // ── Combat Over ─────────────────────────────────────────────────────────
       if (turnResult.combatOver) {
@@ -408,7 +821,11 @@ export const combatRouter = router({
           // Check level up
           const levelUp = await applyLevelUp(ctx.db, character, newXp);
 
-          // If no level up, just update xp/gold/hp
+          // Decrement player buffs after combat
+          const currentBuffs = (character.buffs as PlayerBuff[]) ?? [];
+          const updatedBuffs = decrementPlayerBuffs(currentBuffs, turnResult.extra);
+
+          // If no level up, just update xp/gold/hp/buffs
           if (!levelUp) {
             await ctx.db
               .update(characters)
@@ -417,15 +834,17 @@ export const combatRouter = router({
                 gold: character.gold + totalGold,
                 hp: turnResult.player.hp,
                 mp: turnResult.player.mp,
+                buffs: updatedBuffs,
                 updatedAt: new Date(),
               })
               .where(eq(characters.id, character.id));
           } else {
-            // Level up already saved xp/stats/level — just add gold and sync hp/mp
+            // Level up already saved xp/stats/level — just add gold, sync hp/mp, and update buffs
             await ctx.db
               .update(characters)
               .set({
                 gold: character.gold + totalGold,
+                buffs: updatedBuffs,
                 updatedAt: new Date(),
               })
               .where(eq(characters.id, character.id));
@@ -443,6 +862,29 @@ export const combatRouter = router({
               quantity: item.quantity,
               isEquipped: false,
             });
+          }
+
+          // Update companion HP after combat (or clear if dead)
+          if (turnResult.state.companion) {
+            if (turnResult.state.companion.hp <= 0) {
+              // Companion died — break the bond
+              await ctx.db
+                .update(characters)
+                .set({ companion: null, updatedAt: new Date() })
+                .where(eq(characters.id, character.id));
+              turnResult.state.log.push({
+                round: turnResult.state.round,
+                actor: "system",
+                action: "info",
+                result: `${turnResult.state.companion.name} has fallen in battle. Their journey ends here.`,
+              });
+            } else {
+              // Sync companion HP
+              await ctx.db
+                .update(characters)
+                .set({ companion: turnResult.state.companion, updatedAt: new Date() })
+                .where(eq(characters.id, character.id));
+            }
           }
 
           // Clear encounter from room
@@ -482,7 +924,7 @@ export const combatRouter = router({
             combatOver: true as const,
             victory: true as const,
             player: updatedPlayer,
-            log: turnResult.result,
+            log: turnResult.state.log,
             rewards: {
               xp: rewards.xp,
               gold: totalGold,
@@ -492,8 +934,236 @@ export const combatRouter = router({
           };
         }
 
+        // ── Fled ──────────────────────────────────────────────────────────
+        const fled = turnResult.state.round === -1;
+        if (fled) {
+          const position = character.position as Position;
+          const currentRoomRow = await getRoomAt(ctx.db, character.id, position.x, position.y);
+          const exits = currentRoomRow?.exits ?? [];
+
+          // Filter exits to only those with existing rooms in DB
+          const validExits: string[] = [];
+          for (const exit of exits) {
+            const off = directionToOffset(exit as "north" | "south" | "east" | "west");
+            const room = await getRoomAt(ctx.db, character.id, position.x + off.x, position.y + off.y);
+            if (room) validExits.push(exit);
+          }
+
+          if (validExits.length === 0) {
+            // No reachable exits — flee fails, combat continues
+            turnResult.state.round = currentExtra.roundNumber;
+            turnResult.state.log.push({
+              round: currentExtra.roundNumber,
+              actor: "system",
+              action: "info",
+              result: "There's nowhere to run!",
+            });
+            // Fall through to combat-continues below
+          } else {
+            // Pick a random valid exit and move player
+            const exitDir = validExits[Math.floor(Math.random() * validExits.length)]!;
+            const offset = directionToOffset(exitDir as "north" | "south" | "east" | "west");
+            const newX = position.x + offset.x;
+            const newY = position.y + offset.y;
+            const newPosition = { x: newX, y: newY };
+
+            // Move character
+            await ctx.db
+              .update(characters)
+              .set({ position: newPosition, updatedAt: new Date() })
+              .where(eq(characters.id, character.id));
+
+            // Roll chase for each alive monster
+            const { chasers, aggroAfter } = rollChase(
+              turnResult.state.monsters,
+              currentExtra.aggro
+            );
+
+            const fleeLog = [...turnResult.state.log];
+            fleeLog.push({
+              round: currentExtra.roundNumber,
+              actor: "system",
+              action: "info",
+              result: `You flee ${exitDir}!`,
+            });
+
+            if (chasers.length > 0) {
+              // Some monsters give chase — end current combat, transition room,
+              // return chasers so client can start fresh combat with new initiative
+              const chaserNames = chasers.map((i) => turnResult.state.monsters[i]!.name);
+              fleeLog.push({
+                round: currentExtra.roundNumber,
+                actor: "system",
+                action: "info",
+                result: `${chaserNames.join(", ")} ${chasers.length === 1 ? "gives" : "give"} chase!`,
+              });
+
+              const chasingMonsters = chasers.map((i) => ({ ...turnResult.state.monsters[i]! }));
+
+              // Delete old combat state — fresh combat will be started by client
+              await ctx.db
+                .delete(combatStateTable)
+                .where(eq(combatStateTable.characterId, character.id));
+
+              // Clear encounter from the original room
+              if (currentRoomRow) {
+                await ctx.db
+                  .update(rooms)
+                  .set({ hasEncounter: false, encounterData: null })
+                  .where(eq(rooms.id, currentRoomRow.id));
+              }
+
+              // Save player HP, apply aggro cooldown, and decrement buffs
+              const fleeChaseBuffs = decrementPlayerBuffs(
+                (character.buffs as PlayerBuff[]) ?? [],
+                turnResult.extra
+              );
+              await ctx.db
+                .update(characters)
+                .set({
+                  hp: turnResult.player.hp,
+                  mp: turnResult.player.mp,
+                  buffs: fleeChaseBuffs,
+                  updatedAt: new Date(),
+                })
+                .where(eq(characters.id, character.id));
+
+              const [updatedChar] = await ctx.db
+                .select()
+                .from(characters)
+                .where(eq(characters.id, character.id));
+              const updatedItems = await ctx.db
+                .select()
+                .from(inventoryItems)
+                .where(eq(inventoryItems.characterId, character.id));
+              const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
+
+              // Store the encounter on the new room so combat.start picks it up
+              const newRoomRow = await getRoomAt(ctx.db, character.id, newX, newY);
+              if (newRoomRow) {
+                await ctx.db
+                  .update(rooms)
+                  .set({
+                    hasEncounter: true,
+                    encounterData: { monsters: chasingMonsters },
+                  })
+                  .where(eq(rooms.id, newRoomRow.id));
+              }
+
+              // Get full room data for client transition
+              const fleeRoomData = await getFleeRoomData(ctx.db, character.id, newX, newY);
+
+              return {
+                combatOver: true as const,
+                victory: false as const,
+                fled: true as const,
+                chased: true as const,
+                player: updatedPlayer,
+                log: fleeLog,
+                newRoom: fleeRoomData.room,
+                mapViewport: fleeRoomData.mapViewport,
+              };
+            }
+
+            // No chasers — combat ends, clear state
+            fleeLog.push({
+              round: currentExtra.roundNumber,
+              actor: "system",
+              action: "info",
+              result: "You lost them!",
+            });
+
+            await ctx.db
+              .delete(combatStateTable)
+              .where(eq(combatStateTable.characterId, character.id));
+
+            // Clear encounter from the original room
+            if (currentRoomRow) {
+              await ctx.db
+                .update(rooms)
+                .set({ hasEncounter: false, encounterData: null })
+                .where(eq(rooms.id, currentRoomRow.id));
+            }
+
+            // Save player HP and decrement buffs
+            const fleeCleanBuffs = decrementPlayerBuffs(
+              (character.buffs as PlayerBuff[]) ?? [],
+              turnResult.extra
+            );
+            await ctx.db
+              .update(characters)
+              .set({
+                hp: turnResult.player.hp,
+                mp: turnResult.player.mp,
+                buffs: fleeCleanBuffs,
+                updatedAt: new Date(),
+              })
+              .where(eq(characters.id, character.id));
+
+            const [updatedChar] = await ctx.db
+              .select()
+              .from(characters)
+              .where(eq(characters.id, character.id));
+            const updatedItems = await ctx.db
+              .select()
+              .from(inventoryItems)
+              .where(eq(inventoryItems.characterId, character.id));
+            const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
+
+            // Get full room data for client transition
+            const fleeRoomData = await getFleeRoomData(ctx.db, character.id, newX, newY);
+
+            // Check for encounter in new room
+            let newEncounter = false;
+            if (fleeRoomData.room.hasEncounter && fleeRoomData.room.encounterData) {
+              newEncounter = true;
+            }
+
+            // Roll for NPC adventurer encounter while fleeing
+            let adventurerMet: Companion | null = null;
+            let adventurerHelps = false;
+            if (!updatedPlayer.companion) {
+              const hpPercent = updatedPlayer.hp / updatedPlayer.hpMax;
+              if (rollAdventurerAppearance(hpPercent)) {
+                const adventurer = generateAdventurer(updatedPlayer.level);
+                adventurerMet = adventurer;
+                if (rollAdventurerHelps()) {
+                  adventurerHelps = true;
+                  fleeLog.push({
+                    round: currentExtra.roundNumber,
+                    actor: adventurer.name,
+                    action: "info",
+                    result: `"Hey! You look like you could use a hand!" ${adventurer.name} readies their weapon.`,
+                  });
+                } else {
+                  fleeLog.push({
+                    round: currentExtra.roundNumber,
+                    actor: adventurer.name,
+                    action: "info",
+                    result: `You pass ${adventurer.name} in the corridor. "Good luck in there!" they say, hurrying the other way.`,
+                  });
+                  adventurerMet = null; // They didn't help, don't track
+                }
+              }
+            }
+
+            return {
+              combatOver: true as const,
+              victory: false as const,
+              fled: true as const,
+              chased: false as const,
+              player: updatedPlayer,
+              log: fleeLog,
+              newRoom: fleeRoomData.room,
+              mapViewport: fleeRoomData.mapViewport,
+              newEncounter,
+              adventurerMet: adventurerHelps ? adventurerMet : null,
+            };
+          }
+        }
+
         // ── Defeat ──────────────────────────────────────────────────────────
-        const deathResult = await handleDeath(character.id, ctx.db);
+        const deathResult = await calculateDeathPenalty(character, ctx.db);
 
         // Refresh player
         const [updatedChar] = await ctx.db
@@ -510,7 +1180,7 @@ export const combatRouter = router({
           combatOver: true as const,
           victory: false as const,
           player: updatedPlayer,
-          log: turnResult.result,
+          log: turnResult.state.log,
           goldLost: deathResult.goldLost,
           respawnPosition: deathResult.respawnPosition,
         };
@@ -554,7 +1224,7 @@ export const combatRouter = router({
         combatOver: false as const,
         state: turnResult.state,
         player: refreshedPlayer,
-        log: turnResult.result,
+        log: turnResult.state.log,
       };
     }),
 
@@ -563,14 +1233,15 @@ export const combatRouter = router({
     .input(z.object({ characterId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id!;
-      await getOwnedCharacter(ctx.db, input.characterId, userId);
+      const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
 
       // Clean up any lingering combat state
       await ctx.db
         .delete(combatStateTable)
         .where(eq(combatStateTable.characterId, input.characterId));
 
-      const deathResult = await handleDeath(input.characterId, ctx.db);
+      // Apply respawn: heal, reposition, deduct gold
+      const deathResult = await applyRespawn(input.characterId, ctx.db);
 
       // Fetch updated player
       const [updatedChar] = await ctx.db
@@ -622,5 +1293,48 @@ export const combatRouter = router({
         } satisfies RoomType,
         goldLost: deathResult.goldLost,
       };
+    }),
+
+  // ── Companion: Party Up ──────────────────────────────────────────────
+  partyUp: protectedProcedure
+    .input(z.object({
+      characterId: z.string().uuid(),
+      companion: z.object({
+        id: z.string(),
+        name: z.string(),
+        class: z.string(),
+        level: z.number(),
+        hp: z.number(),
+        hpMax: z.number(),
+        ac: z.number(),
+        attack: z.number(),
+        damage: z.string(),
+        abilities: z.array(z.string()),
+        personality: z.string(),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const character = await getOwnedCharacter(ctx.db, input.characterId, ctx.session.user.id!);
+
+      await ctx.db
+        .update(characters)
+        .set({ companion: input.companion, updatedAt: new Date() })
+        .where(eq(characters.id, character.id));
+
+      return { success: true, companion: input.companion };
+    }),
+
+  // ── Companion: Dismiss ────────────────────────────────────────────────
+  dismissCompanion: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const character = await getOwnedCharacter(ctx.db, input.characterId, ctx.session.user.id!);
+
+      await ctx.db
+        .update(characters)
+        .set({ companion: null, updatedAt: new Date() })
+        .where(eq(characters.id, character.id));
+
+      return { success: true };
     }),
 });

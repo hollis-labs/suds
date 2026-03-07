@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { TerminalText } from "@/components/terminal";
@@ -26,10 +26,18 @@ export function DeathScreen({
 
   useKeyboard(keyboardHandlers);
 
+  // Grab focus so keyboard events reach document listeners
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
   return (
     <div
+      ref={containerRef}
+      tabIndex={-1}
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center bg-black/90",
+        "fixed inset-0 z-50 flex items-center justify-center bg-black/90 outline-none",
         className
       )}
     >

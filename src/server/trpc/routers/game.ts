@@ -8,12 +8,14 @@ import { generateEncounter } from "@/server/game/encounters";
 import { computeMapViewport, directionToOffset, oppositeDirection, roomKey } from "@/server/game/map";
 import { rollCheck, rollDice } from "@/server/game/dice";
 import { statModifier, GAME_CONFIG } from "@/lib/constants";
-import type { Theme } from "@/lib/constants";
+import type { Theme, RoomType } from "@/lib/constants";
+import { generateRoomDescriptionAI, generateLoreFragmentAI } from "@/server/game/ai";
 import itemsData from "@/server/gamedata/items.json";
-import themesData from "@/server/gamedata/themes.json";
 import type {
   Player,
-  Room as RoomType,
+  PlayerBuff,
+  ShrineData,
+  Room as RoomData,
   Position,
   MonsterEncounter,
   GameItem,
@@ -70,11 +72,13 @@ function buildPlayer(
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,
     baseLevel: character.baseLevel,
+    companion: (character.companion as Player["companion"]) ?? null,
+    buffs: (character.buffs as PlayerBuff[]) ?? [],
   };
 }
 
 /** Build a typed Room from a DB row */
-function buildRoom(row: typeof rooms.$inferSelect): RoomType {
+function buildRoom(row: typeof rooms.$inferSelect): RoomData {
   return {
     id: row.id,
     x: row.x,
@@ -132,8 +136,8 @@ async function getRoomAt(
 }
 
 /** Convert an array of DB room rows into a Map<string, Room> keyed by "x,y" */
-function buildRoomMap(rows: (typeof rooms.$inferSelect)[]): Map<string, RoomType> {
-  const map = new Map<string, RoomType>();
+function buildRoomMap(rows: (typeof rooms.$inferSelect)[]): Map<string, RoomData> {
+  const map = new Map<string, RoomData>();
   for (const row of rows) {
     map.set(roomKey(row.x, row.y), buildRoom(row));
   }
@@ -252,28 +256,49 @@ export const gameRouter = router({
           lootData = generateLootItems(targetDepth);
         }
 
-        // Insert into DB
-        const [inserted] = await ctx.db
-          .insert(rooms)
-          .values({
-            characterId: character.id,
-            x: targetX,
-            y: targetY,
-            name: newRoom.name,
-            type: newRoom.type,
-            description: newRoom.description,
-            exits: newRoom.exits,
-            depth: newRoom.depth,
-            hasEncounter: newRoom.hasEncounter,
-            encounterData,
-            hasLoot: newRoom.hasLoot,
-            lootData,
-            visited: true,
-            roomFeatures: newRoom.roomFeatures,
-          })
-          .returning();
+        // Enhance room description with AI (falls back to word bank automatically)
+        const aiDescription = await generateRoomDescriptionAI(
+          theme,
+          newRoom.type as RoomType,
+          newRoom.name,
+          targetDepth,
+        );
+        newRoom.description = aiDescription;
 
-        targetRoomRow = inserted!;
+        // Insert into DB — handle race condition from rapid key presses
+        try {
+          const [inserted] = await ctx.db
+            .insert(rooms)
+            .values({
+              characterId: character.id,
+              x: targetX,
+              y: targetY,
+              name: newRoom.name,
+              type: newRoom.type,
+              description: newRoom.description,
+              exits: newRoom.exits,
+              depth: newRoom.depth,
+              hasEncounter: newRoom.hasEncounter,
+              encounterData,
+              hasLoot: newRoom.hasLoot,
+              lootData,
+              visited: true,
+              roomFeatures: newRoom.roomFeatures,
+            })
+            .returning();
+
+          targetRoomRow = inserted!;
+        } catch {
+          // Likely a unique constraint violation from concurrent move
+          // Re-fetch the room that was created by the other request
+          targetRoomRow = await getRoomAt(ctx.db, character.id, targetX, targetY);
+          if (!targetRoomRow) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to create or find room",
+            });
+          }
+        }
       } else {
         // Mark as visited if not already
         if (!targetRoomRow.visited) {
@@ -439,13 +464,10 @@ export const gameRouter = router({
           .where(eq(rooms.id, currentRoom.id));
 
         if (!results.items && !results.newExits) {
-          const themeContent = (themesData as Record<string, { loreFragments: string[] }>);
           const theme = character.theme as Theme;
-          const lore = themeContent[theme]?.loreFragments ?? [];
-          if (lore.length > 0) {
-            const fragment = lore[Math.floor(Math.random() * lore.length)]!;
-            results.message = fragment;
-          }
+          const depth = Math.abs(position.x) + Math.abs(position.y);
+          const fragment = await generateLoreFragmentAI(theme, depth);
+          results.message = fragment;
         }
 
         return results;
@@ -690,19 +712,38 @@ export const gameRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
       }
 
-      if (currentRoom.type !== "safe_room") {
+      // Allow resting in safe rooms, shrines, and npc_rooms
+      const RESTABLE_ROOMS = ["safe_room", "shrine", "npc_room"];
+      if (!RESTABLE_ROOMS.includes(currentRoom.type)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "You can only rest in a safe room.",
+          message: "You cannot rest here. Find a safe room, shrine, or friendly area.",
         });
       }
 
-      // Heal to full and update last safe
+      // Determine recovery rates — campfire/tavern rooms heal more
+      const features = (currentRoom.roomFeatures ?? {}) as Record<string, unknown>;
+      const hasCampfire = features.campfire === true;
+      const hpPercent = hasCampfire
+        ? GAME_CONFIG.REST_TAVERN_HP_PERCENT
+        : GAME_CONFIG.REST_HP_PERCENT;
+      const mpPercent = hasCampfire
+        ? GAME_CONFIG.REST_TAVERN_MP_PERCENT
+        : GAME_CONFIG.REST_MP_PERCENT;
+
+      const hpRecovery = Math.ceil(character.hpMax * hpPercent);
+      const mpRecovery = Math.ceil(character.mpMax * mpPercent);
+      const newHp = Math.min(character.hpMax, character.hp + hpRecovery);
+      const newMp = Math.min(character.mpMax, character.mp + mpRecovery);
+      const hpGained = newHp - character.hp;
+      const mpGained = newMp - character.mp;
+
+      // Update character
       await ctx.db
         .update(characters)
         .set({
-          hp: character.hpMax,
-          mp: character.mpMax,
+          hp: newHp,
+          mp: newMp,
           lastSafe: position,
           updatedAt: new Date(),
         })
@@ -715,12 +756,146 @@ export const gameRouter = router({
 
       const updatedCharacter = {
         ...character,
-        hp: character.hpMax,
-        mp: character.mpMax,
+        hp: newHp,
+        mp: newMp,
         lastSafe: position,
       };
+      const player = buildPlayer(updatedCharacter, items);
 
-      return buildPlayer(updatedCharacter, items);
+      const message = hasCampfire
+        ? `You rest by the campfire. Restored ${hpGained} HP and ${mpGained} MP.`
+        : `You take a moment to rest. Restored ${hpGained} HP and ${mpGained} MP.`;
+
+      return { player, message };
+    }),
+
+  // ─── Shrine ────────────────────────────────────────────────────────────────
+  shrine: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
+      const position = character.position as Position;
+
+      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y);
+      if (!currentRoom) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
+      }
+
+      const features = (currentRoom.roomFeatures ?? {}) as Record<string, unknown>;
+      const shrineData = features.shrine as ShrineData | undefined;
+
+      if (!shrineData) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "There is no shrine here.",
+        });
+      }
+
+      if (shrineData.usesRemaining <= 0) {
+        return {
+          player: null,
+          message: "The shrine has gone dark. Its power is spent.",
+        };
+      }
+
+      // Decrement shrine uses
+      const updatedShrine: ShrineData = {
+        ...shrineData,
+        usesRemaining: shrineData.usesRemaining - 1,
+      };
+      const updatedFeatures = {
+        ...features,
+        shrine: updatedShrine,
+        blessing_available: updatedShrine.usesRemaining > 0,
+      };
+
+      await ctx.db
+        .update(rooms)
+        .set({ roomFeatures: updatedFeatures })
+        .where(eq(rooms.id, currentRoom.id));
+
+      // Apply shrine effect
+      const currentBuffs = (character.buffs as PlayerBuff[]) ?? [];
+      let message = "";
+
+      const updates: Partial<{
+        hp: number;
+        mp: number;
+        buffs: PlayerBuff[];
+        updatedAt: Date;
+      }> = { updatedAt: new Date() };
+
+      switch (shrineData.shrineType) {
+        case "healing": {
+          updates.hp = character.hpMax;
+          updates.mp = character.mpMax;
+          message = "Divine light washes over you. HP and MP fully restored!";
+          break;
+        }
+        case "shield": {
+          const shieldValue =
+            GAME_CONFIG.SHRINE_SHIELD_BASE +
+            character.level * GAME_CONFIG.SHRINE_SHIELD_PER_LEVEL;
+          // Replace existing shield buff if any
+          const filteredBuffs = currentBuffs.filter((b) => b.type !== "shield");
+          filteredBuffs.push({ type: "shield", value: shieldValue });
+          updates.buffs = filteredBuffs;
+          message = `A shimmering shield surrounds you, absorbing up to ${shieldValue} damage.`;
+          break;
+        }
+        case "blessing": {
+          // Random: attack or AC blessing
+          const blessingRoll = Math.random();
+          const filteredBuffs = currentBuffs.filter((b) => b.type !== "blessing");
+          if (blessingRoll < 0.5) {
+            filteredBuffs.push({
+              type: "blessing",
+              value: GAME_CONFIG.SHRINE_BLESSING_ATTACK_BONUS,
+              stat: "attack",
+              combatsRemaining: GAME_CONFIG.SHRINE_BLESSING_COMBATS,
+            });
+            message = `The shrine blesses you with +${GAME_CONFIG.SHRINE_BLESSING_ATTACK_BONUS} to attack for ${GAME_CONFIG.SHRINE_BLESSING_COMBATS} combats.`;
+          } else {
+            filteredBuffs.push({
+              type: "blessing",
+              value: GAME_CONFIG.SHRINE_BLESSING_AC_BONUS,
+              stat: "ac",
+              combatsRemaining: GAME_CONFIG.SHRINE_BLESSING_COMBATS,
+            });
+            message = `The shrine blesses you with +${GAME_CONFIG.SHRINE_BLESSING_AC_BONUS} AC for ${GAME_CONFIG.SHRINE_BLESSING_COMBATS} combats.`;
+          }
+          updates.buffs = filteredBuffs;
+          break;
+        }
+      }
+
+      await ctx.db
+        .update(characters)
+        .set(updates)
+        .where(eq(characters.id, character.id));
+
+      const items = await ctx.db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.characterId, character.id));
+
+      const updatedCharacter = {
+        ...character,
+        hp: updates.hp ?? character.hp,
+        mp: updates.mp ?? character.mp,
+        buffs: updates.buffs ?? currentBuffs,
+      };
+      const player = buildPlayer(updatedCharacter, items);
+
+      const usesLeft = updatedShrine.usesRemaining;
+      if (usesLeft > 0) {
+        message += ` (${usesLeft} use${usesLeft === 1 ? "" : "s"} remaining)`;
+      } else {
+        message += " The shrine grows dim...";
+      }
+
+      return { player, message };
     }),
 
   // ─── Visit Base ────────────────────────────────────────────────────────────

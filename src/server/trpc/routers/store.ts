@@ -18,6 +18,7 @@ import {
 import { statModifier, GAME_CONFIG } from "@/lib/constants";
 import type {
   Player,
+  PlayerBuff,
   Position,
   GameItem,
   Stats,
@@ -75,6 +76,8 @@ function buildPlayer(
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,
     baseLevel: character.baseLevel,
+    companion: (character.companion as Player["companion"]) ?? null,
+    buffs: (character.buffs as PlayerBuff[]) ?? [],
   };
 }
 

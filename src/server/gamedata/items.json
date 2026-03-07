@@ -39,5 +39,9 @@
   { "id": "scroll_shield", "name": "Scroll of Shield", "type": "scroll", "rarity": "common", "stats": { "ac_buff": 4 }, "basePrice": 18, "description": "Creates a temporary magical barrier." },
   { "id": "iron_helm", "name": "Iron Helm", "type": "armor", "rarity": "common", "stats": { "ac": 1 }, "basePrice": 15, "description": "A simple iron helmet." },
   { "id": "hand_axe", "name": "Hand Axe", "type": "weapon", "rarity": "common", "stats": { "damage": 5 }, "basePrice": 12, "description": "A short-handled axe suitable for combat." },
-  { "id": "mace_disruption", "name": "Mace of Disruption", "type": "weapon", "rarity": "rare", "stats": { "damage": 9, "holy_damage": 6 }, "basePrice": 300, "description": "Blazes with radiant energy, devastating to undead." }
+  { "id": "mace_disruption", "name": "Mace of Disruption", "type": "weapon", "rarity": "rare", "stats": { "damage": 9, "holy_damage": 6 }, "basePrice": 300, "description": "Blazes with radiant energy, devastating to undead." },
+  { "id": "greater_health_potion", "name": "Greater Health Potion", "type": "potion", "rarity": "uncommon", "stats": { "heal": 50 }, "basePrice": 40, "description": "A concentrated healing draught that restores 50 HP." },
+  { "id": "greater_mana_potion", "name": "Greater Mana Potion", "type": "potion", "rarity": "uncommon", "stats": { "mana": 40 }, "basePrice": 40, "description": "A potent arcane elixir that restores 40 MP." },
+  { "id": "superior_health_potion", "name": "Superior Health Potion", "type": "potion", "rarity": "rare", "stats": { "heal": 100 }, "basePrice": 80, "description": "A masterwork healing potion that restores 100 HP." },
+  { "id": "superior_mana_potion", "name": "Superior Mana Potion", "type": "potion", "rarity": "rare", "stats": { "mana": 75 }, "basePrice": 80, "description": "A masterwork mana potion that restores 75 MP." }
 ]

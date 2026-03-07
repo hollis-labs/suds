@@ -1,0 +1,1 @@
+ALTER TABLE "characters" ADD COLUMN "buffs" jsonb DEFAULT '[]'::jsonb NOT NULL;

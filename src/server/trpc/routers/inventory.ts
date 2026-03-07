@@ -6,6 +6,7 @@ import { characters, inventoryItems } from "@/server/db/schema";
 import { statModifier } from "@/lib/constants";
 import type {
   Player,
+  PlayerBuff,
   Position,
   GameItem,
   Stats,
@@ -61,6 +62,8 @@ function buildPlayer(
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,
     baseLevel: character.baseLevel,
+    companion: (character.companion as Player["companion"]) ?? null,
+    buffs: (character.buffs as PlayerBuff[]) ?? [],
   };
 }
 
@@ -94,7 +97,7 @@ function calculateAC(
     (i) => i.type === "armor" && i.isEquipped
   );
   const armorStats = (equippedArmor?.stats ?? {}) as Record<string, number>;
-  const baseAC = armorStats.ac ?? 10;
+  const baseAC = armorStats.ac ?? armorStats.defense ?? 10;
   const dexMod = statModifier(stats.dex);
   return baseAC + dexMod;
 }

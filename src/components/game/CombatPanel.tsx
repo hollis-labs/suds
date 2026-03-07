@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { TerminalText } from "@/components/terminal";
+import { DiceRoller } from "@/components/game/DiceRoller";
 import { ABILITY_INFO } from "@/lib/abilities";
 import { RARITY } from "@/lib/constants";
 import type { CombatState, CombatAction, Player, Monster, GameItem } from "@/lib/types";
@@ -39,13 +40,17 @@ function hpBarColor(current: number, max: number): string {
   return "text-terminal-red";
 }
 
-function logEntryColor(entry: { actor: string; action: string }): string {
-  // Player actions green, monster actions red, status/other yellow
-  if (entry.actor === "player" || entry.actor === "Player") {
+function logEntryColor(entry: { actor: string; action: string }, playerName?: string): string {
+  // Player actions green, companion actions blue, monster actions red, status/other yellow
+  if (entry.actor === "player" || entry.actor === "Player" || entry.actor === playerName) {
     return "text-terminal-green";
   }
   if (entry.action === "status" || entry.action === "info") {
     return "text-terminal-amber";
+  }
+  // Check if the actor name suggests a companion (contains "the Warrior/Mage/etc")
+  if (entry.actor.includes(" the ")) {
+    return "text-terminal-blue";
   }
   return "text-terminal-red";
 }
@@ -120,13 +125,60 @@ function MonsterCard({
 
 // ── Combat Log ───────────────────────────────────────────────────────
 
+function getDiceInfo(entry: CombatState["log"][number]): { value: number; sides: number } | null {
+  const action = entry.action;
+  // Actions that involve a d20 roll
+  const rollActions = ["attack", "cast", "flee", "defend", "info"];
+  if (!rollActions.includes(action) && !action.includes("_")) return null;
+
+  if (entry.damage !== undefined && entry.damage > 0) {
+    // Hit — show damage value
+    return { value: entry.damage, sides: 20 };
+  }
+
+  // Miss, flee, initiative, defend, special abilities — show a d20 roll
+  const result = entry.result.toLowerCase();
+  if (result.includes("miss") || result.includes("fumble")) {
+    return { value: Math.floor(Math.random() * 5) + 1, sides: 20 };
+  }
+  if (result.includes("initiative") || result.includes("rolling")) {
+    return { value: Math.floor(Math.random() * 15) + 5, sides: 20 };
+  }
+  if (result.includes("fled") || result.includes("flee") || result.includes("escaped")) {
+    return { value: Math.floor(Math.random() * 10) + 10, sides: 20 };
+  }
+  if (result.includes("failed to flee")) {
+    return { value: Math.floor(Math.random() * 5) + 1, sides: 20 };
+  }
+  if (result.includes("defensive") || result.includes("stance")) {
+    return { value: Math.floor(Math.random() * 6) + 1, sides: 6 };
+  }
+  // Special monster abilities
+  if (action !== "info" && action !== "status") {
+    return { value: entry.damage ?? Math.floor(Math.random() * 12) + 1, sides: 20 };
+  }
+
+  return null;
+}
+
 function CombatLog({ log }: { log: CombatState["log"] }) {
   const logEndRef = useRef<HTMLDivElement>(null);
-  const lastEntry = log[log.length - 1];
+  const [diceComplete, setDiceComplete] = useState(false);
+  const [diceKey, setDiceKey] = useState(0);
+  const prevLogLen = useRef(log.length);
+
+  // Reset dice animation when new entries arrive
+  useEffect(() => {
+    if (log.length > prevLogLen.current) {
+      setDiceComplete(false);
+      setDiceKey((k) => k + 1);
+    }
+    prevLogLen.current = log.length;
+  }, [log.length]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [log.length]);
+  }, [log.length, diceComplete]);
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 border border-terminal-border p-2">
@@ -139,14 +191,27 @@ function CombatLog({ log }: { log: CombatState["log"] }) {
           log.map((entry, i) => {
             const isLast = i === log.length - 1;
             const color = logEntryColor(entry);
+            const diceInfo = isLast && !diceComplete ? getDiceInfo(entry) : null;
 
             return (
               <p key={i} className={cn(color, isLast && "font-bold")}>
                 <span className="text-terminal-border mr-1">
                   [{entry.round}]
                 </span>
-                {isLast ? (
+                {diceInfo && (
+                  <DiceRoller
+                    key={diceKey}
+                    finalValue={diceInfo.value}
+                    sides={diceInfo.sides}
+                    duration={1800}
+                    onComplete={() => setDiceComplete(true)}
+                    className="mr-1.5"
+                  />
+                )}
+                {isLast && !diceInfo ? (
                   <TerminalText text={entry.result} speed={15} animate={true} />
+                ) : isLast && diceInfo ? (
+                  <span className="text-terminal-green-dim">{entry.result}</span>
                 ) : (
                   entry.result
                 )}
@@ -176,6 +241,7 @@ export function CombatPanel({
   const aliveMonsters = combatState.monsters.filter((m) => m.hp > 0);
 
   // Reset phase when turn changes
+  // Include round + log length to handle cases where currentTurn stays at same index
   useEffect(() => {
     if (playerTurn) {
       setActionPhase("choose_action");
@@ -184,7 +250,25 @@ export function CombatPanel({
     } else {
       setActionPhase("enemy_turn");
     }
-  }, [combatState.currentTurn, playerTurn]);
+  }, [combatState.currentTurn, combatState.round, combatState.log.length, playerTurn]);
+
+  // Safety: if the server returned a state where it's the enemy's turn,
+  // auto-fire an action to resolve monster turns server-side.
+  const [autoResolveAttempted, setAutoResolveAttempted] = useState(false);
+  useEffect(() => {
+    if (!playerTurn && !autoResolveAttempted) {
+      setAutoResolveAttempted(true);
+      // Send a dummy action — the server will resolve the monster turn
+      // since resolveTurn dispatches based on whose turn it actually is
+      const timer = setTimeout(() => {
+        onAction("attack");
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    if (playerTurn) {
+      setAutoResolveAttempted(false);
+    }
+  }, [playerTurn, autoResolveAttempted, onAction]);
 
   // Get combat-usable abilities for the player
   const combatAbilities = useMemo(() => {
@@ -338,6 +422,31 @@ export function CombatPanel({
           ))}
         </div>
       </div>
+
+      {/* ── Companion (if present) ── */}
+      {combatState.companion && combatState.companion.hp > 0 && (
+        <div className="shrink-0 flex justify-center">
+          <div className="border border-terminal-blue/40 px-3 py-1.5 min-w-[180px]">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-bold text-terminal-blue">
+                {combatState.companion.name}
+              </span>
+              <span className="text-[10px] text-terminal-border-bright">
+                Ally Lv.{combatState.companion.level}
+              </span>
+            </div>
+            <div className="mt-0.5 text-xs">
+              <span className="text-terminal-border-bright">HP: </span>
+              <span className={hpBarColor(combatState.companion.hp, combatState.companion.hpMax)}>
+                [{asciiHpBar(combatState.companion.hp, combatState.companion.hpMax, 12)}]
+              </span>
+              <span className={cn("ml-1", hpBarColor(combatState.companion.hp, combatState.companion.hpMax))}>
+                {combatState.companion.hp}/{combatState.companion.hpMax}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Combat Log (middle ~30%) ── */}
       <CombatLog log={combatState.log} />

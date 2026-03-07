@@ -12,3 +12,6 @@ export { NPCDialog } from "./NPCDialog";
 export { InventoryPanel } from "./InventoryPanel";
 export { CharacterSheet } from "./CharacterSheet";
 export { HelpModal } from "./HelpModal";
+export { DiceRoller } from "./DiceRoller";
+export { LorePanel } from "./LorePanel";
+export { PartyPanel } from "./PartyPanel";
