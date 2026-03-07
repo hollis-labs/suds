@@ -90,6 +90,25 @@ export default function CharactersPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Terminal title="CHARACTER ROSTER" className="w-full max-w-2xl">
         <div className="space-y-6">
+          {/* Leaderboard Banner */}
+          <button
+            onClick={() => router.push("/leaderboard")}
+            className="group w-full border border-terminal-amber/30 hover:border-terminal-amber/60 bg-terminal-amber/5 hover:bg-terminal-amber/10 px-4 py-2 transition-all duration-300 flex items-center justify-center gap-3"
+          >
+            <span className="text-terminal-amber/60 group-hover:text-terminal-amber transition-colors text-xs tracking-widest">
+              {">>>"}
+            </span>
+            <span className="text-terminal-amber font-bold text-sm tracking-wider animate-pulse">
+              HALL OF FAME
+            </span>
+            <span className="text-terminal-amber/40 group-hover:text-terminal-amber/80 transition-colors text-xs">
+              See who tops the leaderboard
+            </span>
+            <span className="text-terminal-amber/60 group-hover:text-terminal-amber transition-colors text-xs tracking-widest">
+              {"<<<"}
+            </span>
+          </button>
+
           <h1 className="text-lg text-terminal-green terminal-glow font-bold">
             CHARACTER ROSTER
           </h1>
