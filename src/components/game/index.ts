@@ -15,3 +15,5 @@ export { HelpModal } from "./HelpModal";
 export { DiceRoller } from "./DiceRoller";
 export { LorePanel } from "./LorePanel";
 export { PartyPanel } from "./PartyPanel";
+export { NewsPanel } from "./NewsPanel";
+export { AboutPanel } from "./AboutPanel";

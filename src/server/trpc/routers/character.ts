@@ -121,6 +121,19 @@ export const characterRouter = router({
       const characterClass = input.class as CharacterClass;
       const theme = input.theme as Theme;
 
+      // Check for duplicate character name (case-insensitive)
+      const [existing] = await ctx.db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(eq(characters.name, input.name));
+
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `A character named "${input.name}" already exists. Choose a different name.`,
+        });
+      }
+
       // Generate character data from game engine
       const { character: charData, inventoryItems: startingItems } =
         createNewCharacter(input.name, characterClass, theme);

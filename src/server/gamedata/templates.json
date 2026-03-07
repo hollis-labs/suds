@@ -1,0 +1,279 @@
+{
+  "room_description": {
+    "horror": {
+      "templates": [
+        "A {{adjective}} chamber with {{feature}}. {{atmosphere}}.",
+        "You enter a {{size}} {{room_type}} where {{detail}}. {{sound}}.",
+        "The {{surface}} walls are {{wall_state}}. {{feature}} dominates the far end of the room.",
+        "{{atmosphere}}. A {{adjective}} {{room_type}} stretches before you, its {{surface}} floor {{floor_state}}.",
+        "Dim light reveals a {{size}} space lined with {{feature}}. {{sound}}, and {{detail}}.",
+        "This {{adjective}} {{room_type}} reeks of {{smell}}. {{atmosphere}}.",
+        "A {{size}} chamber where {{detail}}. The {{surface}} ceiling drips with {{drip}}.",
+        "{{sound}}. The {{adjective}} room is bare except for {{feature}}, casting {{light_desc}} across the walls."
+      ],
+      "slots": {
+        "adjective": ["dank", "suffocating", "lightless", "rotting", "corpse-cold", "festering", "claustrophobic", "putrid", "tomblike", "forsaken"],
+        "size": ["cramped", "cavernous", "narrow", "oppressively low", "sprawling", "coffin-tight", "vast and echoing", "impossibly deep", "low-ceilinged", "yawning"],
+        "room_type": ["crypt", "ossuary", "cell", "pit", "vault", "charnel chamber", "burial alcove", "oubliette", "mortuary", "catacomb passage"],
+        "feature": ["a cracked sarcophagus", "rusted chains hanging from the ceiling", "a bloodstained altar", "rows of empty eye sockets staring from skull shelves", "a collapsed iron cage", "a pool of stagnant dark water", "a mound of bones piled waist-high", "a rack of corroded surgical tools", "faded chalk symbols on the floor", "a shattered mirror reflecting something that isn't there"],
+        "atmosphere": ["The air is thick with the stench of something long dead", "Shadows cling to the corners like living things", "A cold draft carries whispers just below hearing", "Something wet glistens on the walls", "The darkness here feels heavier, almost solid", "Flies buzz in lazy circles above a dark stain", "The temperature drops sharply as you enter", "A faint sobbing echoes from nowhere", "The walls seem to close in when you look away", "Every instinct screams to turn back"],
+        "detail": ["the walls weep with dark moisture", "something has scratched deep gouges into the stone", "the floor is sticky with a substance you dare not name", "pale handprints trail along the walls at knee height", "broken fingernails are embedded in the doorframe", "a thick web of cracks radiates from a central impact point", "the stonework has been gnawed", "a trail of drag marks leads into the shadows", "the ceiling sags dangerously overhead", "symbols have been carved in frantic, overlapping loops"],
+        "sound": ["A rhythmic dripping echoes from the dark", "Something scrapes against stone in the distance", "A low moan resonates through the walls", "The silence here is absolute and crushing", "Faint scratching comes from behind the walls", "A wet, chewing sound stops as you enter", "Chains clink softly though there is no wind", "Your footsteps echo back wrong, as if answered", "A child's humming drifts from an impossible direction", "The dripping speeds up when you listen too closely"],
+        "surface": ["gore-streaked", "mold-blackened", "glistening wet", "crumbling", "bone-inlaid", "slime-coated", "frost-rimed", "stained", "fungus-riddled", "pitted"],
+        "wall_state": ["weeping condensation", "covered in scratched tally marks", "bulging as if something presses from behind", "streaked with dark handprints", "crumbling to reveal something organic beneath"],
+        "floor_state": ["littered with broken teeth", "slick with dark fluid", "covered in a fine ash", "cracked and heaving upward", "scattered with torn pages"],
+        "smell": ["old copper and decay", "wet rot and mildew", "sour earth and bile", "something sickly sweet", "cold iron and fear"],
+        "drip": ["an oily black substance", "condensation that is too warm", "a thick reddish liquid", "viscous yellowish slime", "water that smells of rust"],
+        "light_desc": ["sickly yellow light", "guttering shadows", "an unnatural pale glow", "dim crimson reflections", "shifting pools of darkness"]
+      }
+    },
+    "funny": {
+      "templates": [
+        "A {{adjective}} {{room_type}} with {{feature}}. {{joke}}.",
+        "You stumble into a {{size}} room where {{detail}}. {{sign_text}}.",
+        "This {{adjective}} {{room_type}} is decorated with {{feature}}. {{atmosphere}}.",
+        "The {{room_type}} appears to have been {{past_event}}. {{joke}}.",
+        "A {{size}} chamber that smells oddly of {{smell}}. {{feature}} sits in the corner, {{doing_what}}.",
+        "Welcome to what can only be described as a {{adjective}} {{room_type}}. {{sign_text}}.",
+        "{{atmosphere}}. Someone has helpfully placed {{feature}} near the entrance.",
+        "This {{size}} {{room_type}} features {{feature}} and {{detail}}. {{joke}}."
+      ],
+      "slots": {
+        "adjective": ["suspiciously tidy", "aggressively beige", "questionably decorated", "surprisingly cozy", "deeply confusing", "overly enthusiastic", "mildly haunted but mostly fine", "budget", "off-brand", "participation-trophy-worthy"],
+        "size": ["unreasonably large", "comically small", "medium (the most boring size)", "oddly triangular", "perfectly circular for no reason", "slightly too tall", "just the right size for a dance-off", "bigger-on-the-inside", "weirdly hexagonal", "impractically narrow"],
+        "room_type": ["break room", "conference chamber", "dungeon foyer", "monster lounge", "treasure closet", "hallway of mild inconvenience", "room of average danger", "storage unit", "reception area", "waiting room"],
+        "feature": ["a motivational poster showing a dragon saying 'Believe in yourself'", "a suggestion box overflowing with complaints about dungeon WiFi", "a vending machine that only dispenses riddles", "a 'Days Without Incident' sign showing the number zero", "a lost-and-found bin full of heroes' dignity", "an employee-of-the-month plaque featuring a skeleton", "a potted plant that has seen things", "a welcome mat that says 'Go Away'", "a miniature fountain shaped like a crying goblin", "a bulletin board advertising monster yoga classes"],
+        "atmosphere": ["The torches here are lavender-scented", "Cheerful but threatening elevator music plays from nowhere", "The floor is surprisingly well-swept for a dungeon", "Someone has installed mood lighting", "A small disco ball spins lazily overhead", "The room has that new-dungeon smell", "Everything is slightly tilted two degrees to the left", "The acoustics in here are honestly fantastic", "There is a suspicious amount of confetti on the ground", "A faint smell of freshly baked cookies wafts through the air"],
+        "detail": ["someone has set up a lemonade stand (unattended)", "the floor tiles spell out 'HELP ME' but in comic sans", "a goblin-sized treadmill sits in the corner", "there are tiny traffic cones around a crack in the floor", "the furniture appears to be from a different, nicer dungeon", "all the torches have been replaced with LED candles", "there is a very passive-aggressive note on the door", "the ceiling is covered in glow-in-the-dark stars", "a half-finished puzzle is spread across a table", "someone has left an unfinished game of chess against themselves"],
+        "joke": ["You get the feeling this dungeon has a very relaxed HR department", "Honestly, you've seen worse Airbnbs", "This room raises more questions than it answers", "Someone clearly had a vision. A terrible, terrible vision", "You suspect this room was built by committee", "This is what happens when dungeons try to be trendy", "The vibe is 'abandoned mall meets fever dream'", "Four out of five adventurers would not recommend this room", "At least the acoustics are good for screaming", "The room seems personally offended by your presence"],
+        "sign_text": ["A sign reads: 'Please do not feed the mimics'", "A sign warns: 'Wet floor (and also monsters)'", "A helpful placard states: 'You are here. Unfortunately.'", "A note says: 'Back in 5 minutes — Management'", "Graffiti declares: 'Kilroy was here, then Kilroy was eaten'", "A sign helpfully informs: 'EXIT is just a state of mind'", "A notice reads: 'Adventurers must be THIS tall to die'", "The sign says: 'NO RUNNING IN THE DUNGEON'", "A plaque reads: 'Built in 3 weeks. We know.'", "A sticker on the wall says: 'I survived the Dungeon and all I got was this sticker'"],
+        "past_event": ["redecorated by someone who only had access to skull motifs", "used as a monster break room last Tuesday", "the site of a really unfortunate birthday party", "converted from a broom closet with delusions of grandeur", "the losing entry in a dungeon design competition", "recently fumigated (the spiders filed a complaint)", "assembled from an IKEA flat-pack with missing instructions", "a failed attempt at an escape room", "a goblin's ambitious but poorly executed art installation"],
+        "smell": ["freshly baked bread", "a spa", "regret and old cheese", "an aggressive amount of pine cleaner", "new car", "burnt popcorn", "someone's attempt at potpourri", "optimism (it smells like lemons apparently)"],
+        "doing_what": ["looking judgmental", "vibrating slightly", "absolutely minding its own business", "making a suspicious humming noise", "gathering dust in a dignified manner", "pretending to be art", "daring you to ask questions"]
+      }
+    },
+    "epic": {
+      "templates": [
+        "A {{adjective}} {{room_type}} bathed in {{light_desc}}. {{atmosphere}}.",
+        "You enter a {{size}} hall where {{detail}}. {{sound}}.",
+        "The {{adjective}} {{room_type}} is adorned with {{feature}}. {{atmosphere}}.",
+        "{{atmosphere}}. Before you stretches a {{size}} {{room_type}}, its {{surface}} walls {{wall_state}}.",
+        "Massive {{surface}} pillars support the ceiling of this {{adjective}} {{room_type}}. {{detail}}, and {{sound}}.",
+        "{{sound}}. This {{size}} chamber holds {{feature}}, testament to ages of {{legacy}}.",
+        "A {{size}} {{room_type}} where {{detail}}. {{feature}} gleams in the {{light_desc}}.",
+        "The {{adjective}} expanse of this {{room_type}} takes your breath away. {{atmosphere}}."
+      ],
+      "slots": {
+        "adjective": ["magnificent", "ancient", "hallowed", "monumental", "resplendent", "awe-inspiring", "legendary", "sacred", "primordial", "majestic"],
+        "size": ["vast", "towering", "cathedral-sized", "throne-worthy", "titan-forged", "immense", "soaring", "boundless", "colosseum-wide", "mountain-hollowed"],
+        "room_type": ["great hall", "throne chamber", "war room", "sanctuary", "gallery of heroes", "forge of the ancients", "astral observatory", "reliquary", "hall of remembrance", "proving ground"],
+        "feature": ["murals depicting the deeds of fallen champions", "a crystalline throne carved from a single diamond", "golden braziers burning with eternal flame", "statues of legendary warriors standing vigil", "a massive war table carved from dragonbone", "banners of the Five Kingdoms hanging from the rafters", "an altar inscribed with the Oath of the First Heroes", "a celestial map etched into the polished floor", "shields of fallen paladins mounted on the walls", "a fountain flowing with water that shimmers like starlight"],
+        "atmosphere": ["The air thrums with the memory of ancient power", "A sense of destiny hangs heavy in this place", "The echoes of long-forgotten battle hymns seem to linger", "Golden light streams through crystal formations overhead", "The very stones radiate an aura of nobility and purpose", "You feel the weight of countless legends pressing upon this hallowed ground", "A warmth fills you, as if the spirits of heroes past offer their blessing", "The grandeur of this place dwarfs mortal ambition", "Something stirs in your heart — the call to greatness", "Time itself seems to slow in reverence"],
+        "detail": ["ancient runes pulse with golden light along the walls", "the ceiling is lost in shadow high above, suggesting impossible height", "every stone has been carved with the names of those who fell in glory", "crystal formations catch the light and scatter it like captured stars", "the floor is a mosaic depicting the creation of the world", "torch sconces shaped like phoenix wings line the corridor", "tapestries woven from threads of silver and gold tell of the First War", "columns carved as titan warriors hold the ceiling aloft", "the walls shimmer with veins of mythril", "an eternal waterfall cascades down the far wall into a luminous pool"],
+        "sound": ["A heroic melody echoes faintly, as if the walls themselves remember glory", "The ring of distant hammers speaks of a forge that never sleeps", "Thunder rolls in the deep, the heartbeat of the mountain itself", "A chorus of ghostly voices rises in an ancient hymn of triumph", "The clash of spectral blades rings out from beyond the veil", "Wind rushes through the chamber carrying the scent of distant battlefields", "A deep horn sounds from far below, calling the worthy to descend", "Crystal chimes sing in an unfelt breeze, marking the passage of ages", "The steady drum of marching echoes from a war long ended"],
+        "surface": ["marble", "crystal-veined", "gold-inlaid", "mythril-threaded", "obsidian", "ivory", "dragonscale-patterned", "rune-carved", "star-forged", "living stone"],
+        "wall_state": ["inscribed with prophecies of the Chosen One", "glowing with ancient protective wards", "carved with scenes of divine battles", "shimmering with trapped starlight", "etched with the names of a thousand heroes"],
+        "light_desc": ["celestial radiance", "golden dawn-light", "the glow of eternal flames", "prismatic crystal-light", "ethereal silver luminescence"],
+        "legacy": ["glory and sacrifice", "divine purpose", "heroic triumph", "legendary valor", "cosmic destiny"]
+      }
+    },
+    "dark_fantasy": {
+      "templates": [
+        "A {{adjective}} {{room_type}} where {{detail}}. {{atmosphere}}.",
+        "You enter a {{size}} chamber with {{feature}}. {{sound}}.",
+        "The {{surface}} walls of this {{adjective}} {{room_type}} are {{wall_state}}. {{atmosphere}}.",
+        "{{atmosphere}}. This {{size}} {{room_type}} holds nothing but {{feature}} and {{sense}}.",
+        "{{sound}}. The {{adjective}} {{room_type}} stretches before you, its {{surface}} floor {{floor_state}}.",
+        "A {{size}} space that was once a {{room_type}}. Now {{detail}}, and {{atmosphere}}.",
+        "{{sense}}. In this {{adjective}} {{room_type}}, {{feature}} stands as the last monument to what was lost.",
+        "The {{adjective}} remains of a {{room_type}} loom around you. {{detail}}, and {{sound}}."
+      ],
+      "slots": {
+        "adjective": ["forsaken", "blighted", "ashen", "hollow", "grief-stricken", "corrupted", "crumbling", "desolate", "tainted", "wretched"],
+        "size": ["vast and empty", "suffocatingly narrow", "once-grand", "ruined", "collapsed", "sprawling but broken", "half-buried", "echoing", "skeletal", "decayed"],
+        "room_type": ["chapel", "throne room", "barracks", "library", "garden", "great hall", "nursery", "armory", "gallery", "courtyard"],
+        "feature": ["a shattered throne still bearing its dead king", "suits of armor standing vigil over nothing", "a defaced altar where prayers once held meaning", "shelves of books reduced to ash and memory", "a dead tree rooted in cracked stone", "a table set for a feast that was never finished", "broken weapons arranged like a grave marker", "a loom with half-finished tapestry, the weaver long gone", "a child's toy left among the rubble", "a single candle still burning despite everything"],
+        "atmosphere": ["The silence here is the kind that follows screaming", "Beauty once lived in this place, and its ghost still lingers", "Everything here speaks of a world that stopped caring about itself", "The corruption is subtle here, almost gentle, which makes it worse", "This place remembers what it was, and that memory is the cruelest wound", "Sorrow has soaked into the very stone", "What remains here is not ruin but a slow, patient surrender", "The air tastes of ash and broken promises", "Even the shadows seem tired", "Hope was the last thing to die here, and its absence is palpable"],
+        "detail": ["the stone is stained with old blood that will never wash clean", "the walls bear the marks of a last stand that failed", "cracks spread through the masonry like veins of darkness", "the ceiling has partially caved in, letting in a gray and joyless light", "every surface bears the scars of magic used in desperation", "someone has tried to board up the windows and failed", "the floor is littered with the belongings of those who fled", "roots have broken through the walls, reclaiming this place for the earth", "names have been scratched into every surface, hundreds of them", "a dark stain spreads across the floor in a shape almost like wings"],
+        "sound": ["The wind moans through gaps in the stonework like a funeral dirge", "A faint weeping echoes from somewhere you cannot reach", "The creak of settling stone breaks the oppressive silence", "Water drips with the slow patience of decay", "Your footsteps sound like an intrusion upon the dead", "Something groans in the walls, too rhythmic to be natural", "A distant bell tolls, though no bell tower stands", "The silence presses against your ears like a held breath", "Chains rattle in a draft that carries the scent of old fires"],
+        "surface": ["blood-darkened", "ash-covered", "frost-cracked", "vine-strangled", "soot-stained", "time-worn", "lichen-covered", "salt-crusted", "tarnished", "moss-eaten"],
+        "wall_state": ["scarred by claws and blades alike", "covered in faded murals of better days", "crumbling to reveal the dark earth behind", "streaked with the residue of failed wards", "bearing the shadows of those who were burned against them"],
+        "floor_state": ["covered in fallen plaster and shattered glass", "buckled upward by roots seeking light", "dusted with a fine gray ash", "slick with condensation and neglect", "scattered with pages torn from prayer books"],
+        "sense": ["the taste of iron on your tongue", "a chill that settles in your bones and stays", "the smell of flowers that have no right to grow here", "a weight in your chest that isn't yours", "a prickling awareness that you are being mourned"]
+      }
+    }
+  },
+  "lore_fragment": {
+    "horror": {
+      "templates": [
+        "A {{surface}} bears an inscription: '{{warning}}'",
+        "You find a {{container}} containing {{contents}}. {{reaction}}.",
+        "{{medium}}: '{{prophecy}}'",
+        "A {{adjective}} {{document}} reads: '{{journal_entry}}'",
+        "Scratched into the {{location}} in {{writing_style}}: '{{warning}}'",
+        "You discover {{discovery}}. {{reaction}}."
+      ],
+      "slots": {
+        "surface": ["bloodstained wall", "cracked tombstone", "rusted iron plate", "damp cellar stone", "peeling leather panel", "bone fragment", "slab of sweating marble", "stretch of fungus-covered brick"],
+        "container": ["sealed jar of murky fluid", "stitched leather pouch", "corroded lockbox", "hollowed-out skull", "rotting wooden chest", "wax-sealed bottle", "moldering satchel", "tin box welded shut with fear"],
+        "contents": ["a lock of hair tied with a ribbon, still warm", "a list of names with all but one crossed out", "a map where the destination has been frantically scribbled over", "teeth arranged in a pattern you almost recognize", "a journal with the last thirty pages torn out", "a child's drawing of something with too many limbs", "a mirror shard that reflects a room you are not in", "a key that is wet no matter how you dry it"],
+        "medium": ["Carved into the wall in desperate strokes", "Written in something dark on the ceiling", "Burned into the stone by an unknown force", "Scratched by fingernails into the doorframe", "Etched in acid on a glass panel", "Smeared on the floor in a shaking hand", "Pressed into wet clay that never dried", "Branded into a strip of leather"],
+        "prophecy": ["They came from below. They always come from below", "Do not count the legs. Do not count the legs", "The walls are not walls. The floor is not floor. Only the hunger is real", "It wears your face when you sleep", "Three knocks means it found you", "The last one to leave turned off the lights. The lights came back on", "When the singing stops, do not open your eyes", "The door you came through is no longer a door"],
+        "warning": ["Do not trust the silence", "If you hear breathing, it is not yours", "They watch from behind the walls", "The deeper you go, the less you come back", "It learns your name from your screaming", "The dead here did not stay dead", "Turn back. Turn back. TURN BACK", "Day 47. The scratching stopped. That is worse"],
+        "adjective": ["water-damaged", "fever-scrawled", "bloodstained", "half-burned", "trembling", "frantic", "barely legible", "madness-touched"],
+        "document": ["journal page", "letter never sent", "research note", "final confession", "patient log", "expedition record", "prayer scrawled on cloth", "map margin note"],
+        "journal_entry": ["The specimens are changing faster now. I can no longer tell which cage is which", "I locked the door but the knocking comes from inside the room with me", "My reflection blinked before I did today", "The cure worked. The subject is no longer dying. It is no longer anything", "They are not growing. They are unfolding", "I have been walking these halls for hours but I keep finding my own footprints ahead of me", "The voices have stopped arguing. They have agreed on something. I do not want to know what"],
+        "location": ["floor beside a collapsed figure", "wall next to a barricaded door", "inside of a coffin lid", "underside of a table", "back of a broken shield"],
+        "writing_style": ["a frantic hand", "letters that grow smaller with each word", "blocky desperate capitals", "a child's handwriting", "increasingly erratic script"],
+        "discovery": ["a collection of portraits where every face has been scratched away", "a clock that runs backward and cannot be stopped", "a perfectly preserved meal set for one, still steaming", "footprints on the ceiling that match your own boots", "a mirror that shows this room from a slightly different angle, with someone else in it"],
+        "reaction": ["You feel a sudden urge to leave it exactly as you found it", "Something about it feels deeply, personally wrong", "You cannot shake the feeling that it was left here for you specifically", "The temperature drops noticeably as you examine it", "You hear something shift behind you, but nothing is there"]
+      }
+    },
+    "funny": {
+      "templates": [
+        "A {{surface}} bears an inscription: '{{graffiti}}'",
+        "You find a {{container}} containing {{contents}}. {{reaction}}.",
+        "{{medium}}: '{{review}}'",
+        "A {{adjective}} {{document}} reads: '{{complaint}}'",
+        "Someone has {{vandalism}}. {{reaction}}.",
+        "A notice pinned to the wall declares: '{{announcement}}'"
+      ],
+      "slots": {
+        "surface": ["suspiciously clean wall", "bathroom stall divider", "decorative pillar", "trophy plaque", "dungeon suggestion box", "breakroom whiteboard", "health-and-safety poster", "motivational calendar"],
+        "container": ["treasure chest labeled 'NOT A MIMIC (trust me)'", "lunchbox with a goblin's name on it", "filing cabinet marked 'COMPLAINTS (VOLUME 47)'", "jar labeled 'Emergency Feelings'", "box marked 'Do Not Open (Seriously)'", "backpack with a 'World's Okayest Adventurer' patch", "tupperware container with a passive-aggressive note", "lost-and-found bin"],
+        "contents": ["a recipe for 'Monster Surprise' (the surprise is that it is just chicken)", "a strongly worded letter to the Dungeon Health Inspector", "a coupon for 10% off your next dungeon crawl (expired)", "a participation trophy for 'Tried Their Best'", "a performance review for a skeleton (rating: needs improvement)", "three socks, none matching", "a to-do list that just says 'survive' with a question mark", "a self-help book titled 'So You've Been Turned Into a Dungeon Monster'"],
+        "medium": ["Written in crayon on the wall", "Engraved on a tiny brass plaque at ankle height", "Spelled out in refrigerator magnets", "Posted on a bulletin board between monster yoga flyers", "Printed on a receipt that is somehow three feet long", "Scrawled in lipstick on a mirror", "Written in impeccable calligraphy on a napkin", "Carved into a potato and mounted on the wall"],
+        "review": ["One star. Dungeon was damp, monsters were rude, treasure was fake. Would not die here again", "The skeletons were polite but the ambiance could use work", "Great location, terrible parking. Also I got cursed", "Would give zero stars if I could. The mimic ate my review first", "Five stars but only because the ghost was surprisingly helpful", "Decent dungeon, but the final boss has a strict no-refund policy", "The complimentary curse was a nice touch", "Room service was nonexistent. Two skulls out of five"],
+        "graffiti": ["Kilroy was here. Then Kilroy was eaten. RIP Kilroy", "For a good time, do NOT call the lich on level 3", "I came, I saw, I ran", "Adventurers Local 308 demands better loot distribution", "My other dungeon is a castle", "The floor is lava (no literally, level 7, be careful)", "If found, please return to the tavern", "Goblins do it in groups (raiding parties, that is)"],
+        "adjective": ["coffee-stained", "glitter-covered", "laminated", "crumpled", "surprisingly professional", "crayon-written", "notarized", "passive-aggressive"],
+        "document": ["complaint form", "workplace incident report", "missing person flyer for a mimic", "menu from a monster cafe", "union newsletter", "dungeon newsletter", "insurance claim form", "exit interview transcript"],
+        "complaint": ["The dragon on Level 5 keeps using all the hot water. This is the third time this month", "Whoever keeps rearranging the maze, please stop. The minotaur is getting dizzy", "To whom it may concern: the 'bottomless' pit has a bottom. I found it. Please send help", "The ghosts in wing B are being passive-aggressive about haunting schedules again", "REQUEST: Please label the poison potions. Three interns this week. Three", "The adventurers keep leaving one-star reviews. It is hurting morale", "URGENT: The traps on level 2 are triggering during staff hours again"],
+        "vandalism": ["drawn a mustache on every portrait in the gallery", "replaced all the warning signs with inspirational quotes", "put googly eyes on every skull in the ossuary", "left sticky notes on every trap saying 'watch your step :)'", "knitted tiny sweaters for all the gargoyles", "set up a lemonade stand in the death corridor"],
+        "announcement": ["Employee of the Month: The locked door on level 3 (zero adventurers admitted)", "DUNGEON POTLUCK FRIDAY — Vampires, please label your drinks this time", "Lost: One sense of dread. If found, return to the Horror Wing", "Reminder: Casual Friday does NOT apply to armor requirements", "The dungeon book club meets Wednesdays. This week: 'To Kill a Mockingbird' (the mimic version)", "NOTICE: The 'free treasure' room is a TRAINING exercise, not a prank opportunity"],
+        "reaction": ["You are not sure whether to laugh or be concerned", "This raises more questions than it answers", "You feel slightly less heroic than when you entered", "Honestly, fair point", "You take a photo for your adventuring blog"]
+      }
+    },
+    "epic": {
+      "templates": [
+        "A {{surface}} bears an inscription: '{{prophecy}}'",
+        "You find a {{container}} containing {{contents}}. {{reaction}}.",
+        "{{medium}}: '{{oath}}'",
+        "A {{adjective}} {{document}} reads: '{{chronicle}}'",
+        "Upon a {{surface}}, the words of the {{author}} endure: '{{prophecy}}'",
+        "You discover {{discovery}}. {{reaction}}."
+      ],
+      "slots": {
+        "surface": ["golden tablet", "crystal obelisk", "pillar of living stone", "mythril-inlaid wall panel", "star-iron monument", "dragon-scale tome cover", "celestial archway", "titan-carved monolith"],
+        "container": ["ornate reliquary of silver and sapphire", "dragon-bone scroll case", "chest sealed with divine wards", "crystal sphere pulsing with inner light", "ancient hero's satchel, preserved by enchantment", "ark of celestial wood bound in star-iron", "sealed vial of liquid moonlight", "golden coffer bearing the seal of the First King"],
+        "contents": ["a blade fragment that hums with dormant power", "a map of lands that have not yet been discovered", "a lock of hair from a fallen demigod, still glowing faintly", "a scroll bearing the true name of an ancient evil", "a compass that points not north, but toward destiny", "a medal awarded for valor in the War of Sundering", "a prophecy tablet with one verse still glowing", "a vial of tears shed by the Goddess of Dawn"],
+        "medium": ["Carved in letters of golden fire upon the archway", "Inscribed in the language of the gods upon the altar", "Written in starlight upon the obsidian floor", "Chiseled by divine hands into the mountainside", "Burned into the sky itself, reflected in the crystal ceiling", "Woven into a tapestry of silver thread by immortal hands", "Sung into the stone by voices that predate mortal speech", "Etched in mythril upon a shield that has never been breached"],
+        "prophecy": ["When the last star falls, the Chosen shall rise from the deep places of the world", "The blood of heroes is the seed from which empires grow", "Three shall stand where nations fell, and by their sacrifice, the world shall be reforged", "In the darkest hour, the forgotten blade shall sing once more", "The mountain remembers. The sea remembers. Only mortals forget", "What was sundered shall be whole. What was lost shall be found. What was silent shall speak", "From the ashes of the old world, a single flame endures — tend it well", "The worthy need not seek the throne; the throne will find the worthy"],
+        "oath": ["I am the shield between the darkness and the dawn", "By star and stone, by blood and bone, I shall not falter", "Let my name be forgotten if my people are remembered", "We stand so that others may run. We fall so that others may rise", "In the name of those who came before and those who will come after", "Neither death nor time shall break this vow", "The light does not fade; it waits for those brave enough to carry it", "I am the last line. I do not break"],
+        "adjective": ["ancient and luminous", "time-worn but legible", "divinely preserved", "glowing with inner power", "carved by master artisans", "blessed by the old gods", "untouched by decay", "radiating quiet authority"],
+        "document": ["chronicle of the First Age", "hero's testament", "general's final letter", "prophecy scroll", "divine proclamation", "battle hymn transcription", "treaty between mortal and divine", "account of the Sundering"],
+        "chronicle": ["Here fell the Ninth Legion, who held the bridge for seven days against the host of shadow", "The Forge of Stars was lit on the first day and has not been extinguished since", "When the Five Kingdoms united, even the dragons bowed their ancient heads in respect", "She carried the wounded king across the Burning Wastes for forty days, and did not rest", "The last of the Titan-Born knelt and gave their power to the mortal races, so that they might endure", "On this ground, a single knight turned back an army. The field still bears her name"],
+        "author": ["Last Oracle of the Silver Tower", "First Champion of the Dawn", "Goddess of Memory", "Titan-Born who shaped the mountains", "Hero-King of the Undying Realm"],
+        "discovery": ["a sword embedded in stone, its blade still sharp after ten thousand years", "an ancient banner that unfurls in a wind you cannot feel, its colors still brilliant", "a throne room where the last king still sits in death, his crown undimmed", "a mural depicting your face among ancient heroes, painted millennia ago", "a flame that has burned without fuel since the dawn of the world"],
+        "reaction": ["Something ancient stirs within you, as if recognizing a kindred spirit", "The weight of ages settles upon your shoulders, and you find you can bear it", "Your heart swells with purpose you did not know you carried", "The air grows warm and golden, as if the world itself approves", "You feel the gaze of history upon you, measuring your worth"]
+      }
+    },
+    "dark_fantasy": {
+      "templates": [
+        "A {{surface}} bears an inscription: '{{warning}}'",
+        "You find a {{container}} containing {{contents}}. {{reaction}}.",
+        "{{medium}}: '{{lament}}'",
+        "A {{adjective}} {{document}} reads: '{{testimony}}'",
+        "Scratched into the {{location}} by {{author}}: '{{warning}}'",
+        "You discover {{discovery}}. {{reaction}}."
+      ],
+      "slots": {
+        "surface": ["cracked stone tablet stained with old blood", "defaced altar", "scorched wall", "tarnished bronze plaque", "shattered memorial stone", "peeling fresco", "collapsed archway keystone", "warped iron door"],
+        "container": ["rotting satchel clutched by skeletal fingers", "sealed flask of something that moves on its own", "strongbox whose lock was broken from the inside", "pouch stitched from something that was once alive", "clay jar sealed with black wax and a prayer", "bundle of cloth wrapping something cold", "hollow in the wall hidden behind a loose stone", "leather-bound case bearing a dead family's crest"],
+        "contents": ["a letter that was never delivered, its wax seal still unbroken", "a wedding ring sized for a hand much smaller than it should be", "a soldier's journal whose last entry is a single repeated word: 'sorry'", "seeds for a garden that will never be planted", "a locket containing a portrait of someone whose face has been scratched away", "a list of names, each one crossed out in a different handwriting", "a child's doll, carefully repaired many times", "a vial of clean water, precious beyond measure in this tainted place"],
+        "medium": ["Carved into the wall by a hand that was running out of time", "Written in ash on the floor", "Burned into wood with a dying flame", "Scratched into glass with a broken ring", "Pressed into clay with a trembling thumb", "Scored into leather with a belt knife", "Painted in the last of someone's blood", "Whispered by the wind through a crack in the wall"],
+        "lament": ["We built this place to keep the darkness out. Now it keeps us in", "The cure was worse than the disease. The disease was worse than death. And death was not the end", "I forgave them. But the world did not", "We thought we were saving them. We were only choosing who to lose", "The last light went out three days ago. I can still see. That means I am changing too", "They told us the corruption could be fought. They were right. They did not say we could win", "I watched the world end. Then I watched it keep going. That was the cruelest part", "Every choice I made was the right one. That is what I cannot forgive"],
+        "warning": ["Trust nothing that offers comfort freely", "The corruption does not destroy — it replaces", "Do not weep for the fallen. They are the fortunate ones", "What you fight, you become. Choose your battles with care", "Mercy here is a luxury paid for in blood", "The ones who smile have forgotten what they lost", "If you can still feel despair, you are still human. Hold onto it", "There is no bottom. I know because I am still falling"],
+        "adjective": ["water-damaged and faded", "ash-smeared", "tear-stained", "crumbling at the edges", "stained with something dark", "carefully folded despite everything", "almost illegible with age", "preserved by sorrow alone"],
+        "document": ["soldier's farewell letter", "healer's final patient log", "magistrate's last decree", "mother's unfinished lullaby", "architect's confession", "priest's crisis of faith", "general's admission of defeat", "child's diary"],
+        "testimony": ["We held the wall for nine days. On the tenth, the wall held us", "The refugees stopped coming yesterday. I do not know if that means safety or silence", "I burned the orchards so they could not be corrupted. The smoke smelled like home", "She asked me to remember her as she was. I promised. I am already forgetting", "The medicine ran out three weeks before the plague did", "They surrendered, but the corruption does not accept surrender", "I could have saved one more. I will carry that one more for the rest of my days"],
+        "location": ["inside of a cell door", "base of a collapsed statue", "back of a shield still strapped to its owner", "margin of a defaced holy book", "floor beside a cold hearth"],
+        "author": ["the last guard to leave", "a healer whose hands finally shook too much", "someone who stopped writing mid-sentence", "a child who understood too much", "the one who locked the door from the inside"],
+        "discovery": ["a row of graves, each smaller than the last", "a barricade built from furniture and hope, neither of which held", "a garden growing in the ruins, beautiful and entirely wrong", "a suit of armor arranged in a posture of prayer, its occupant long gone", "a wall of tally marks that stop abruptly"],
+        "reaction": ["You wish you had not found this", "Something in you hardens, and you are not sure that is a good thing", "You understand now why this place is the way it is", "The weight of someone else's grief settles on you like a cloak", "You resolve to remember this, even if it hurts"]
+      }
+    }
+  },
+  "npc_greeting": {
+    "horror": {
+      "templates": [
+        "'{{greeting}},' says the {{npc_adjective}} {{npc_role}}. '{{offer}}'",
+        "The {{npc_adjective}} {{npc_role}} {{action}}. '{{greeting}}. {{warning}}'",
+        "'{{greeting}}.' The {{npc_role}}'s {{feature}} as they speak. '{{offer}}'",
+        "A {{npc_adjective}} {{npc_role}} {{action}}. '{{warning}}. {{offer}}'",
+        "The {{npc_role}} {{action}} and whispers, '{{greeting}}. {{warning}}'"
+      ],
+      "slots": {
+        "greeting": ["You should not be here", "Another one. They keep sending them", "Do not look at me like that — I am still human", "I hoped no one else would come", "You look alive. For now", "How long have you been down here? You look... changed", "Shh — they listen through the walls", "I thought I was the last one left", "Thank the gods, a living face", "Do not trust your eyes in this place"],
+        "npc_adjective": ["hollow-eyed", "trembling", "gaunt", "wild-haired", "bandaged", "whispering", "flinching", "scarred", "ash-pale", "twitching"],
+        "npc_role": ["survivor", "former scholar", "escaped prisoner", "wounded pilgrim", "mad hermit", "blind seer", "deserter", "plague doctor", "penitent", "scavenger"],
+        "action": ["emerges from behind a barricade", "peers at you from the shadows", "clutches a makeshift weapon with white knuckles", "rocks back and forth in the corner", "holds a guttering candle between shaking hands", "presses against the wall as if trying to disappear", "grips your arm with surprising strength"],
+        "offer": ["I know things about this place. Things I wish I did not", "I can tell you which paths to avoid, if you have something to trade", "Stay. Rest. The things out there are worse when you are tired", "I have supplies, but nothing is free down here", "Take this — I have no use for it where I am going", "I mapped some of the corridors. The ones that stay still, anyway", "If you are heading deeper, I can tell you what I saw"],
+        "warning": ["Do not go below the third level. Not at night", "If you hear singing, cover your ears and run", "The shadows move when you are not looking — I am not mad, I swear", "Something down here wears the faces of the dead", "The deeper rooms change when no one is watching", "There are things here that were never alive to begin with", "They come through the walls after dark"],
+        "feature": ["eyes dart to every shadow", "voice cracks with barely contained terror", "hands never stop trembling", "scarred face twists with effort", "breathing comes in ragged gasps"]
+      }
+    },
+    "funny": {
+      "templates": [
+        "'{{greeting}},' says the {{npc_adjective}} {{npc_role}}. '{{offer}}'",
+        "The {{npc_adjective}} {{npc_role}} {{action}}. '{{greeting}}! {{commentary}}'",
+        "'{{greeting}}!' The {{npc_role}} {{action}}. '{{offer}}'",
+        "A {{npc_adjective}} {{npc_role}} {{action}} and announces, '{{greeting}}! {{commentary}}'",
+        "The {{npc_role}} {{action}}. '{{greeting}}. {{offer}}'"
+      ],
+      "slots": {
+        "greeting": ["Oh good, a customer", "Welcome to my humble corner of this terrible dungeon", "Hey, you look like someone who makes questionable life choices", "Ah, another brave hero. Or lost tourist, I honestly cannot tell anymore", "Five stars, would meet in a dungeon again", "Finally, someone who is not trying to eat me", "I was starting to think I was the only sane one down here", "Hello, fellow person who is definitely not a mimic", "Oh thank goodness, I have been rehearsing my sales pitch for hours", "Greetings, fellow disaster"],
+        "npc_adjective": ["overdressed", "suspiciously cheerful", "extremely caffeinated", "mildly singed", "deeply confused", "enthusiastic but lost", "surprisingly clean", "alarmingly optimistic", "slightly translucent", "aggressively friendly"],
+        "npc_role": ["merchant who took a wrong turn", "retired adventurer", "dungeon tour guide", "self-proclaimed dungeon food critic", "wandering bard who cannot carry a tune", "monster life coach", "professional torch holder", "unlicensed potion dealer", "dungeon interior designer", "freelance quest giver"],
+        "action": ["adjusts their monocle unnecessarily", "trips over nothing and recovers with dignity", "puts down a sandwich they were definitely eating", "does finger guns at you", "checks a clipboard labeled 'HERO INTERACTIONS'", "emerges from behind a barrel wearing a fake mustache", "straightens a name tag that says 'ASK ME ABOUT QUESTS'"],
+        "offer": ["I have got things to sell and nowhere to be. Shall we do business?", "I accept gold, gems, and IOUs from adventurers with good credit scores", "Can I interest you in some slightly cursed but deeply discounted merchandise?", "I have potions, provisions, and unsolicited advice. The advice is free and worth every copper", "Want to buy something? I need to clear out my inventory before the dungeon inspection", "I have been told my prices are criminal. I prefer the term 'aspirational'", "I have supplies, rumors, and a lovely singing voice. Two of those are useful"],
+        "commentary": ["I am not trapped down here, I am networking", "This dungeon has a two-star rating and honestly that is generous", "Do not mind the ambiance, the decorator was a necromancer", "I used to be an adventurer like you, then I took a career change to the knee", "Between you and me, the monsters here have terrible Yelp reviews", "Fun fact: this dungeon has a gift shop on level negative three", "I have been here so long I have started naming the rats. Gerald says hi"]
+      }
+    },
+    "epic": {
+      "templates": [
+        "'{{greeting}},' says the {{npc_adjective}} {{npc_role}}. '{{offer}}'",
+        "The {{npc_adjective}} {{npc_role}} {{action}}. '{{greeting}}. {{declaration}}'",
+        "'{{greeting}}.' The {{npc_role}}'s {{feature}} as they address you. '{{offer}}'",
+        "A {{npc_adjective}} {{npc_role}} {{action}}. '{{greeting}}. {{declaration}}'",
+        "The {{npc_role}} {{action}} and speaks with the weight of ages: '{{greeting}}. {{offer}}'"
+      ],
+      "slots": {
+        "greeting": ["Hail, champion. The prophecies spoke of your coming", "Well met, brave soul. Few venture this deep and fewer still walk out", "At last, a warrior worthy of these halls", "The old gods have guided you here, as was foretold", "Rise, hero. Your legend is being written as we speak", "I have waited an age for one such as you", "The stars aligned to bring us together on this day", "You carry the mark of destiny. I can see it upon you", "Welcome, seeker. The trials ahead will forge you into legend", "Stand tall — you walk among the echoes of greatness"],
+        "npc_adjective": ["battle-scarred", "noble", "radiant", "silver-haired", "ancient", "regal", "legendary", "stoic", "luminous", "weather-worn"],
+        "npc_role": ["guardian of the deep", "keeper of the sacred flame", "last of the Silver Order", "wandering sage", "exiled champion", "oracle of the forgotten temple", "sentinel of the ancient gate", "veteran of the Sundering War", "immortal chronicler", "sworn protector of the realm"],
+        "action": ["salutes you with a blade that gleams with ancient power", "rises from meditation, their eyes burning with inner fire", "steps from the shadows, their armor bearing the marks of a hundred battles", "inclines their head with the grace of one who has bowed to kings", "lowers their weapon, recognizing a kindred spirit"],
+        "offer": ["I can share the wisdom of the ancients, if you would hear it", "The path ahead is perilous, but I can offer guidance and what strength I have left", "Take what you need from my stores — a hero should not want for supplies", "I have fought the darkness for longer than most kingdoms have stood. Let me share what I have learned", "The trials ahead require more than strength. I can prepare you, if you will let me", "My order swore to aid those who walk the hero's path. That oath still binds me", "I carry artifacts from a fallen age. Perhaps they will serve your quest better than they served mine"],
+        "declaration": ["The ancient evil stirs once more, and only the worthy can stand against it", "Your arrival marks the turning of the age, as the prophecies foretold", "Heroes are not born — they are forged in places such as this", "The world above does not know the danger that grows in these depths", "What sleeps below must never be awakened, yet something has disturbed its slumber", "The Five Kingdoms have forgotten, but I remember. And now you will remember too"],
+        "feature": ["eyes glow with an otherworldly light", "voice carries the resonance of ancient power", "presence fills the chamber with quiet authority", "scarred hands rest upon a legendary weapon", "armor shimmers with protective enchantments"]
+      }
+    },
+    "dark_fantasy": {
+      "templates": [
+        "'{{greeting}},' says the {{npc_adjective}} {{npc_role}}. '{{offer}}'",
+        "The {{npc_adjective}} {{npc_role}} {{action}}. '{{greeting}}. {{observation}}'",
+        "'{{greeting}}.' The {{npc_role}}'s {{feature}} as they study you. '{{offer}}'",
+        "A {{npc_adjective}} {{npc_role}} {{action}}. '{{greeting}}. {{observation}}'",
+        "The {{npc_role}} {{action}} and says quietly, '{{greeting}}. {{offer}}'"
+      ],
+      "slots": {
+        "greeting": ["Still alive, then. That is something", "You look like someone who has already lost something. Good — it means you know what is at stake", "I stopped hoping for rescue long ago. But I will settle for company", "Another soul wandering where souls should not wander", "Do not mistake my stillness for peace. I am simply too tired to scream", "You have the look of someone who has seen what this place does to people", "I will not ask how you got here. The answer is always the same — badly", "Sit, if you can still sit. Rest, if you remember how", "The corruption has not taken you yet. That is either luck or stubbornness", "You still have light in your eyes. Guard it carefully"],
+        "npc_adjective": ["weary", "scarred", "grief-worn", "hollow", "weathered", "hardened", "solemn", "gaunt", "battle-worn", "quiet"],
+        "npc_role": ["deserter who could not run far enough", "healer whose patients stopped surviving", "knight whose oath outlived their kingdom", "merchant with nothing left to sell but warnings", "scholar who learned the wrong truths", "orphan grown old in these halls", "priest whose god went silent", "soldier fighting a war already lost", "exile with nowhere left to be exiled from", "wanderer who forgot the way out"],
+        "action": ["looks up from tending a wound that will not heal", "stares past you at something only they can see", "sets down a weapon too heavy for their frame", "pulls their cloak tighter against a cold that is not physical", "gestures to a fire that gives light but no warmth"],
+        "offer": ["I have supplies. Not many, and not free, but you will need them more than I will", "I know which paths are merely dangerous and which are hopeless. There is a difference", "Take what wisdom I have. It was bought at a price I would not wish on anyone", "I can share what I know of this place. It will not make you feel better", "If you are set on going deeper, at least go prepared. I can help with that much", "I have seen things that might be useful to you and terrible to know. Your choice", "I will trade with you. Fairness is one of the last things I can still offer"],
+        "observation": ["The corruption changes everything it touches. Including the truth", "There are no heroes down here. Only survivors and the things that unmade them", "Every person I have met in these halls has a story. Most of them do not end well", "The world above has already forgotten this place. Perhaps that is a mercy", "Hope is dangerous here. It makes you careless", "We all came here looking for something. Most of us found something else entirely"],
+        "feature": ["eyes carry the weight of things they wish they had not witnessed", "voice is steady but hollow, as if all the feeling has been wrung out", "face bears scars that speak of battles survived but not won", "hands are calloused and careful, the hands of someone used to loss", "expression is unreadable, the mask of one who has stopped expecting kindness"]
+      }
+    }
+  }
+}

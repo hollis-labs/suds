@@ -10,6 +10,7 @@ import { rollCheck, rollDice } from "@/server/game/dice";
 import { statModifier, GAME_CONFIG } from "@/lib/constants";
 import type { Theme, RoomType } from "@/lib/constants";
 import { generateRoomDescriptionAI, generateLoreFragmentAI } from "@/server/game/ai";
+import { selectOrGenerate } from "@/server/game/content-library";
 import { logGameEvent } from "@/server/game/events";
 import itemsData from "@/server/gamedata/items.json";
 import type {
@@ -257,14 +258,14 @@ export const gameRouter = router({
           lootData = generateLootItems(targetDepth);
         }
 
-        // Enhance room description with AI (falls back to word bank automatically)
-        const aiDescription = await generateRoomDescriptionAI(
+        // Enhance room description with AI via content library
+        const aiDescription = await selectOrGenerate(ctx.db, {
+          type: "room_description",
           theme,
-          newRoom.type as RoomType,
-          newRoom.name,
-          targetDepth,
-        );
-        newRoom.description = aiDescription;
+          tags: [newRoom.type, targetDepth > 5 ? "deep" : targetDepth > 2 ? "mid" : "shallow"],
+          generate: () => generateRoomDescriptionAI(theme, newRoom.type as RoomType, newRoom.name, targetDepth),
+        });
+        newRoom.description = aiDescription as string;
 
         // Insert into DB — handle race condition from rapid key presses
         try {
@@ -478,8 +479,13 @@ export const gameRouter = router({
         if (!results.items && !results.newExits) {
           const theme = character.theme as Theme;
           const depth = Math.abs(position.x) + Math.abs(position.y);
-          const fragment = await generateLoreFragmentAI(theme, depth);
-          results.message = fragment;
+          const fragment = await selectOrGenerate(ctx.db, {
+            type: "lore_fragment",
+            theme,
+            tags: [currentRoom.type, depth > 5 ? "deep" : depth > 2 ? "mid" : "shallow"],
+            generate: () => generateLoreFragmentAI(theme, depth),
+          });
+          results.message = fragment as string;
         }
 
         logGameEvent({

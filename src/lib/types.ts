@@ -228,5 +228,7 @@ export interface GameState {
     | "death"
     | "level_up"
     | "lore"
-    | "party";
+    | "party"
+    | "news"
+    | "about";
 }

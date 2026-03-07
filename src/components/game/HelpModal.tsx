@@ -23,6 +23,8 @@ const CONTROLS = [
   { keys: "C", action: "Character sheet" },
   { keys: "P", action: "Party" },
   { keys: "L", action: "Codex / Lore" },
+  { keys: "N", action: "News" },
+  { keys: "~", action: "About" },
   { keys: "Q", action: "Exit to character select" },
   { keys: "?", action: "This help menu" },
 ];

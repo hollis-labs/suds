@@ -20,9 +20,14 @@ export function TerminalModal({
 }: TerminalModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Focus trap
+  // Focus trap — saves the previously focused element and restores it on close
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
+
+    // Remember which element had focus before the modal opened
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
 
     const modal = modalRef.current;
     if (!modal) return;
@@ -57,7 +62,13 @@ export function TerminalModal({
     }
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      // Restore focus to the element that was focused before the modal opened.
+      // This ensures keyboard shortcuts (WASD, X, etc.) work immediately after
+      // closing a modal without requiring the user to click first.
+      previousFocusRef.current?.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;

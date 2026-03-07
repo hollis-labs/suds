@@ -306,6 +306,20 @@ export const gameEvents = pgTable("game_events", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 
+// ─── Content Library ────────────────────────────────────────────────────────
+
+export const contentLibrary = pgTable("content_library", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  type: text("type").notNull(), // room_description, npc_dialogue, lore_fragment, quest
+  theme: text("theme").notNull(), // horror, funny, epic, dark_fantasy
+  tags: jsonb("tags").default([]).notNull(), // array of strings for context matching
+  content: jsonb("content").notNull(), // the actual content (string or object)
+  quality: integer("quality").default(3).notNull(), // 1-5 rating for future curation
+  usageCount: integer("usage_count").default(0).notNull(),
+  lastUsedAt: timestamp("last_used_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
 // ─── AI Usage ───────────────────────────────────────────────────────────────
 
 export const aiUsage = pgTable("ai_usage", {
@@ -317,6 +331,19 @@ export const aiUsage = pgTable("ai_usage", {
   durationMs: integer("duration_ms"),
   characterId: uuid("character_id"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
+// ─── News Posts ─────────────────────────────────────────────────────
+
+export const newsPosts = pgTable("news_posts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  category: text("category").default("update").notNull(),
+  authorId: uuid("author_id").references(() => users.id),
+  published: boolean("published").default(true).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });
 
 // ─── Type Exports ────────────────────────────────────────────────────────────
@@ -377,3 +404,9 @@ export type NewGameEvent = InferInsertModel<typeof gameEvents>;
 
 export type AiUsage = InferSelectModel<typeof aiUsage>;
 export type NewAiUsage = InferInsertModel<typeof aiUsage>;
+
+export type ContentLibraryEntry = InferSelectModel<typeof contentLibrary>;
+export type NewContentLibraryEntry = InferInsertModel<typeof contentLibrary>;
+
+export type NewsPost = InferSelectModel<typeof newsPosts>;
+export type NewNewsPost = InferInsertModel<typeof newsPosts>;

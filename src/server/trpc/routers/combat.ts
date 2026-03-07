@@ -1246,12 +1246,24 @@ export const combatRouter = router({
         })
         .where(eq(combatStateTable.characterId, character.id));
 
-      // Save updated player HP/MP
+      // Sync shield absorb from combat extra back to player buffs so UI shows current value
+      const currentBuffs = (character.buffs as PlayerBuff[]) ?? [];
+      const syncedBuffs = currentBuffs.map((buff) => {
+        if (buff.type === "shield") {
+          const shieldBuff = turnResult.extra.playerBuffs.find((b) => b.name === "shrine_shield");
+          const remainingAbsorb = shieldBuff?.damageAbsorb ?? 0;
+          return { ...buff, value: remainingAbsorb };
+        }
+        return buff;
+      }).filter((buff) => buff.type !== "shield" || buff.value > 0);
+
+      // Save updated player HP/MP/buffs
       await ctx.db
         .update(characters)
         .set({
           hp: turnResult.player.hp,
           mp: turnResult.player.mp,
+          buffs: syncedBuffs,
           updatedAt: new Date(),
         })
         .where(eq(characters.id, character.id));

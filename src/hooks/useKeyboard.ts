@@ -8,6 +8,9 @@ import { useEffect, useRef } from "react";
  * Uses a ref internally so the document listener is registered once and stays
  * stable — handler identity changes won't cause listener churn that drops events.
  *
+ * Refs are updated synchronously during render (not in useEffect) so there is
+ * never a stale-handler window between render and effect commit.
+ *
  * @param handlers - Map of key names to handler functions.
  * @param enabled - Whether the listener is active (default true).
  */
@@ -18,14 +21,9 @@ export function useKeyboard(
   const handlersRef = useRef(handlers);
   const enabledRef = useRef(enabled);
 
-  // Keep refs up to date without re-registering the listener
-  useEffect(() => {
-    handlersRef.current = handlers;
-  }, [handlers]);
-
-  useEffect(() => {
-    enabledRef.current = enabled;
-  }, [enabled]);
+  // Synchronously update refs during render — no stale-handler gap
+  handlersRef.current = handlers;
+  enabledRef.current = enabled;
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -41,8 +39,11 @@ export function useKeyboard(
         return;
       }
 
-      // Don't intercept when modifier keys are held (e.g. Cmd+C for copy)
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Don't intercept Ctrl/Alt combos (e.g. Ctrl+C for copy)
+      // Note: e.metaKey intentionally NOT checked — Karabiner Elements
+      // and similar tools can leave Meta in a phantom/stuck state.
+      if (e.ctrlKey || e.altKey) return;
+      if (e.key === "Meta" || e.key === "Control" || e.key === "Alt" || e.key === "Shift") return;
 
       const key = e.key;
       const handler = handlersRef.current[key];

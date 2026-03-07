@@ -8,6 +8,7 @@ import { npcRouter } from "./routers/npc";
 import { inventoryRouter } from "./routers/inventory";
 import { adminRouter } from "./routers/admin";
 import { loreRouter } from "./routers/lore";
+import { newsRouter } from "./routers/news";
 
 export const appRouter = router({
   auth: authRouter,
@@ -19,6 +20,7 @@ export const appRouter = router({
   inventory: inventoryRouter,
   admin: adminRouter,
   lore: loreRouter,
+  news: newsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -18,13 +18,35 @@ import {
   HelpModal,
   LorePanel,
   PartyPanel,
+  NewsPanel,
+  AboutPanel,
 } from "@/components/game";
 import { useGameStore } from "@/stores/gameStore";
-import { useKeyboard } from "@/hooks/useKeyboard";
 import { GAME_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import type { Store, NPC, DialogueNode, GameItem, Direction, CombatAction, CombatState, Player } from "@/lib/types";
+
+// ── Keyboard map (module-level constant) ──────────────────────────────
+const EXPLORING_KEY_MAP: Record<string, string> = {
+  w: "move_north", W: "move_north", ArrowUp: "move_north",
+  s: "move_south", S: "move_south", ArrowDown: "move_south",
+  d: "move_east", D: "move_east", ArrowRight: "move_east",
+  a: "move_west", A: "move_west", ArrowLeft: "move_west",
+  x: "search", X: "search",
+  r: "rest", R: "rest",
+  f: "interact_shrine", F: "interact_shrine",
+  t: "talk", T: "talk",
+  b: "shop", B: "shop",
+  i: "inventory", I: "inventory",
+  c: "character", C: "character",
+  "?": "help",
+  l: "lore", L: "lore",
+  p: "party", P: "party",
+  n: "news", N: "news",
+  "~": "about",
+  q: "exit", Q: "exit",
+};
 
 // ── Directional Pad Component ─────────────────────────────────────────
 
@@ -46,7 +68,7 @@ function DPad({ onMove, onSearch, disabled, availableExits = [] }: DPadProps) {
     const hasExit = availableExits.includes(dir);
     return cn(
       "font-mono text-xs font-bold border",
-      "w-12 h-10 md:w-10 md:h-8 flex items-center justify-center transition-all",
+      "w-12 h-12 md:w-10 md:h-8 flex items-center justify-center transition-all",
       disabled
         ? "text-terminal-border border-terminal-border cursor-not-allowed opacity-40"
         : hasExit
@@ -81,7 +103,7 @@ function DPad({ onMove, onSearch, disabled, availableExits = [] }: DPadProps) {
         <button
           className={cn(
             "font-mono text-xs font-bold border border-terminal-border",
-            "w-12 h-10 md:w-10 md:h-8 flex items-center justify-center transition-colors",
+            "w-12 h-12 md:w-10 md:h-8 flex items-center justify-center transition-colors",
             disabled
               ? "text-terminal-border cursor-not-allowed opacity-40"
               : "text-terminal-amber border-terminal-amber/50 hover:border-terminal-amber hover:bg-terminal-amber/10 cursor-pointer"
@@ -145,6 +167,8 @@ function ExploringActions({ onAction, roomType }: ExploringActionsProps) {
     { key: "C", label: "Character", action: "character" },
     { key: "P", label: "Party", action: "party" },
     { key: "L", label: "Codex", action: "lore" },
+    { key: "N", label: "News", action: "news" },
+    { key: "~", label: "About", action: "about" },
     { key: "Q", label: "Exit", action: "exit" },
     { key: "?", label: "Help", action: "help" },
   ];
@@ -155,7 +179,7 @@ function ExploringActions({ onAction, roomType }: ExploringActionsProps) {
         <button
           key={btn.action}
           onClick={(e) => { onAction(btn.action); e.currentTarget.blur(); }}
-          className="text-terminal-green-dim hover:text-terminal-green transition-colors px-2 py-2 md:py-1 border border-terminal-border hover:border-terminal-green"
+          className="text-terminal-green-dim hover:text-terminal-green transition-colors px-2 py-2.5 md:py-1 min-h-[44px] md:min-h-0 border border-terminal-border hover:border-terminal-green"
         >
           <span className="text-terminal-green">[{btn.key}]</span> {btn.label}
         </button>
@@ -173,11 +197,11 @@ function KeyHintsBar({ screen, roomType }: { screen: string; roomType?: string }
   const shrineHint = roomType === "shrine" ? " | F: Shrine" : "";
   const npcHint = roomType === "npc_room" ? " | T: Talk" : "";
   const storeHint = roomType === "store" ? " | B: Shop" : "";
-  const exploringHints = `WASD/Arrows: Move | X: Search${restHint}${shrineHint}${npcHint}${storeHint} | I: Inventory | C: Character | P: Party | L: Codex | Q: Exit | ?: Help`;
+  const exploringHints = `WASD/Arrows: Move | X: Search${restHint}${shrineHint}${npcHint}${storeHint} | I: Inventory | C: Character | P: Party | L: Codex | N: News | ~: About | Q: Exit | ?: Help`;
   const combatHints = "1: Attack | 2: Defend | 3: Cast | 4: Flee | 5: Use Item | Esc: Back";
 
   return (
-    <div className="font-mono text-[10px] text-terminal-border-bright tracking-wide">
+    <div className="hidden md:block font-mono text-[10px] text-terminal-border-bright tracking-wide">
       {screen === "combat" ? combatHints : exploringHints}
     </div>
   );
@@ -640,6 +664,12 @@ export default function PlayCharacterPage() {
         case "party":
           setScreen("party");
           break;
+        case "news":
+          setScreen("news");
+          break;
+        case "about":
+          setScreen("about");
+          break;
         case "exit":
           router.push("/characters");
           break;
@@ -669,47 +699,52 @@ export default function PlayCharacterPage() {
     handleAction("search");
   }, [handleAction]);
 
-  // ── Keyboard shortcuts for exploring (WASD + arrows) ──
-  const exploringKeyHandlers = useMemo((): Record<string, () => void> => {
-    if (screen !== "exploring") return {};
-    return {
-      w: () => handleAction("move_north"),
-      W: () => handleAction("move_north"),
-      ArrowUp: () => handleAction("move_north"),
-      s: () => handleAction("move_south"),
-      S: () => handleAction("move_south"),
-      ArrowDown: () => handleAction("move_south"),
-      d: () => handleAction("move_east"),
-      D: () => handleAction("move_east"),
-      ArrowRight: () => handleAction("move_east"),
-      a: () => handleAction("move_west"),
-      A: () => handleAction("move_west"),
-      ArrowLeft: () => handleAction("move_west"),
-      x: () => handleAction("search"),
-      X: () => handleAction("search"),
-      r: () => handleAction("rest"),
-      R: () => handleAction("rest"),
-      f: () => handleAction("interact_shrine"),
-      F: () => handleAction("interact_shrine"),
-      t: () => handleAction("talk"),
-      T: () => handleAction("talk"),
-      b: () => handleAction("shop"),
-      B: () => handleAction("shop"),
-      i: () => handleAction("inventory"),
-      I: () => handleAction("inventory"),
-      c: () => handleAction("character"),
-      C: () => handleAction("character"),
-      "?": () => handleAction("help"),
-      l: () => handleAction("lore"),
-      L: () => handleAction("lore"),
-      p: () => handleAction("party"),
-      P: () => handleAction("party"),
-      q: () => handleAction("exit"),
-      Q: () => handleAction("exit"),
-    };
-  }, [screen, handleAction]);
+  // ── Global keyboard listener (window capture phase) ──
+  // Uses window + capture phase — the most aggressive listener possible.
+  // This fires BEFORE any element-level handlers and regardless of focus.
+  // Uses refs to avoid stale closures with the empty deps useEffect.
+  const screenRef = useRef(screen);
+  const handleActionRef = useRef(handleAction);
+  const handleRespawnRef = useRef(handleRespawn);
+  screenRef.current = screen;
+  handleActionRef.current = handleAction;
+  handleRespawnRef.current = handleRespawn;
 
-  useKeyboard(exploringKeyHandlers, screen === "exploring");
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) return;
+      if (e.ctrlKey || e.altKey) return;
+      if (e.key === "Meta" || e.key === "Control" || e.key === "Alt" || e.key === "Shift") return;
+
+      const currentScreen = screenRef.current;
+
+      if (currentScreen === "exploring") {
+        const action = EXPLORING_KEY_MAP[e.key];
+        if (action) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          handleActionRef.current(action);
+          return;
+        }
+      }
+
+      if (currentScreen === "death") {
+        if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          handleRespawnRef.current();
+        }
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
 
   // ── Store mutations ──
   const storeBuyMutation = trpc.store.buy.useMutation({
@@ -917,16 +952,50 @@ export default function PlayCharacterPage() {
     // Re-focus root div on screen change so keyboard shortcuts work.
     // Also runs when player loads (initial data fetch), ensuring focus is
     // set after the loading skeleton is replaced by the actual game UI.
-    rootRef.current?.focus();
+    // Use requestAnimationFrame to ensure focus happens after modal unmount
+    // completes and the DOM is fully settled.
+    const raf = requestAnimationFrame(() => {
+      rootRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
   }, [screen, player]);
+
+  // Re-focus root div when user clicks anywhere inside it. Prevents focus
+  // from getting "stuck" on a button after a click, which can cause some
+  // browsers to suppress document-level keyboard events.
+  const handleRootClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // Don't steal focus from inputs/textareas
+    if (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+    // After any click, schedule root focus so WASD shortcuts always work.
+    // The timeout lets the click's own focus changes settle first.
+    setTimeout(() => rootRef.current?.focus(), 0);
+  }, []);
 
   const handleRootKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.ctrlKey || e.altKey) return;
+      if (e.key === "Meta" || e.key === "Control" || e.key === "Alt" || e.key === "Shift") return;
 
-      // Only handle keys NOT covered by useKeyboard (which handles exploring)
+      // ── Exploring keys (backup for window capture listener) ──
+      if (screen === "exploring") {
+        const action = EXPLORING_KEY_MAP[e.key];
+        if (action) {
+          e.preventDefault();
+          handleAction(action);
+          return;
+        }
+      }
+
+      // ── Death screen ──
       if (screen === "death") {
         if (e.key === "r" || e.key === "R") {
           e.preventDefault();
@@ -934,7 +1003,7 @@ export default function PlayCharacterPage() {
         }
       }
     },
-    [screen, handleRespawn]
+    [screen, handleAction, handleRespawn]
   );
 
   // ── Loading state ──
@@ -968,6 +1037,8 @@ export default function PlayCharacterPage() {
   const showNPC = screen === "npc";
   const showLore = screen === "lore";
   const showParty = screen === "party";
+  const showNews = screen === "news";
+  const showAbout = screen === "about";
   const inCombat = screen === "combat";
   const isDead = screen === "death";
 
@@ -993,6 +1064,9 @@ export default function PlayCharacterPage() {
       tabIndex={-1}
       ref={rootRef}
       onKeyDown={handleRootKeyDown}
+      onClick={handleRootClick}
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      autoFocus
     >
       <TerminalHUD
         className="h-full"
@@ -1000,13 +1074,15 @@ export default function PlayCharacterPage() {
         bottomBar={<KeyHintsBar screen={screen} roomType={currentRoom?.type} />}
       >
         {/* Main content: stacked on mobile, side-by-side on md+ */}
-        <div className="flex flex-col md:flex-row h-full gap-4">
-          {/* ── Left panel (35%): Map + DPad ── */}
-          <div className="w-full md:w-[35%] shrink-0 flex flex-col items-center justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-4 md:pb-0 md:pr-4 gap-4">
-            <div className="text-terminal-green-dim text-[10px] uppercase tracking-wider">
+        <div className="flex flex-col md:flex-row h-full min-h-0 gap-2 md:gap-4">
+          {/* ── Left panel (35%): Map + DPad — compact on mobile ── */}
+          <div className="w-full md:w-[35%] shrink-0 md:shrink flex flex-row md:flex-col items-center justify-center md:justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-2 md:pb-0 md:pr-4 gap-2 md:gap-4">
+            <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
               Dungeon Map
             </div>
-            <Map viewport={mapViewport} />
+            <div className="max-h-[30vh] md:max-h-none overflow-hidden">
+              <Map viewport={mapViewport} />
+            </div>
             {!inCombat && (
               <DPad
                 onMove={handleDPadMove}
@@ -1018,7 +1094,7 @@ export default function PlayCharacterPage() {
           </div>
 
           {/* ── Right panel (65%): Text + Actions/Combat ── */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
             {inCombat && combatState ? (
               /* ── Combat View ── */
               <CombatPanel
@@ -1176,6 +1252,16 @@ export default function PlayCharacterPage() {
           }}
           onClose={closeOverlay}
         />
+      </TerminalModal>
+
+      {/* ── News Panel ── */}
+      <TerminalModal open={showNews} onClose={closeOverlay} title="NEWS">
+        <NewsPanel onClose={closeOverlay} />
+      </TerminalModal>
+
+      {/* ── About Panel ── */}
+      <TerminalModal open={showAbout} onClose={closeOverlay} title="ABOUT">
+        <AboutPanel onClose={closeOverlay} />
       </TerminalModal>
 
       {/* ── Party Up Dialog ── */}

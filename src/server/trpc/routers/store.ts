@@ -246,20 +246,33 @@ export const storeRouter = router({
         });
       }
 
-      // Find item in store inventory
+      // Find item in local store inventory or marketplace
       const inventory = storeRow.inventory as StoreItem[];
       const storeItemIndex = inventory.findIndex(
         (si) => si.item.itemId === input.itemId
       );
 
-      if (storeItemIndex === -1) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Item not found in store",
-        });
+      let storeItem: StoreItem;
+      let isMarketplace = false;
+
+      if (storeItemIndex !== -1) {
+        storeItem = inventory[storeItemIndex]!;
+      } else {
+        // Check marketplace items
+        const marketplaceItems = getMarketplaceItems(character.level);
+        const marketItem = marketplaceItems.find(
+          (si) => si.item.itemId === input.itemId
+        );
+        if (!marketItem) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Item not found in store",
+          });
+        }
+        storeItem = marketItem;
+        isMarketplace = true;
       }
 
-      const storeItem = inventory[storeItemIndex]!;
       const chaMod = statModifier(stats.cha);
       const price = calculateBuyPrice(storeItem.item, chaMod);
 
@@ -303,23 +316,25 @@ export const storeRouter = router({
         isEquipped: false,
       });
 
-      // Decrease store stock or remove item
-      const updatedInventory = [...inventory];
-      if (storeItem.stock <= 1) {
-        updatedInventory.splice(storeItemIndex, 1);
-      } else {
-        updatedInventory[storeItemIndex] = {
-          ...storeItem,
-          stock: storeItem.stock - 1,
-        };
+      // Decrease store stock or remove item (marketplace items have unlimited stock)
+      if (!isMarketplace) {
+        const updatedInventory = [...inventory];
+        if (storeItem.stock <= 1) {
+          updatedInventory.splice(storeItemIndex, 1);
+        } else {
+          updatedInventory[storeItemIndex] = {
+            ...storeItem,
+            stock: storeItem.stock - 1,
+          };
+        }
+
+        await ctx.db
+          .update(stores)
+          .set({ inventory: updatedInventory })
+          .where(eq(stores.id, storeRow.id));
       }
 
-      await ctx.db
-        .update(stores)
-        .set({ inventory: updatedInventory })
-        .where(eq(stores.id, storeRow.id));
-
-      // Build updated response
+      // Build updated response — re-read store to get current local inventory
       const refreshedItems = await ctx.db
         .select()
         .from(inventoryItems)
@@ -328,7 +343,12 @@ export const storeRouter = router({
       const updatedCharacter = { ...character, gold: newGold };
       const player = buildPlayer(updatedCharacter, refreshedItems);
 
-      const updatedLocalInventory = updatedInventory.map((si) => ({
+      const [refreshedStore] = await ctx.db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeRow.id));
+
+      const currentLocalInventory = (refreshedStore!.inventory as StoreItem[]).map((si) => ({
         ...si,
         price: calculateBuyPrice(si.item, chaMod),
       }));
@@ -336,7 +356,7 @@ export const storeRouter = router({
       const store: Store = {
         id: storeRow.id,
         name: storeRow.name,
-        localInventory: updatedLocalInventory,
+        localInventory: currentLocalInventory,
         marketplaceInventory: getMarketplaceItems(character.level).map(
           (si) => ({
             ...si,
@@ -363,6 +383,26 @@ export const storeRouter = router({
         input.characterId,
         userId
       );
+
+      // Verify player is in a store room
+      const position = character.position as Position;
+      const [currentRoom] = await ctx.db
+        .select()
+        .from(rooms)
+        .where(
+          and(
+            eq(rooms.characterId, character.id),
+            eq(rooms.x, position.x),
+            eq(rooms.y, position.y)
+          )
+        );
+
+      if (!currentRoom || currentRoom.type !== "store") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You must be in a store to sell items.",
+        });
+      }
 
       // Get item from inventory
       const [item] = await ctx.db

@@ -5,6 +5,7 @@ import { router, protectedProcedure } from "../trpc";
 import { characters, rooms, npcs } from "@/server/db/schema";
 import { generateNPC } from "@/server/game/npc";
 import { generateNPCDialogueAI } from "@/server/game/ai";
+import { selectOrGenerate } from "@/server/game/content-library";
 import type { Position, DialogueNode, NPC } from "@/lib/types";
 import type { Theme } from "@/lib/constants";
 
@@ -99,9 +100,14 @@ export const npcRouter = router({
         const theme = character.theme as Theme;
         const generated = generateNPC(theme, depth);
 
-        // Enhance dialogue with AI (falls back to word bank automatically)
-        const aiDialogue = await generateNPCDialogueAI(theme, generated.name, depth);
-        generated.dialogue = aiDialogue;
+        // Enhance dialogue with AI via content library
+        const aiDialogue = await selectOrGenerate(ctx.db, {
+          type: "npc_dialogue",
+          theme,
+          tags: [depth > 5 ? "deep" : depth > 2 ? "mid" : "shallow"],
+          generate: () => generateNPCDialogueAI(theme, generated.name, depth),
+        });
+        generated.dialogue = aiDialogue as Record<string, DialogueNode>;
 
         const [inserted] = await ctx.db
           .insert(npcs)

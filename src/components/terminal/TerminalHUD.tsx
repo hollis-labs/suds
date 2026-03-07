@@ -28,11 +28,11 @@ export function TerminalHUD({
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto p-4">{children}</div>
+      <div className="flex-1 min-h-0 overflow-auto p-4">{children}</div>
 
       {/* Bottom bar */}
       {bottomBar && (
-        <div className="shrink-0 px-3 py-1.5 border-t border-terminal-border bg-terminal-bg-alt text-sm text-terminal-white opacity-60">
+        <div className="shrink-0 px-3 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] border-t border-terminal-border bg-terminal-bg-alt text-sm text-terminal-white opacity-60">
           {bottomBar}
         </div>
       )}
