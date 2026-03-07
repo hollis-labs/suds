@@ -15,8 +15,15 @@ const CONTROLS = [
   { keys: "A / \u2190", action: "West" },
   { keys: "D / \u2192", action: "East" },
   { keys: "X", action: "Search room" },
+  { keys: "R", action: "Rest (safe rooms)" },
+  { keys: "F", action: "Interact with shrine" },
+  { keys: "T", action: "Talk to NPC" },
+  { keys: "B", action: "Shop at store" },
   { keys: "I", action: "Inventory" },
   { keys: "C", action: "Character sheet" },
+  { keys: "P", action: "Party" },
+  { keys: "L", action: "Codex / Lore" },
+  { keys: "Q", action: "Exit to character select" },
   { keys: "?", action: "This help menu" },
 ];
 

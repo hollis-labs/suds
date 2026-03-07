@@ -46,7 +46,7 @@ function DPad({ onMove, onSearch, disabled, availableExits = [] }: DPadProps) {
     const hasExit = availableExits.includes(dir);
     return cn(
       "font-mono text-xs font-bold border",
-      "w-10 h-8 flex items-center justify-center transition-all",
+      "w-12 h-10 md:w-10 md:h-8 flex items-center justify-center transition-all",
       disabled
         ? "text-terminal-border border-terminal-border cursor-not-allowed opacity-40"
         : hasExit
@@ -81,7 +81,7 @@ function DPad({ onMove, onSearch, disabled, availableExits = [] }: DPadProps) {
         <button
           className={cn(
             "font-mono text-xs font-bold border border-terminal-border",
-            "w-10 h-8 flex items-center justify-center transition-colors",
+            "w-12 h-10 md:w-10 md:h-8 flex items-center justify-center transition-colors",
             disabled
               ? "text-terminal-border cursor-not-allowed opacity-40"
               : "text-terminal-amber border-terminal-amber/50 hover:border-terminal-amber hover:bg-terminal-amber/10 cursor-pointer"
@@ -155,7 +155,7 @@ function ExploringActions({ onAction, roomType }: ExploringActionsProps) {
         <button
           key={btn.action}
           onClick={(e) => { onAction(btn.action); e.currentTarget.blur(); }}
-          className="text-terminal-green-dim hover:text-terminal-green transition-colors px-2 py-1 border border-terminal-border hover:border-terminal-green"
+          className="text-terminal-green-dim hover:text-terminal-green transition-colors px-2 py-2 md:py-1 border border-terminal-border hover:border-terminal-green"
         >
           <span className="text-terminal-green">[{btn.key}]</span> {btn.label}
         </button>

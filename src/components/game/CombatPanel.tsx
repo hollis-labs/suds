@@ -504,7 +504,7 @@ export function CombatPanel({
                 onClick={() => !opt.disabled && handleActionSelect(opt.action)}
                 disabled={opt.disabled}
                 className={cn(
-                  "block text-left text-sm px-1 py-0.5 transition-colors w-full",
+                  "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                   opt.disabled
                     ? "text-terminal-border opacity-50 cursor-not-allowed"
                     : "text-terminal-green hover:bg-terminal-green/5 hover:terminal-glow"
@@ -533,7 +533,7 @@ export function CombatPanel({
                 onClick={() => handleTargetSelect(i)}
                 onMouseEnter={() => setSelectedTarget(i)}
                 className={cn(
-                  "block text-left text-sm px-1 py-0.5 transition-colors w-full",
+                  "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                   selectedTarget === i
                     ? "text-terminal-green bg-terminal-green/5 terminal-glow"
                     : "text-terminal-green-dim"
@@ -562,7 +562,7 @@ export function CombatPanel({
                   onClick={() => canAfford && handleAbilitySelect(i)}
                   disabled={!canAfford}
                   className={cn(
-                    "block text-left text-sm px-1 py-0.5 transition-colors w-full",
+                    "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                     !canAfford
                       ? "text-terminal-border opacity-50 cursor-not-allowed"
                       : "text-terminal-green hover:bg-terminal-green/5"

@@ -58,6 +58,24 @@ export function TerminalInput({
           spellCheck={false}
         />
       </div>
+      <button
+        type="button"
+        onClick={() => {
+          if (value.trim()) {
+            onSubmit(value.trim());
+            setValue("");
+          }
+        }}
+        disabled={disabled || !value.trim()}
+        className={cn(
+          "shrink-0 px-3 py-1 border text-xs font-mono transition-colors",
+          value.trim()
+            ? "border-terminal-green text-terminal-green hover:bg-terminal-green/10"
+            : "border-terminal-border text-terminal-border cursor-not-allowed"
+        )}
+      >
+        Enter
+      </button>
     </div>
   );
 }

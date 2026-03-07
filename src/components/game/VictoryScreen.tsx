@@ -95,7 +95,7 @@ export function VictoryScreen({
         {/* Continue */}
         <button
           onClick={onContinue}
-          className="text-terminal-green hover:terminal-glow transition-colors text-sm"
+          className="text-terminal-green hover:terminal-glow transition-colors text-sm px-4 py-2 border border-terminal-green hover:bg-terminal-green/10"
         >
           [Enter] Continue
         </button>

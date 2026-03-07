@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
-# Set a Vercel environment variable
-# Usage: vercel-env-set.sh <key> <value> [environment]
-# Environment: production, preview, development (default: all)
+# Set a Vercel environment variable across all environments
+# Usage: vercel-env-set.sh <key> <value>
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-KEY="${1:?Usage: vercel-env-set.sh <key> <value> [environment]}"
-VALUE="${2:?Usage: vercel-env-set.sh <key> <value> [environment]}"
-ENV="${3:-production preview development}"
+KEY="${1:?Usage: vercel-env-set.sh <key> <value>}"
+VALUE="${2:?Usage: vercel-env-set.sh <key> <value>}"
 
-echo "==> Setting $KEY for environments: $ENV"
+echo "==> Setting $KEY across production, preview, development..."
 
-# Remove existing value first (ignore errors if it doesn't exist)
-for e in $ENV; do
-  echo "$VALUE" | vercel env rm "$KEY" "$e" --yes 2>/dev/null || true
+# Remove existing values (ignore errors if not set)
+for env in production preview development; do
+  vercel env rm "$KEY" "$env" --yes 2>/dev/null || true
 done
 
-# Add new value
-for e in $ENV; do
-  echo "$VALUE" | vercel env add "$KEY" "$e"
-done
+# Add new values
+vercel env add "$KEY" production --value "$VALUE" --yes 2>&1 | grep -E "Added|Error"
+vercel env add "$KEY" preview '' --value "$VALUE" --yes 2>&1 | grep -E "Added|Error"
+vercel env add "$KEY" development --value "$VALUE" --yes 2>&1 | grep -E "Added|Error"
 
 echo "==> $KEY set successfully."
