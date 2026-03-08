@@ -94,18 +94,33 @@ export async function migrateLegacyCharacters(): Promise<MigrationResult> {
 
       console.log(`  Migrating ${character.name} (${charRooms.length} rooms)...`);
 
-      // For small room counts (< 50): put all in the starting area
-      // For larger: still put all in one area with generous grid size
-      // We translate coordinates relative to the area
+      // Check if rooms fit in the starting area grid
       let targetArea = startingArea;
+      let needsDedicatedArea = charRooms.length > 50;
 
-      if (charRooms.length > 50) {
-        // Create a dedicated area for this character's legacy rooms
+      if (charRooms.length > 0 && !needsDedicatedArea) {
+        // Check if any room coordinates exceed starting area bounds
+        const maxRoomX = Math.max(...charRooms.map((r) => r.x));
+        const maxRoomY = Math.max(...charRooms.map((r) => r.y));
+        const minRoomX = Math.min(...charRooms.map((r) => r.x));
+        const minRoomY = Math.min(...charRooms.map((r) => r.y));
+        if (
+          maxRoomX >= startingArea.gridWidth ||
+          maxRoomY >= startingArea.gridHeight ||
+          minRoomX < 0 ||
+          minRoomY < 0
+        ) {
+          needsDedicatedArea = true;
+        }
+      }
+
+      if (needsDedicatedArea && charRooms.length > 0) {
+        // Create a dedicated area sized to fit all rooms
         const minX = Math.min(...charRooms.map((r) => r.x));
         const maxX = Math.max(...charRooms.map((r) => r.x));
         const minY = Math.min(...charRooms.map((r) => r.y));
         const maxY = Math.max(...charRooms.map((r) => r.y));
-        const gridW = maxX - minX + 5; // padding
+        const gridW = maxX - minX + 5;
         const gridH = maxY - minY + 5;
 
         const [newArea] = await db
@@ -113,7 +128,7 @@ export async function migrateLegacyCharacters(): Promise<MigrationResult> {
           .values({
             regionId: startingRegion.id,
             name: `${character.name}'s Explored Lands`,
-            description: `A region of the world explored by the adventurer ${character.name} before the great convergence.`,
+            description: `A region explored by ${character.name} before the great convergence.`,
             areaType: "wilderness",
             gridWidth: Math.max(gridW, 20),
             gridHeight: Math.max(gridH, 20),
@@ -125,6 +140,26 @@ export async function migrateLegacyCharacters(): Promise<MigrationResult> {
           .returning();
 
         targetArea = newArea!;
+
+        // Translate room coordinates: shift so min coords start at 2 (padding)
+        if (minX < 0 || minY < 0) {
+          const offsetX = minX < 0 ? -minX + 2 : 0;
+          const offsetY = minY < 0 ? -minY + 2 : 0;
+
+          for (const room of charRooms) {
+            await db
+              .update(rooms)
+              .set({ x: room.x + offsetX, y: room.y + offsetY })
+              .where(eq(rooms.id, room.id));
+          }
+
+          // Also shift character position
+          const pos = character.position as { x: number; y: number };
+          character.position = {
+            x: pos.x + offsetX,
+            y: pos.y + offsetY,
+          } as typeof character.position;
+        }
       }
 
       // Update character: set worldId, region, area
