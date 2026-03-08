@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { TerminalHUD, TerminalModal, TerminalLoading } from "@/components/terminal";
 import { HudBar } from "@/components/pixel/HudBar";
 import { PixelButton } from "@/components/pixel/PixelButton";
+import { PixelModal } from "@/components/pixel/PixelModal";
 import {
   StatusBar,
   Map, // TODO: Remove legacy Map component after one release cycle post-migration
@@ -1470,130 +1471,114 @@ export default function PlayCharacterPage() {
     </>
   );
 
-  // ── Modal wrappers (terminal for legacy, later pixel for world characters) ──
-  const modalElements = (
+  // ── NPC dialog content (shared between both modal types) ──
+  const npcDialogContent = npcQuery.isLoading ? (
+    <div className="font-mono text-sm space-y-4 p-2">
+      <div className={cn("text-xs italic text-center animate-pulse", isWorldCharacter ? "text-gray-400" : "text-terminal-amber-dim")}>
+        {(() => {
+          const phrases = [
+            "A shadowy figure turns to face you...",
+            "Someone eyes you cautiously...",
+            "A stranger notices your approach...",
+            "Footsteps halt as you draw near...",
+            "A weary traveler looks up at you...",
+          ];
+          return phrases[Math.floor(Math.random() * phrases.length)];
+        })()}
+      </div>
+      <div className={cn("flex items-center justify-center gap-2 text-[10px]", isWorldCharacter ? "text-gray-500" : "text-terminal-border-bright")}>
+        <span className={cn("inline-block w-3 h-3 border rounded-full animate-spin", isWorldCharacter ? "border-gray-500 border-t-gray-300" : "border-terminal-amber/50 border-t-terminal-amber")} />
+        <span>Preparing dialogue</span>
+      </div>
+    </div>
+  ) : currentNPCNode ? (
+    <NPCDialog npc={npcData} currentNode={currentNPCNode} onChoice={handleNPCChoice} onClose={closeOverlay} />
+  ) : npcData.dialogue[npcData.currentNode] ? (
+    <NPCDialog npc={npcData} currentNode={npcData.dialogue[npcData.currentNode]!} onChoice={handleNPCChoice} onClose={closeOverlay} />
+  ) : null;
+
+  // ── Pixel modal elements (world characters) ──
+  const pixelModalElements = (
     <>
-      {/* ── Inventory Overlay ── */}
-      <TerminalModal
-        open={showInventory}
-        onClose={closeOverlay}
-        title="INVENTORY"
-        className="max-w-2xl"
-      >
-        <InventoryPanel
-          items={inventoryQuery.data ?? []}
-          maxSlots={GAME_CONFIG.MAX_INVENTORY_SLOTS}
-          onEquip={handleEquip}
-          onUnequip={handleUnequip}
-          onUse={handleUseItem}
-          onDrop={handleDrop}
-          onClose={closeOverlay}
-        />
-      </TerminalModal>
-
-      {/* ── Character Sheet Overlay ── */}
-      <TerminalModal
-        open={showCharacter}
-        onClose={closeOverlay}
-        title="CHARACTER SHEET"
-        className="max-w-lg"
-      >
+      <PixelModal open={showInventory} onClose={closeOverlay} title="Inventory" icon="ui_sword" className="max-w-2xl">
+        <InventoryPanel items={inventoryQuery.data ?? []} maxSlots={GAME_CONFIG.MAX_INVENTORY_SLOTS} onEquip={handleEquip} onUnequip={handleUnequip} onUse={handleUseItem} onDrop={handleDrop} onClose={closeOverlay} />
+      </PixelModal>
+      <PixelModal open={showCharacter} onClose={closeOverlay} title="Character" icon="ui_shield" className="max-w-lg">
         <CharacterSheet player={player} onClose={closeOverlay} />
-      </TerminalModal>
-
-      {/* ── Store Overlay ── */}
-      <TerminalModal
-        open={showStore}
-        onClose={closeOverlay}
-        title={storeData.name}
-        className="max-w-2xl"
-      >
-        <StorePanel
-          store={storeData}
-          player={player}
-          inventory={inventoryQuery.data ?? []}
-          onBuy={handleBuy}
-          onSell={handleSell}
-          onClose={closeOverlay}
-        />
-      </TerminalModal>
-
-      {/* ── NPC Dialog Overlay ── */}
-      <TerminalModal
-        open={showNPC}
-        onClose={closeOverlay}
-        title={npcData.name || "???"}
-        className="max-w-lg"
-      >
-        {npcQuery.isLoading ? (
-          <div className="font-mono text-sm space-y-4 p-2">
-            <div className="text-terminal-amber-dim text-xs italic text-center animate-pulse">
-              {(() => {
-                const phrases = [
-                  "A shadowy figure turns to face you...",
-                  "Someone eyes you cautiously...",
-                  "A stranger notices your approach...",
-                  "Footsteps halt as you draw near...",
-                  "A weary traveler looks up at you...",
-                ];
-                return phrases[Math.floor(Math.random() * phrases.length)];
-              })()}
-            </div>
-            <div className="flex items-center justify-center gap-2 text-terminal-border-bright text-[10px]">
-              <span className="inline-block w-3 h-3 border border-terminal-amber/50 border-t-terminal-amber rounded-full animate-spin" />
-              <span>Preparing dialogue</span>
+      </PixelModal>
+      <PixelModal open={showStore} onClose={closeOverlay} title={storeData.name} icon="building_shop" className="max-w-2xl">
+        <StorePanel store={storeData} player={player} inventory={inventoryQuery.data ?? []} onBuy={handleBuy} onSell={handleSell} onClose={closeOverlay} />
+      </PixelModal>
+      <PixelModal open={showNPC} onClose={closeOverlay} title={npcData.name || "???"} icon="marker_npc" className="max-w-lg">
+        {npcDialogContent}
+      </PixelModal>
+      <PixelModal open={showLore} onClose={closeOverlay} title="Codex" icon="ui_star">
+        <LorePanel characterId={characterId} onClose={closeOverlay} />
+      </PixelModal>
+      <PixelModal open={showParty} onClose={closeOverlay} title="Party" icon="marker_player" className="max-w-lg">
+        <PartyPanel companion={player.companion ?? null} onKick={() => { dismissCompanionMutation.mutate({ characterId }); closeOverlay(); }} onClose={closeOverlay} />
+      </PixelModal>
+      <PixelModal open={showNews} onClose={closeOverlay} title="News">
+        <NewsPanel onClose={closeOverlay} />
+      </PixelModal>
+      <PixelModal open={showAbout} onClose={closeOverlay} title="About">
+        <AboutPanel onClose={closeOverlay} />
+      </PixelModal>
+      <PixelModal open={!!pendingAdventurer} onClose={() => setPendingAdventurer(null)} title="Adventurer Encountered" icon="marker_npc">
+        {pendingAdventurer && (
+          <div className="space-y-3 font-mono text-sm">
+            <p className="text-blue-400 font-bold">{pendingAdventurer.name}</p>
+            <p className="text-gray-400 text-xs">
+              Level {pendingAdventurer.level} {pendingAdventurer.class} — {pendingAdventurer.personality}
+            </p>
+            <p className="text-gray-400 text-xs">
+              HP: {pendingAdventurer.hp}/{pendingAdventurer.hpMax} | AC: {pendingAdventurer.ac} | ATK: +{pendingAdventurer.attack} | DMG: {pendingAdventurer.damage}
+            </p>
+            <p className="text-amber-400 text-xs mt-2">
+              &quot;Hey, want to team up? These dungeons are no place to go alone.&quot;
+            </p>
+            <div className="flex gap-2 mt-3">
+              <PixelButton variant="action" size="sm" onClick={() => { partyUpMutation.mutate({ characterId, companion: pendingAdventurer }); }}>
+                Party Up
+              </PixelButton>
+              <PixelButton variant="danger" size="sm" onClick={() => { addToGameLog(`You decline ${pendingAdventurer.name}'s offer.`); setPendingAdventurer(null); }}>
+                Decline
+              </PixelButton>
             </div>
           </div>
-        ) : currentNPCNode ? (
-          <NPCDialog
-            npc={npcData}
-            currentNode={currentNPCNode}
-            onChoice={handleNPCChoice}
-            onClose={closeOverlay}
-          />
-        ) : npcData.dialogue[npcData.currentNode] ? (
-          <NPCDialog
-            npc={npcData}
-            currentNode={npcData.dialogue[npcData.currentNode]!}
-            onChoice={handleNPCChoice}
-            onClose={closeOverlay}
-          />
-        ) : null}
-      </TerminalModal>
+        )}
+      </PixelModal>
+    </>
+  );
 
-      {/* ── Lore / Codex Modal ── */}
+  // ── Terminal modal elements (legacy characters) ──
+  const terminalModalElements = (
+    <>
+      <TerminalModal open={showInventory} onClose={closeOverlay} title="INVENTORY" className="max-w-2xl">
+        <InventoryPanel items={inventoryQuery.data ?? []} maxSlots={GAME_CONFIG.MAX_INVENTORY_SLOTS} onEquip={handleEquip} onUnequip={handleUnequip} onUse={handleUseItem} onDrop={handleDrop} onClose={closeOverlay} />
+      </TerminalModal>
+      <TerminalModal open={showCharacter} onClose={closeOverlay} title="CHARACTER SHEET" className="max-w-lg">
+        <CharacterSheet player={player} onClose={closeOverlay} />
+      </TerminalModal>
+      <TerminalModal open={showStore} onClose={closeOverlay} title={storeData.name} className="max-w-2xl">
+        <StorePanel store={storeData} player={player} inventory={inventoryQuery.data ?? []} onBuy={handleBuy} onSell={handleSell} onClose={closeOverlay} />
+      </TerminalModal>
+      <TerminalModal open={showNPC} onClose={closeOverlay} title={npcData.name || "???"} className="max-w-lg">
+        {npcDialogContent}
+      </TerminalModal>
       <TerminalModal open={showLore} onClose={closeOverlay} title="Codex">
         <LorePanel characterId={characterId} onClose={closeOverlay} />
       </TerminalModal>
-
-      {/* ── Party Panel ── */}
       <TerminalModal open={showParty} onClose={closeOverlay} title="PARTY" className="max-w-lg">
-        <PartyPanel
-          companion={player.companion ?? null}
-          onKick={() => {
-            dismissCompanionMutation.mutate({ characterId });
-            closeOverlay();
-          }}
-          onClose={closeOverlay}
-        />
+        <PartyPanel companion={player.companion ?? null} onKick={() => { dismissCompanionMutation.mutate({ characterId }); closeOverlay(); }} onClose={closeOverlay} />
       </TerminalModal>
-
-      {/* ── News Panel ── */}
       <TerminalModal open={showNews} onClose={closeOverlay} title="NEWS">
         <NewsPanel onClose={closeOverlay} />
       </TerminalModal>
-
-      {/* ── About Panel ── */}
       <TerminalModal open={showAbout} onClose={closeOverlay} title="ABOUT">
         <AboutPanel onClose={closeOverlay} />
       </TerminalModal>
-
-      {/* ── Party Up Dialog ── */}
-      <TerminalModal
-        open={!!pendingAdventurer}
-        onClose={() => setPendingAdventurer(null)}
-        title="Adventurer Encountered"
-      >
+      <TerminalModal open={!!pendingAdventurer} onClose={() => setPendingAdventurer(null)} title="Adventurer Encountered">
         {pendingAdventurer && (
           <div className="space-y-3 font-mono text-sm">
             <p className="text-terminal-blue font-bold">{pendingAdventurer.name}</p>
@@ -1607,24 +1592,10 @@ export default function PlayCharacterPage() {
               &quot;Hey, want to team up? These dungeons are no place to go alone.&quot;
             </p>
             <div className="flex gap-2 mt-3">
-              <button
-                className="px-3 py-1 border border-terminal-green text-terminal-green text-xs hover:bg-terminal-green/10"
-                onClick={() => {
-                  partyUpMutation.mutate({
-                    characterId,
-                    companion: pendingAdventurer,
-                  });
-                }}
-              >
+              <button className="px-3 py-1 border border-terminal-green text-terminal-green text-xs hover:bg-terminal-green/10" onClick={() => { partyUpMutation.mutate({ characterId, companion: pendingAdventurer }); }}>
                 [Y] Party Up
               </button>
-              <button
-                className="px-3 py-1 border border-terminal-border text-terminal-border-bright text-xs hover:bg-terminal-border/10"
-                onClick={() => {
-                  addToGameLog(`You decline ${pendingAdventurer.name}'s offer.`);
-                  setPendingAdventurer(null);
-                }}
-              >
+              <button className="px-3 py-1 border border-terminal-border text-terminal-border-bright text-xs hover:bg-terminal-border/10" onClick={() => { addToGameLog(`You decline ${pendingAdventurer.name}'s offer.`); setPendingAdventurer(null); }}>
                 [N] Decline
               </button>
             </div>
@@ -1778,7 +1749,7 @@ export default function PlayCharacterPage() {
 
         {/* Overlays and modals */}
         {overlayElements}
-        {modalElements}
+        {pixelModalElements}
 
         {/* Room Detail Drawer */}
         <RoomDetailDrawer
@@ -1901,7 +1872,7 @@ export default function PlayCharacterPage() {
 
       {/* Overlays and modals */}
       {overlayElements}
-      {modalElements}
+      {terminalModalElements}
 
       {/* ── Room Detail Drawer (world characters — shouldn't render for legacy, but kept for safety) ── */}
       {isWorldCharacter && (
