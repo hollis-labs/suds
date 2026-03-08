@@ -19,3 +19,4 @@ export { NewsPanel } from "./NewsPanel";
 export { AboutPanel } from "./AboutPanel";
 export { WorldMapView } from "./WorldMapView";
 export { RegionMapView } from "./RegionMapView";
+export { RoomDetailDrawer } from "./RoomDetailDrawer";

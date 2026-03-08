@@ -22,6 +22,7 @@ import {
   AboutPanel,
   WorldMapView,
   RegionMapView,
+  RoomDetailDrawer,
 } from "@/components/game";
 import { TileMap } from "@/components/pixel/TileMap";
 import { buildTileFromRoom } from "@/lib/tile-types";
@@ -317,12 +318,21 @@ export default function PlayCharacterPage() {
 
       if (data.enterCombat && data.encounter) {
         addToGameLog("Enemies block your path!");
-        // Start combat
+        // Start combat — always full-screen, NOT in drawer
+        setDrawerOpen(false);
         combatStartMutation.mutate({ characterId });
       } else if (data.room.type === "store") {
         addToGameLog("You see a merchant's stall.");
+        // Auto-open drawer for interactive rooms (world characters)
+        if (isWorldCharacter) setDrawerOpen(true);
       } else if (data.room.type === "npc_room") {
         addToGameLog("Someone is here...");
+        if (isWorldCharacter) setDrawerOpen(true);
+      } else if (data.room.type === "shrine") {
+        if (isWorldCharacter) setDrawerOpen(true);
+      } else {
+        // Close drawer when entering non-interactive rooms
+        setDrawerOpen(false);
       }
     },
     onError(err) {
@@ -949,6 +959,9 @@ export default function PlayCharacterPage() {
     [dropMutation, characterId]
   );
 
+  // ── Room detail drawer (for world characters) ──
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   // ── Help modal ──
   const [showHelp, setShowHelp] = useState(false);
 
@@ -1119,8 +1132,8 @@ export default function PlayCharacterPage() {
         addToGameLog("You see stairs leading down. (Floor navigation coming soon)");
         return;
       }
-      // Click on current tile → show room info
-      addToGameLog(`You examine the area...`);
+      // Click on current tile → open room detail drawer
+      setDrawerOpen(true);
     },
     [addToGameLog]
   );
@@ -1415,6 +1428,22 @@ export default function PlayCharacterPage() {
           </div>
         )}
       </TerminalModal>
+
+      {/* ── Room Detail Drawer (world characters) ── */}
+      {isWorldCharacter && (
+        <RoomDetailDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          room={currentRoom}
+          onAction={(action) => {
+            handleAction(action);
+            // Close drawer after triggering actions that open full-screen panels
+            if (["talk", "shop"].includes(action)) {
+              setDrawerOpen(false);
+            }
+          }}
+        />
+      )}
 
       {/* ── Help Modal ── */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
