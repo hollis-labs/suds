@@ -1615,6 +1615,17 @@ export default function PlayCharacterPage() {
       // eslint-disable-next-line jsx-a11y/no-autofocus
       <div {...rootProps}>
       <div className="w-full max-w-[1400px] h-full bg-[#0a0f0a] flex flex-col">
+        {/* App Menu Bar */}
+        <div className="shrink-0 flex items-center justify-between px-3 h-7 bg-[#0a0f0a] border-b border-[#1a3a1a] font-mono">
+          <span className="text-[#33ff33] text-xs font-bold tracking-wider" style={{ textShadow: "0 0 6px #33ff33" }}>SUDS</span>
+          <div className="flex items-center gap-3">
+            <button onClick={(e) => { handleAction("help"); e.currentTarget.blur(); }} className="text-[#1a8c1a] hover:text-[#33ff33] text-xs transition-colors">Help</button>
+            <button onClick={(e) => { handleAction("about"); e.currentTarget.blur(); }} className="text-[#1a8c1a] hover:text-[#33ff33] text-xs transition-colors">About</button>
+            <button onClick={(e) => { handleAction("news"); e.currentTarget.blur(); }} className="text-[#1a8c1a] hover:text-[#33ff33] text-xs transition-colors">News</button>
+            <button onClick={(e) => { handleAction("exit"); e.currentTarget.blur(); }} className="text-[#1a8c1a] hover:text-[#ff4444] text-xs transition-colors">Exit</button>
+          </div>
+        </div>
+
         {/* Top: HudBar */}
         <HudBar
           hp={player.hp}
@@ -1658,15 +1669,24 @@ export default function PlayCharacterPage() {
           </div>
         )}
 
-        {/* ── Main content area (single-column vertical flow) ── */}
-        <div className="flex flex-col flex-1 min-h-0 relative">
+        {/* ── Main content area (2-column on tablet+) ── */}
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 relative">
 
-          {/* ── Map section (wider, shorter) ── */}
+          {/* ── Map column (left side on tablet+) ── */}
           <div className={cn(
-            "shrink-0 relative",
+            "flex flex-col relative",
+            "md:w-[45%] md:shrink-0 md:border-r border-[#1a3a1a]",
             // Mobile: only show when map tab is active or not exploring
-            screen === "exploring" && !inCombat ? (mobileTab === "map" ? "block" : "hidden md:block") : "hidden md:block",
+            screen === "exploring" && !inCombat ? (mobileTab === "map" ? "flex" : "hidden md:flex") : "hidden md:flex",
           )}>
+            {/* Breadcrumb (top of left column) */}
+            {navigationNames.worldName && (
+              <Breadcrumb
+                segments={breadcrumbSegments}
+                onBack={breadcrumbOnBack}
+                className="w-full"
+              />
+            )}
             <div className={cn("overflow-auto w-full max-h-[35vh]", mobileTab === "map" && "max-h-[40vh] md:max-h-[35vh]", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {(navigationLayer === "area" || navigationLayer === "building") && mapViewport && player ? (
                 <DungeonMap
@@ -1703,35 +1723,92 @@ export default function PlayCharacterPage() {
                 )}
               </div>
             )}
-            {/* Breadcrumb */}
-            {navigationNames.worldName && (
-              <Breadcrumb
-                segments={breadcrumbSegments}
-                onBack={breadcrumbOnBack}
-                className="w-full"
-              />
+
+            {/* ── Map Control Footer (bottom of left column) ── */}
+            {screen === "exploring" && !inCombat && (
+              <div className={cn(
+                "shrink-0 bg-[#0d140d] border-t border-[#1a3a1a] py-2 px-3 mt-auto",
+                mobileTab === "map" ? "block" : "hidden md:block",
+              )}>
+                <div className="flex items-center justify-center gap-3">
+                  {/* Left action buttons (stacked) */}
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={(e) => { handleAction("search"); e.currentTarget.blur(); }}
+                      className="inline-flex items-center gap-1 px-1.5 py-1 font-mono text-xs text-[#c8e6c8] hover:text-[#33ff33] transition-colors"
+                    >
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">X</span>
+                      <span className="text-xs">Search</span>
+                    </button>
+                    <button
+                      onClick={(e) => { handleAction("rest"); e.currentTarget.blur(); }}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-1 font-mono text-xs transition-colors",
+                        currentRoom?.type && ["safe_room", "shrine", "npc_room"].includes(currentRoom.type)
+                          ? "text-[#c8e6c8] hover:text-[#33ff33]"
+                          : "opacity-30 pointer-events-none text-[#1a8c1a]"
+                      )}
+                    >
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">R</span>
+                      <span className="text-xs">Rest</span>
+                    </button>
+                  </div>
+
+                  {/* DPad (center) */}
+                  <DPad
+                    onMove={handleDPadMove}
+                    onSearch={handleDPadSearch}
+                    disabled={moveMutation.isPending || searchMutation.isPending}
+                    availableExits={currentRoom?.exits ?? []}
+                  />
+
+                  {/* Right action buttons (stacked) */}
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={(e) => { handleAction("interact_shrine"); e.currentTarget.blur(); }}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-1 font-mono text-xs transition-colors",
+                        currentRoom?.type === "shrine"
+                          ? "text-[#c8e6c8] hover:text-[#33ff33]"
+                          : "opacity-30 pointer-events-none text-[#1a8c1a]"
+                      )}
+                    >
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">F</span>
+                      <span className="text-xs">Shrine</span>
+                    </button>
+                    <button
+                      onClick={(e) => { handleAction("talk"); e.currentTarget.blur(); }}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-1 font-mono text-xs transition-colors",
+                        currentRoom?.type === "npc_room"
+                          ? "text-[#c8e6c8] hover:text-[#33ff33]"
+                          : "opacity-30 pointer-events-none text-[#1a8c1a]"
+                      )}
+                    >
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">T</span>
+                      <span className="text-xs">Talk</span>
+                    </button>
+                    <button
+                      onClick={(e) => { handleAction("shop"); e.currentTarget.blur(); }}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-1 font-mono text-xs transition-colors",
+                        currentRoom?.type === "store"
+                          ? "text-[#c8e6c8] hover:text-[#33ff33]"
+                          : "opacity-30 pointer-events-none text-[#1a8c1a]"
+                      )}
+                    >
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">B</span>
+                      <span className="text-xs">Shop</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* ── DPad below map (all breakpoints) ── */}
-          {screen === "exploring" && !inCombat && (
-            <div className={cn(
-              "shrink-0 py-2 flex justify-center",
-              // On mobile, only show when map tab is active
-              mobileTab === "map" ? "block" : "hidden md:flex",
-            )}>
-              <DPad
-                onMove={handleDPadMove}
-                onSearch={handleDPadSearch}
-                disabled={moveMutation.isPending || searchMutation.isPending}
-                availableExits={currentRoom?.exits ?? []}
-              />
-            </div>
-          )}
-
           {/* ── Content below DPad: WorldMap / RegionMap / Combat / Exploring ── */}
           <div className={cn(
-            "flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden p-2 md:p-3",
+            "flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden",
             // Mobile: hide when map tab is active (unless combat/worldmap)
             screen === "exploring" && !inCombat && mobileTab === "map" ? "hidden md:flex" : "flex",
           )}>
@@ -1796,8 +1873,8 @@ export default function PlayCharacterPage() {
               </div>
             ) : (
               <>
-                {/* Panel buttons row (above log) */}
-                <div className="shrink-0 pb-1 px-1">
+                {/* Game mechanic buttons header (right column) */}
+                <div className="shrink-0 bg-[#0d140d] border-b border-[#1a3a1a] px-3 py-2">
                   <div className="flex flex-wrap gap-1.5 justify-center font-mono text-xs">
                     <button onClick={(e) => { handleAction("inventory"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">I</span>Inv
@@ -1811,25 +1888,10 @@ export default function PlayCharacterPage() {
                     <button onClick={(e) => { handleAction("party"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">P</span>Party
                     </button>
-                    <button onClick={(e) => { handleAction("news"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">N</span>News
-                    </button>
-                    <button onClick={(e) => { handleAction("about"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">~</span>About
-                    </button>
-                    <button onClick={(e) => { handleAction("help"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#1a8c1a] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">?</span>Help
-                    </button>
-                    <button onClick={(e) => { handleAction("exit"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#ff4444] hover:border-[#ff4444] transition-colors">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#ff4444] text-[10px] font-bold">Q</span>Exit
-                    </button>
                   </div>
                 </div>
 
-                {/* Separator */}
-                <div className="shrink-0 mx-2 border-t border-[#1a3a1a]" />
-
-                {/* Activity Feed / Game Log (scrollable, flex-1) */}
+                {/* Activity Feed / Game Log (scrollable, flex-1, full width) */}
                 <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
                   <RoomInfoPanel
                     room={currentRoom}
@@ -1838,42 +1900,58 @@ export default function PlayCharacterPage() {
                     onAction={handleAction}
                   />
                 </div>
-
-                {/* Separator */}
-                <div className="shrink-0 mx-2 border-t border-[#1a3a1a]" />
-
-                {/* Action buttons row (below log) */}
-                <div className="shrink-0 pt-1 px-1 pb-1">
-                  <div className="flex flex-wrap gap-1.5 justify-center font-mono text-xs">
-                    <button onClick={(e) => { handleAction("search"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">X</span>Search
-                    </button>
-                    {currentRoom?.type && ["safe_room", "shrine", "npc_room"].includes(currentRoom.type) && (
-                      <button onClick={(e) => { handleAction("rest"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">R</span>Rest
-                      </button>
-                    )}
-                    {currentRoom?.type === "shrine" && (
-                      <button onClick={(e) => { handleAction("interact_shrine"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#44aaff] hover:border-[#44aaff] transition-colors">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#aa66ff] text-[10px] font-bold">F</span>Shrine
-                      </button>
-                    )}
-                    {currentRoom?.type === "npc_room" && (
-                      <button onClick={(e) => { handleAction("talk"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#44aaff] hover:border-[#44aaff] transition-colors">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#44aaff] text-[10px] font-bold">T</span>Talk
-                      </button>
-                    )}
-                    {currentRoom?.type === "store" && (
-                      <button onClick={(e) => { handleAction("shop"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#ffd700] hover:border-[#ffd700] transition-colors">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#ffd700] text-[10px] font-bold">B</span>Shop
-                      </button>
-                    )}
-                  </div>
-                </div>
               </>
             )}
+
           </div>
         </div>
+
+        {/* ── Player HUD Footer (full width, all tabs on mobile) ── */}
+        {screen === "exploring" && !inCombat && (
+          <div className="shrink-0 bg-[#0d140d] border-t border-[#1a3a1a] px-3 py-2">
+            <div className="flex items-center gap-3 font-mono">
+              {/* Quick slots */}
+              <div className="flex items-center gap-1.5">
+                <div className="w-10 h-10 border border-[#1a3a1a] bg-[#0a0f0a] flex items-center justify-center text-[#1a8c1a] text-[9px] font-mono overflow-hidden" title="Weapon">
+                  {player.equipment?.weapon ? player.equipment.weapon.name.slice(0, 5) : "\u2014"}
+                </div>
+                <div className="w-10 h-10 border border-[#1a3a1a] bg-[#0a0f0a] flex items-center justify-center text-[#1a8c1a] text-[9px] font-mono overflow-hidden" title="Armor">
+                  {player.equipment?.armor ? player.equipment.armor.name.slice(0, 5) : "\u2014"}
+                </div>
+                <div className="w-10 h-10 border border-[#1a3a1a] bg-[#0a0f0a] flex items-center justify-center text-[#1a8c1a] text-[9px] font-mono" title="Potions">
+                  {"\u2014"}
+                </div>
+                <div className="w-10 h-10 border border-[#1a3a1a] bg-[#0a0f0a] flex items-center justify-center text-[#1a8c1a] text-[9px] font-mono" title="Empty">
+                  {"\u2014"}
+                </div>
+              </div>
+
+              {/* HP / MP bars */}
+              <div className="flex-1 flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-[#ff4444] font-bold w-6">HP</span>
+                  <div className="flex-1 h-3 bg-[#0a0f0a] border border-[#1a3a1a] overflow-hidden">
+                    <div
+                      className="h-full bg-[#ff4444]/60"
+                      style={{ width: `${Math.max(0, Math.min(100, (player.hp / player.hpMax) * 100))}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-[#c8e6c8] w-14 text-right">{player.hp}/{player.hpMax}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-[#44aaff] font-bold w-6">MP</span>
+                  <div className="flex-1 h-3 bg-[#0a0f0a] border border-[#1a3a1a] overflow-hidden">
+                    <div
+                      className="h-full bg-[#44aaff]/60"
+                      style={{ width: `${Math.max(0, Math.min(100, (player.mp / player.mpMax) * 100))}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-[#c8e6c8] w-14 text-right">{player.mp}/{player.mpMax}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Desktop keyboard hints bar */}
         <div className="hidden md:block shrink-0 px-3 py-1 border-t border-[#1a3a1a]">
