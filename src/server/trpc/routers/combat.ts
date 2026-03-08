@@ -316,6 +316,7 @@ function buildCombatState(
     state: {
       id: row.id,
       monsters: row.monsters as Monster[],
+      companion: (row.companion as Companion) ?? null,
       turnOrder: Array.isArray(row.turnOrder) ? row.turnOrder as CombatState["turnOrder"] : turnOrderData.order,
       currentTurn: row.currentTurn,
       round: row.round,
@@ -467,8 +468,10 @@ export const combatRouter = router({
 
       const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
       const combatResult = buildCombatState(row);
-      // Populate companion from character data
-      combatResult.state.companion = (character.companion as Companion) ?? null;
+      // Companion is persisted in combat_state row; fall back to character data for legacy rows
+      if (!combatResult.state.companion) {
+        combatResult.state.companion = (character.companion as Companion) ?? null;
+      }
       return combatResult.state;
     }),
 
@@ -485,7 +488,10 @@ export const combatRouter = router({
         // If it's from a different encounter (no matching room encounter),
         // or the player already won/fled, delete it and start fresh.
         const { state: existingState, extra: existingExtra } = buildCombatState(existing);
-        existingState.companion = (character.companion as Companion) ?? null;
+        // Companion is now persisted in combat_state row; fall back to character data for legacy rows
+        if (!existingState.companion) {
+          existingState.companion = (character.companion as Companion) ?? null;
+        }
 
         // Auto-resolve any pending monster turns so the client gets a player-turn state
         let currentState = existingState;
@@ -557,6 +563,7 @@ export const combatRouter = router({
           .update(combatStateTable)
           .set({
             monsters: currentState.monsters,
+            companion: currentState.companion ?? null,
             turnOrder: { order: currentState.turnOrder, extra: serializeExtra(currentExtra) },
             currentTurn: currentState.currentTurn,
             round: currentState.round,
@@ -744,6 +751,7 @@ export const combatRouter = router({
         .values({
           characterId: character.id,
           monsters: currentState.monsters,
+          companion: currentState.companion ?? null,
           turnOrder: { order: currentState.turnOrder, extra: serializeExtra(currentExtra) },
           currentTurn: currentState.currentTurn,
           round: currentState.round,
@@ -795,7 +803,10 @@ export const combatRouter = router({
       }
 
       const { state: currentState, extra: currentExtra } = buildCombatState(combatRow);
-      currentState.companion = (character.companion as Companion) ?? null;
+      // Companion is persisted in combat_state row; fall back to character data for legacy rows
+      if (!currentState.companion) {
+        currentState.companion = (character.companion as Companion) ?? null;
+      }
 
       // Build player
       const items = await ctx.db
@@ -1265,6 +1276,7 @@ export const combatRouter = router({
         .update(combatStateTable)
         .set({
           monsters: turnResult.state.monsters,
+          companion: turnResult.state.companion ?? null,
           turnOrder: { order: turnResult.state.turnOrder, extra: serializeExtra(turnResult.extra) },
           currentTurn: turnResult.state.currentTurn,
           round: turnResult.state.round,

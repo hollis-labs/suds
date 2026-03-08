@@ -313,6 +313,7 @@ export const combatState = pgTable("combat_state", {
   currentTurn: integer("current_turn").default(0).notNull(),
   round: integer("round").default(1).notNull(),
   log: jsonb("log").default([]).notNull(),
+  companion: jsonb("companion"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 
