@@ -214,6 +214,12 @@ export const rooms = pgTable(
     lootData: jsonb("loot_data"),
     visited: boolean("visited").default(false).notNull(),
     roomFeatures: jsonb("room_features").default({}).notNull(),
+    // Hierarchy columns (nullable for backward compat with legacy rooms)
+    worldId: uuid("world_id").references(() => worlds.id),
+    regionId: uuid("region_id").references(() => regions.id),
+    areaId: uuid("area_id").references(() => areas.id),
+    buildingId: uuid("building_id").references(() => buildings.id),
+    floor: integer("floor"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   },
   (table) => [unique().on(table.characterId, table.x, table.y)]
