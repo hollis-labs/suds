@@ -107,7 +107,11 @@ describe("CLASS_DEFINITIONS", () => {
 
   it("has all expected classes", () => {
     expect(Object.keys(CLASS_DEFINITIONS)).toEqual(
-      expect.arrayContaining(["warrior", "mage", "rogue", "cleric"])
+      expect.arrayContaining([
+        "fighter", "wizard", "rogue", "cleric",
+        "barbarian", "bard", "druid", "monk",
+        "paladin", "ranger", "sorcerer", "warlock",
+      ])
     );
   });
 

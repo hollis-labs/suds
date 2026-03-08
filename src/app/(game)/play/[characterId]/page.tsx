@@ -764,8 +764,8 @@ export default function PlayCharacterPage() {
       setPlayer(data.player);
       addToGameLog(`Sold ${data.soldItem} for ${data.goldReceived}g.`);
       characterQuery.refetch();
-      // Refetch store to update the panel
       storeQuery.refetch();
+      inventoryQuery.refetch();
     },
     onError(err) {
       addToGameLog(`Sale failed: ${err.message}`);
@@ -792,7 +792,7 @@ export default function PlayCharacterPage() {
   const inventoryQuery = trpc.inventory.list.useQuery(
     { characterId },
     {
-      enabled: screen === "inventory",
+      enabled: screen === "inventory" || screen === "store",
       refetchOnWindowFocus: false,
     }
   );
@@ -1187,6 +1187,7 @@ export default function PlayCharacterPage() {
         <StorePanel
           store={storeData}
           player={player}
+          inventory={inventoryQuery.data ?? []}
           onBuy={handleBuy}
           onSell={handleSell}
           onClose={closeOverlay}

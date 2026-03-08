@@ -16,6 +16,7 @@ import {
   calculateSellPrice,
 } from "@/server/game/store";
 import { statModifier, GAME_CONFIG } from "@/lib/constants";
+import { buildEquipmentSlots } from "@/server/game/equipment";
 import type {
   Player,
   PlayerBuff,
@@ -46,11 +47,7 @@ function buildPlayer(
     isEquipped: item.isEquipped,
   });
 
-  const equippedWeapon = items.find((i) => i.type === "weapon" && i.isEquipped);
-  const equippedArmor = items.find((i) => i.type === "armor" && i.isEquipped);
-  const equippedAccessory = items.find(
-    (i) => i.type === "accessory" && i.isEquipped
-  );
+  const slots = buildEquipmentSlots(items);
 
   return {
     id: character.id,
@@ -69,9 +66,12 @@ function buildPlayer(
     ac: character.ac,
     position: character.position as Position,
     equipment: {
-      weapon: equippedWeapon ? toGameItem(equippedWeapon) : undefined,
-      armor: equippedArmor ? toGameItem(equippedArmor) : undefined,
-      accessory: equippedAccessory ? toGameItem(equippedAccessory) : undefined,
+      weapon: slots.weapon ? toGameItem(slots.weapon) : undefined,
+      armor: slots.armor ? toGameItem(slots.armor) : undefined,
+      accessory: slots.accessory ? toGameItem(slots.accessory) : undefined,
+      ring: slots.ring ? toGameItem(slots.ring) : undefined,
+      amulet: slots.amulet ? toGameItem(slots.amulet) : undefined,
+      boots: slots.boots ? toGameItem(slots.boots) : undefined,
     },
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,

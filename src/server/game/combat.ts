@@ -130,7 +130,7 @@ interface AbilityDef {
     monsters: Monster[],
     targetIndex: number | undefined,
     extra: CombatExtra
-  ) => { damage?: number; heal?: number; log: string; affectedIndexes: number[]; buffAdded?: Buff; hitPenalty?: number };
+  ) => { damage?: number; heal?: number; log: string; affectedIndexes: number[]; buffAdded?: Buff; hitPenalty?: number; selfDamage?: number; mpRestore?: number };
 }
 
 const ABILITY_DEFS: Record<string, AbilityDef> = {
@@ -353,6 +353,444 @@ const ABILITY_DEFS: Record<string, AbilityDef> = {
         log: "Battle Cry grants +2 attack and +1 damage for 3 rounds",
         affectedIndexes: [],
         buffAdded: { name: "battle_cry", attackBonus: 2, damageBonus: 1, roundsRemaining: 3 },
+      };
+    },
+  },
+
+  // --- Barbarian abilities ---
+  rage: {
+    mpCost: 0,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Rage! +3 damage and +1 AC for 3 rounds",
+        affectedIndexes: [],
+        buffAdded: { name: "rage", damageBonus: 3, acBonus: 1, roundsRemaining: 3 },
+      };
+    },
+  },
+  reckless_attack: {
+    mpCost: 0,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const strMod = statModifier(player.stats.str);
+      const weaponDamage = player.equipment.weapon?.stats?.damage ?? 6;
+      const damage = roll(weaponDamage) + strMod + 2;
+      return {
+        damage: Math.max(0, damage),
+        log: `Reckless Attack deals ${Math.max(0, damage)} damage (grants enemies +2 to hit you)`,
+        affectedIndexes: [targetIndex ?? 0],
+        hitPenalty: 2, // positive = bonus to hit, offset by granting enemies advantage
+      };
+    },
+  },
+  brutal_critical: {
+    mpCost: 0,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const strMod = statModifier(player.stats.str);
+      const weaponDamage = player.equipment.weapon?.stats?.damage ?? 6;
+      // Triple damage dice
+      const damage = roll(weaponDamage) + roll(weaponDamage) + roll(weaponDamage) + strMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Brutal Critical smashes for ${Math.max(0, damage)} damage`,
+        affectedIndexes: [targetIndex ?? 0],
+        hitPenalty: -1,
+      };
+    },
+  },
+  relentless_endurance: {
+    mpCost: 0,
+    targetType: "self",
+    resolve: (player) => {
+      const conMod = statModifier(player.stats.con);
+      const heal = roll(12) + conMod + player.level;
+      return {
+        heal: Math.max(1, heal),
+        log: `Relentless Endurance restores ${Math.max(1, heal)} HP through sheer willpower`,
+        affectedIndexes: [],
+      };
+    },
+  },
+
+  // --- Bard abilities ---
+  bardic_inspiration: {
+    mpCost: 5,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Bardic Inspiration grants +2 attack and +2 AC for 2 rounds",
+        affectedIndexes: [],
+        buffAdded: { name: "bardic_inspiration", attackBonus: 2, acBonus: 2, roundsRemaining: 2 },
+      };
+    },
+  },
+  cutting_words: {
+    mpCost: 5,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const chaMod = statModifier(player.stats.cha);
+      const damage = roll(8) + chaMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Cutting Words lashes for ${Math.max(0, damage)} psychic damage (auto-hit)`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  healing_word: {
+    mpCost: 8,
+    targetType: "self",
+    resolve: (player) => {
+      const chaMod = statModifier(player.stats.cha);
+      const heal = rollMultiple(2, 6).reduce((a, b) => a + b, 0) + chaMod;
+      return {
+        heal: Math.max(1, heal),
+        log: `Healing Word restores ${Math.max(1, heal)} HP`,
+        affectedIndexes: [],
+      };
+    },
+  },
+  mass_inspiration: {
+    mpCost: 12,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Mass Inspiration grants +3 attack, +2 damage, and +2 AC for 3 rounds",
+        affectedIndexes: [],
+        buffAdded: { name: "mass_inspiration", attackBonus: 3, damageBonus: 2, acBonus: 2, roundsRemaining: 3 },
+      };
+    },
+  },
+
+  // --- Druid abilities ---
+  entangle: {
+    mpCost: 5,
+    targetType: "all",
+    resolve: (player, monsters) => {
+      const wisMod = statModifier(player.stats.wis);
+      const damage = roll(6) + wisMod;
+      const indexes = monsters.map((_, i) => i).filter((i) => monsters[i]!.hp > 0);
+      return {
+        damage: Math.max(0, damage),
+        log: `Entangle ensnares all enemies for ${Math.max(0, damage)} damage`,
+        affectedIndexes: indexes,
+      };
+    },
+  },
+  thunderwave: {
+    mpCost: 8,
+    targetType: "all",
+    resolve: (player, monsters) => {
+      const wisMod = statModifier(player.stats.wis);
+      const damage = rollMultiple(2, 6).reduce((a, b) => a + b, 0) + wisMod;
+      const indexes = monsters.map((_, i) => i).filter((i) => monsters[i]!.hp > 0);
+      return {
+        damage: Math.max(0, damage),
+        log: `Thunderwave blasts all enemies for ${Math.max(0, damage)} damage`,
+        affectedIndexes: indexes,
+      };
+    },
+  },
+  call_lightning: {
+    mpCost: 12,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const wisMod = statModifier(player.stats.wis);
+      const damage = rollMultiple(3, 10).reduce((a, b) => a + b, 0) + wisMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Call Lightning strikes for ${Math.max(0, damage)} damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  regenerate: {
+    mpCost: 10,
+    targetType: "self",
+    resolve: (player) => {
+      const wisMod = statModifier(player.stats.wis);
+      const heal = rollMultiple(3, 8).reduce((a, b) => a + b, 0) + wisMod;
+      return {
+        heal: Math.max(1, heal),
+        log: `Regenerate restores ${Math.max(1, heal)} HP`,
+        affectedIndexes: [],
+      };
+    },
+  },
+
+  // --- Monk abilities ---
+  flurry_of_blows: {
+    mpCost: 3,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const dexMod = statModifier(player.stats.dex);
+      // Two rapid strikes
+      const damage = roll(6) + roll(6) + dexMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Flurry of Blows strikes twice for ${Math.max(0, damage)} total damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  patient_defense: {
+    mpCost: 2,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Patient Defense grants +4 AC until next turn",
+        affectedIndexes: [],
+        buffAdded: { name: "patient_defense", acBonus: 4, roundsRemaining: 1 },
+      };
+    },
+  },
+  stunning_strike: {
+    mpCost: 5,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const dexMod = statModifier(player.stats.dex);
+      const wisMod = statModifier(player.stats.wis);
+      const damage = rollMultiple(2, 8).reduce((a, b) => a + b, 0) + dexMod + wisMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Stunning Strike hits for ${Math.max(0, damage)} damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  quivering_palm: {
+    mpCost: 12,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const dexMod = statModifier(player.stats.dex);
+      const damage = rollMultiple(4, 8).reduce((a, b) => a + b, 0) + dexMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Quivering Palm delivers a devastating blow for ${Math.max(0, damage)} damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+
+  // --- Paladin abilities ---
+  divine_smite_paladin: {
+    mpCost: 5,
+    targetType: "single",
+    resolve: (player, monsters, targetIndex) => {
+      const strMod = statModifier(player.stats.str);
+      let damage = rollMultiple(2, 8).reduce((a, b) => a + b, 0) + strMod;
+      const target = monsters[targetIndex ?? 0];
+      const undeadNames = ["skeleton", "zombie", "ghoul", "wraith", "mummy", "lich", "death knight", "vampire"];
+      if (target && undeadNames.some((n) => target.name.toLowerCase().includes(n))) {
+        damage += roll(8);
+      }
+      return {
+        damage: Math.max(0, damage),
+        log: `Divine Smite deals ${Math.max(0, damage)} radiant damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  lay_on_hands: {
+    mpCost: 8,
+    targetType: "self",
+    resolve: (player) => {
+      const chaMod = statModifier(player.stats.cha);
+      const heal = rollMultiple(3, 8).reduce((a, b) => a + b, 0) + chaMod;
+      return {
+        heal: Math.max(1, heal),
+        log: `Lay on Hands restores ${Math.max(1, heal)} HP`,
+        affectedIndexes: [],
+      };
+    },
+  },
+  aura_of_protection: {
+    mpCost: 8,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Aura of Protection grants +2 AC and +2 attack for 3 rounds",
+        affectedIndexes: [],
+        buffAdded: { name: "aura_of_protection", acBonus: 2, attackBonus: 2, roundsRemaining: 3 },
+      };
+    },
+  },
+  holy_avenger: {
+    mpCost: 12,
+    targetType: "single",
+    resolve: (player, monsters, targetIndex) => {
+      const strMod = statModifier(player.stats.str);
+      let damage = rollMultiple(3, 8).reduce((a, b) => a + b, 0) + strMod;
+      const target = monsters[targetIndex ?? 0];
+      const undeadNames = ["skeleton", "zombie", "ghoul", "wraith", "mummy", "lich", "death knight", "vampire"];
+      if (target && undeadNames.some((n) => target.name.toLowerCase().includes(n))) {
+        damage += rollMultiple(2, 8).reduce((a, b) => a + b, 0);
+      }
+      return {
+        damage: Math.max(0, damage),
+        log: `Holy Avenger strikes for ${Math.max(0, damage)} radiant damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+
+  // --- Ranger abilities ---
+  hunters_mark: {
+    mpCost: 3,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Hunter's Mark grants +2 damage for 3 rounds",
+        affectedIndexes: [],
+        buffAdded: { name: "hunters_mark", damageBonus: 2, roundsRemaining: 3 },
+      };
+    },
+  },
+  multiattack: {
+    mpCost: 5,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const dexMod = statModifier(player.stats.dex);
+      const weaponDamage = player.equipment.weapon?.stats?.damage ?? 6;
+      const damage = roll(weaponDamage) + roll(weaponDamage) + dexMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Multiattack hits twice for ${Math.max(0, damage)} total damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  evasion: {
+    mpCost: 5,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Evasion grants +5 AC until next turn",
+        affectedIndexes: [],
+        buffAdded: { name: "evasion", acBonus: 5, roundsRemaining: 1 },
+      };
+    },
+  },
+  volley: {
+    mpCost: 10,
+    targetType: "all",
+    resolve: (player, monsters) => {
+      const dexMod = statModifier(player.stats.dex);
+      const weaponDamage = player.equipment.weapon?.stats?.damage ?? 6;
+      const damage = roll(weaponDamage) + dexMod;
+      const indexes = monsters.map((_, i) => i).filter((i) => monsters[i]!.hp > 0);
+      return {
+        damage: Math.max(0, damage),
+        log: `Volley rains arrows on all enemies for ${Math.max(0, damage)} damage each`,
+        affectedIndexes: indexes,
+      };
+    },
+  },
+
+  // --- Sorcerer abilities ---
+  chaos_bolt: {
+    mpCost: 5,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const chaMod = statModifier(player.stats.cha);
+      const damage = rollMultiple(2, 8).reduce((a, b) => a + b, 0) + chaMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Chaos Bolt crackles with wild energy for ${Math.max(0, damage)} damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  shield_spell: {
+    mpCost: 3,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Shield grants +5 AC until next turn",
+        affectedIndexes: [],
+        buffAdded: { name: "shield_spell", acBonus: 5, roundsRemaining: 1 },
+      };
+    },
+  },
+  metamagic_blast: {
+    mpCost: 12,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const chaMod = statModifier(player.stats.cha);
+      const damage = rollMultiple(3, 10).reduce((a, b) => a + b, 0) + chaMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Metamagic Blast unleashes ${Math.max(0, damage)} empowered damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  wild_surge: {
+    mpCost: 15,
+    targetType: "all",
+    resolve: (player, monsters) => {
+      const chaMod = statModifier(player.stats.cha);
+      const damage = rollMultiple(2, 8).reduce((a, b) => a + b, 0) + chaMod + roll(6);
+      const indexes = monsters.map((_, i) => i).filter((i) => monsters[i]!.hp > 0);
+      return {
+        damage: Math.max(0, damage),
+        log: `Wild Surge erupts chaotically for ${Math.max(0, damage)} damage to all enemies`,
+        affectedIndexes: indexes,
+      };
+    },
+  },
+
+  // --- Warlock abilities ---
+  eldritch_blast: {
+    mpCost: 0,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const chaMod = statModifier(player.stats.cha);
+      const damage = roll(10) + chaMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Eldritch Blast hits for ${Math.max(0, damage)} force damage (auto-hit)`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  hex: {
+    mpCost: 3,
+    targetType: "self",
+    resolve: () => {
+      return {
+        log: "Hex curses the enemy, granting +2 damage for 3 rounds",
+        affectedIndexes: [],
+        buffAdded: { name: "hex", damageBonus: 2, roundsRemaining: 3 },
+      };
+    },
+  },
+  hellfire: {
+    mpCost: 8,
+    targetType: "single",
+    resolve: (player, _monsters, targetIndex) => {
+      const chaMod = statModifier(player.stats.cha);
+      const damage = rollMultiple(3, 6).reduce((a, b) => a + b, 0) + chaMod;
+      return {
+        damage: Math.max(0, damage),
+        log: `Hellfire scorches for ${Math.max(0, damage)} damage`,
+        affectedIndexes: [targetIndex ?? 0],
+      };
+    },
+  },
+  dark_pact: {
+    mpCost: 0,
+    targetType: "self",
+    resolve: (player) => {
+      const hpCost = Math.floor(player.hpMax * 0.25);
+      const mpRestore = player.mpMax - player.mp;
+      return {
+        selfDamage: hpCost,
+        mpRestore,
+        log: `Dark Pact sacrifices ${hpCost} HP to restore ${mpRestore} MP`,
+        affectedIndexes: [],
       };
     },
   },
@@ -677,6 +1115,16 @@ function resolvePlayerCast(
         target.hp = Math.max(0, target.hp - resolution.damage);
       }
     }
+  }
+
+  // Apply self-damage (e.g. Dark Pact)
+  if (resolution.selfDamage) {
+    player.hp = Math.max(1, player.hp - resolution.selfDamage);
+  }
+
+  // Apply MP restore (e.g. Dark Pact)
+  if (resolution.mpRestore) {
+    player.mp = Math.min(player.mpMax, player.mp + resolution.mpRestore);
   }
 
   // Apply buff

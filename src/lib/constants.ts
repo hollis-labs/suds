@@ -32,8 +32,9 @@ export const GAME_CONFIG = {
 } as const;
 
 export const CLASS_DEFINITIONS = {
-  warrior: {
-    name: "Warrior",
+  // --- Original 4 (warrior renamed to fighter, mage renamed to wizard) ---
+  fighter: {
+    name: "Fighter",
     primary: "str" as const,
     hpDie: 10,
     mpBase: 10,
@@ -45,10 +46,10 @@ export const CLASS_DEFINITIONS = {
       5: ["cleave"],
       7: ["battle_cry"],
     },
-    description: "A mighty fighter skilled in melee combat and heavy armor.",
+    description: "A versatile combatant trained in all manner of weapons and armor.",
   },
-  mage: {
-    name: "Mage",
+  wizard: {
+    name: "Wizard",
     primary: "int" as const,
     hpDie: 6,
     mpBase: 30,
@@ -60,7 +61,7 @@ export const CLASS_DEFINITIONS = {
       5: ["ice_shield"],
       7: ["chain_lightning"],
     },
-    description: "A scholarly spellcaster wielding arcane forces.",
+    description: "A scholarly spellcaster who commands arcane forces through study and intellect.",
   },
   rogue: {
     name: "Rogue",
@@ -91,6 +92,127 @@ export const CLASS_DEFINITIONS = {
       7: ["divine_shield"],
     },
     description: "A holy warrior who channels divine power to heal and smite.",
+  },
+  // --- New SRD classes ---
+  barbarian: {
+    name: "Barbarian",
+    primary: "str" as const,
+    hpDie: 12,
+    mpBase: 5,
+    startingStats: { str: 16, dex: 14, con: 16, int: 8, wis: 10, cha: 8 },
+    startingAC: 13,
+    abilities: {
+      1: ["rage"],
+      3: ["reckless_attack"],
+      5: ["brutal_critical"],
+      7: ["relentless_endurance"],
+    },
+    description: "A fierce warrior driven by primal fury and raw strength.",
+  },
+  bard: {
+    name: "Bard",
+    primary: "cha" as const,
+    hpDie: 8,
+    mpBase: 25,
+    startingStats: { str: 8, dex: 14, con: 12, int: 12, wis: 10, cha: 16 },
+    startingAC: 12,
+    abilities: {
+      1: ["bardic_inspiration"],
+      3: ["cutting_words"],
+      5: ["healing_word"],
+      7: ["mass_inspiration"],
+    },
+    description: "A charismatic performer who weaves magic through music and words.",
+  },
+  druid: {
+    name: "Druid",
+    primary: "wis" as const,
+    hpDie: 8,
+    mpBase: 25,
+    startingStats: { str: 10, dex: 12, con: 14, int: 12, wis: 16, cha: 10 },
+    startingAC: 12,
+    abilities: {
+      1: ["entangle"],
+      3: ["thunderwave"],
+      5: ["call_lightning"],
+      7: ["regenerate"],
+    },
+    description: "A guardian of the natural world who draws power from earth and storm.",
+  },
+  monk: {
+    name: "Monk",
+    primary: "dex" as const,
+    hpDie: 8,
+    mpBase: 15,
+    startingStats: { str: 10, dex: 16, con: 12, int: 10, wis: 16, cha: 8 },
+    startingAC: 15,
+    abilities: {
+      1: ["flurry_of_blows"],
+      3: ["patient_defense"],
+      5: ["stunning_strike"],
+      7: ["quivering_palm"],
+    },
+    description: "A martial artist who harnesses ki to perform extraordinary feats.",
+  },
+  paladin: {
+    name: "Paladin",
+    primary: "str" as const,
+    hpDie: 10,
+    mpBase: 15,
+    startingStats: { str: 16, dex: 10, con: 14, int: 8, wis: 12, cha: 14 },
+    startingAC: 16,
+    abilities: {
+      1: ["divine_smite_paladin"],
+      3: ["lay_on_hands"],
+      5: ["aura_of_protection"],
+      7: ["holy_avenger"],
+    },
+    description: "A holy knight sworn to an oath, blending martial prowess with divine magic.",
+  },
+  ranger: {
+    name: "Ranger",
+    primary: "dex" as const,
+    hpDie: 10,
+    mpBase: 15,
+    startingStats: { str: 12, dex: 16, con: 14, int: 10, wis: 14, cha: 8 },
+    startingAC: 14,
+    abilities: {
+      1: ["hunters_mark"],
+      3: ["multiattack"],
+      5: ["evasion"],
+      7: ["volley"],
+    },
+    description: "A skilled hunter and tracker who stalks prey at the edges of civilization.",
+  },
+  sorcerer: {
+    name: "Sorcerer",
+    primary: "cha" as const,
+    hpDie: 6,
+    mpBase: 30,
+    startingStats: { str: 8, dex: 12, con: 14, int: 10, wis: 10, cha: 16 },
+    startingAC: 11,
+    abilities: {
+      1: ["chaos_bolt"],
+      3: ["shield_spell"],
+      5: ["metamagic_blast"],
+      7: ["wild_surge"],
+    },
+    description: "A spellcaster whose innate magic flows from a powerful bloodline.",
+  },
+  warlock: {
+    name: "Warlock",
+    primary: "cha" as const,
+    hpDie: 8,
+    mpBase: 20,
+    startingStats: { str: 8, dex: 12, con: 14, int: 12, wis: 10, cha: 16 },
+    startingAC: 12,
+    abilities: {
+      1: ["eldritch_blast"],
+      3: ["hex"],
+      5: ["hellfire"],
+      7: ["dark_pact"],
+    },
+    description: "A wielder of eldritch power granted by an otherworldly patron.",
   },
 } as const;
 

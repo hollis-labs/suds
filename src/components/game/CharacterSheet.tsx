@@ -72,11 +72,17 @@ export function CharacterSheet({
 
   // Equipment lines
   const equipLines = useMemo(
-    () => [
-      equipmentLine("Weapon", player.equipment.weapon),
-      equipmentLine("Armor", player.equipment.armor),
-      equipmentLine("Access", player.equipment.accessory),
-    ],
+    () => {
+      const lines = [
+        equipmentLine("Weapon", player.equipment.weapon),
+        equipmentLine("Armor", player.equipment.armor),
+      ];
+      if (player.equipment.ring) lines.push(equipmentLine("Ring", player.equipment.ring));
+      if (player.equipment.amulet) lines.push(equipmentLine("Amulet", player.equipment.amulet));
+      if (player.equipment.boots) lines.push(equipmentLine("Boots", player.equipment.boots));
+      if (player.equipment.accessory) lines.push(equipmentLine("Access", player.equipment.accessory));
+      return lines;
+    },
     [player.equipment]
   );
 

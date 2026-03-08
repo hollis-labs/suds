@@ -8,6 +8,7 @@ import { generateEncounter } from "@/server/game/encounters";
 import { computeMapViewport, directionToOffset, oppositeDirection, roomKey } from "@/server/game/map";
 import { rollCheck, rollDice } from "@/server/game/dice";
 import { statModifier, GAME_CONFIG } from "@/lib/constants";
+import { buildEquipmentSlots } from "@/server/game/equipment";
 import type { Theme, RoomType } from "@/lib/constants";
 import { generateRoomDescriptionAI, generateLoreFragmentAI } from "@/server/game/ai";
 import { selectOrGenerate } from "@/server/game/content-library";
@@ -46,9 +47,7 @@ function buildPlayer(
     isEquipped: item.isEquipped,
   });
 
-  const equippedWeapon = items.find((i) => i.type === "weapon" && i.isEquipped);
-  const equippedArmor = items.find((i) => i.type === "armor" && i.isEquipped);
-  const equippedAccessory = items.find((i) => i.type === "accessory" && i.isEquipped);
+  const slots = buildEquipmentSlots(items);
 
   return {
     id: character.id,
@@ -67,9 +66,12 @@ function buildPlayer(
     ac: character.ac,
     position: character.position as Position,
     equipment: {
-      weapon: equippedWeapon ? toGameItem(equippedWeapon) : undefined,
-      armor: equippedArmor ? toGameItem(equippedArmor) : undefined,
-      accessory: equippedAccessory ? toGameItem(equippedAccessory) : undefined,
+      weapon: slots.weapon ? toGameItem(slots.weapon) : undefined,
+      armor: slots.armor ? toGameItem(slots.armor) : undefined,
+      accessory: slots.accessory ? toGameItem(slots.accessory) : undefined,
+      ring: slots.ring ? toGameItem(slots.ring) : undefined,
+      amulet: slots.amulet ? toGameItem(slots.amulet) : undefined,
+      boots: slots.boots ? toGameItem(slots.boots) : undefined,
     },
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,
@@ -243,7 +245,8 @@ export const gameRouter = router({
           targetY,
           theme,
           targetDepth,
-          input.direction
+          input.direction,
+          character.level
         );
 
         // Generate encounter data if room has encounter
@@ -329,10 +332,17 @@ export const gameRouter = router({
       const player = buildPlayer(updatedCharacter, items);
       const room = buildRoom(targetRoomRow);
 
-      // Check for encounter
+      // Check for encounter — regenerate fresh on re-entry so initiative
+      // is re-rolled and monsters reset (aggro cooldown on flee)
       let encounter: MonsterEncounter | null = null;
       if (room.hasEncounter && room.encounterData) {
-        encounter = room.encounterData;
+        const theme = character.theme as Theme;
+        encounter = generateEncounter(character.level, targetDepth, theme);
+        // Persist the fresh encounter so combat.start picks it up
+        await ctx.db
+          .update(rooms)
+          .set({ encounterData: encounter })
+          .where(eq(rooms.id, targetRoomRow!.id));
       }
 
       // Compute map viewport

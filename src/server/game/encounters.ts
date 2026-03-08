@@ -28,12 +28,14 @@ function generateMonsterId(): string {
 
 /**
  * Scale monster HP based on its base HP and level.
- * HP = hpBase + roll(1d8) per level (minimum hpBase).
+ * HP = hpBase + roll(hpDie) per level (minimum hpBase).
+ * At low monster levels (1-2), use d6 instead of d8 for gentler scaling.
  */
 function scaleMonsterHp(template: MonsterTemplate): number {
   let hp = template.hpBase;
+  const hpDie = template.level <= 2 ? 6 : 8;
   for (let i = 1; i < template.level; i++) {
-    hp += roll(8);
+    hp += roll(hpDie);
   }
   return hp;
 }
@@ -94,10 +96,20 @@ function selectMonsters(
   pool: MonsterTemplate[],
   playerLevel: number
 ): MonsterTemplate[] {
-  const budget = GAME_CONFIG.ENCOUNTER_DIFFICULTY_BUDGET;
+  // Scale difficulty budget down for low-level players:
+  // Level 1: budget 0.8 (almost always 1 monster)
+  // Level 2: budget 1.0
+  // Level 3: budget 1.2
+  // Level 4+: full budget (1.5)
+  let budget: number = GAME_CONFIG.ENCOUNTER_DIFFICULTY_BUDGET;
+  if (playerLevel <= 1) budget = 0.8;
+  else if (playerLevel <= 2) budget = 1.0;
+  else if (playerLevel <= 3) budget = 1.2;
+
   const selected: MonsterTemplate[] = [];
   let spent = 0;
-  const maxMonsters = 3;
+  // Cap group size at low levels
+  const maxMonsters = playerLevel <= 2 ? 2 : 3;
 
   // Always pick at least one
   const first = weightedPick(pool, playerLevel);

@@ -14,7 +14,11 @@ import {
 } from "@/lib/constants";
 import type { Stats, Equipment, GameItem } from "@/lib/types";
 
-const CLASSES: CharacterClass[] = ["warrior", "mage", "rogue", "cleric"];
+const CLASSES: CharacterClass[] = [
+  "fighter", "wizard", "rogue", "cleric",
+  "barbarian", "bard", "druid", "monk",
+  "paladin", "ranger", "sorcerer", "warlock",
+];
 
 describe("createNewCharacter", () => {
   it.each(CLASSES)("returns valid data for %s class", (cls) => {
@@ -73,17 +77,17 @@ describe("createNewCharacter", () => {
   });
 
   it("starting gold matches GAME_CONFIG.STARTING_GOLD", () => {
-    const { character } = createNewCharacter("TestHero", "warrior", "epic");
+    const { character } = createNewCharacter("TestHero", "fighter", "epic");
     expect(character.gold).toBe(GAME_CONFIG.STARTING_GOLD);
   });
 
   it("xpNext is set to level 2 threshold", () => {
-    const { character } = createNewCharacter("TestHero", "warrior", "epic");
+    const { character } = createNewCharacter("TestHero", "fighter", "epic");
     expect(character.xpNext).toBe(xpForLevel(2));
   });
 
-  it("warrior gets rusty_sword and leather_armor", () => {
-    const { inventoryItems } = createNewCharacter("TestHero", "warrior", "epic");
+  it("fighter gets rusty_sword and leather_armor", () => {
+    const { inventoryItems } = createNewCharacter("TestHero", "fighter", "epic");
     const weapon = inventoryItems.find((i) => i.type === "weapon");
     const armor = inventoryItems.find((i) => i.type === "armor");
 
@@ -93,8 +97,8 @@ describe("createNewCharacter", () => {
     expect(armor!.itemId).toBe("leather_armor");
   });
 
-  it("mage gets wooden_staff and no armor", () => {
-    const { inventoryItems } = createNewCharacter("TestHero", "mage", "epic");
+  it("wizard gets wooden_staff and no armor", () => {
+    const { inventoryItems } = createNewCharacter("TestHero", "wizard", "epic");
     const weapon = inventoryItems.find((i) => i.type === "weapon");
     const armor = inventoryItems.find((i) => i.type === "armor");
 
@@ -136,8 +140,8 @@ describe("createNewCharacter", () => {
 
 describe("calculateLevelUp", () => {
   it("returns correct new level", () => {
-    const stats: Stats = { ...CLASS_DEFINITIONS.warrior.startingStats };
-    const result = calculateLevelUp(1, stats, "warrior");
+    const stats: Stats = { ...CLASS_DEFINITIONS.fighter.startingStats };
+    const result = calculateLevelUp(1, stats, "fighter");
     expect(result.newLevel).toBe(2);
   });
 
@@ -145,7 +149,7 @@ describe("calculateLevelUp", () => {
     // Use a class with low HP die and low CON to stress min-1 rule
     const stats: Stats = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
     for (let i = 0; i < 50; i++) {
-      const result = calculateLevelUp(1, stats, "mage");
+      const result = calculateLevelUp(1, stats, "wizard");
       expect(result.hpGained).toBeGreaterThanOrEqual(1);
     }
   });
@@ -160,39 +164,39 @@ describe("calculateLevelUp", () => {
   });
 
   it("gives abilities at correct levels", () => {
-    const stats: Stats = { ...CLASS_DEFINITIONS.warrior.startingStats };
+    const stats: Stats = { ...CLASS_DEFINITIONS.fighter.startingStats };
 
     // Level 2 -> no new abilities for warrior
-    const level2 = calculateLevelUp(1, stats, "warrior");
+    const level2 = calculateLevelUp(1, stats, "fighter");
     expect(level2.newAbilities).toEqual([]);
 
     // Level 3 -> shield_block
-    const level3 = calculateLevelUp(2, stats, "warrior");
+    const level3 = calculateLevelUp(2, stats, "fighter");
     expect(level3.newAbilities).toEqual(["shield_block"]);
 
     // Level 5 -> cleave
-    const level5 = calculateLevelUp(4, stats, "warrior");
+    const level5 = calculateLevelUp(4, stats, "fighter");
     expect(level5.newAbilities).toEqual(["cleave"]);
 
     // Level 7 -> battle_cry
-    const level7 = calculateLevelUp(6, stats, "warrior");
+    const level7 = calculateLevelUp(6, stats, "fighter");
     expect(level7.newAbilities).toEqual(["battle_cry"]);
   });
 
   it("sets correct xpNext threshold", () => {
-    const stats: Stats = { ...CLASS_DEFINITIONS.warrior.startingStats };
-    const result = calculateLevelUp(1, stats, "warrior");
+    const stats: Stats = { ...CLASS_DEFINITIONS.fighter.startingStats };
+    const result = calculateLevelUp(1, stats, "fighter");
     // New level is 2, so xpNext should be xpForLevel(3)
     expect(result.xpNext).toBe(xpForLevel(3));
   });
 
   it("HP gained is bounded by hpDie + CON mod range", () => {
-    const stats: Stats = { ...CLASS_DEFINITIONS.warrior.startingStats };
+    const stats: Stats = { ...CLASS_DEFINITIONS.fighter.startingStats };
     const conMod = statModifier(stats.con);
-    const classDef = CLASS_DEFINITIONS.warrior;
+    const classDef = CLASS_DEFINITIONS.fighter;
 
     for (let i = 0; i < 100; i++) {
-      const result = calculateLevelUp(1, stats, "warrior");
+      const result = calculateLevelUp(1, stats, "fighter");
       expect(result.hpGained).toBeGreaterThanOrEqual(
         Math.max(1, 1 + conMod)
       );

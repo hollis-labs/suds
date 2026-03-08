@@ -9,9 +9,12 @@ import type { Store, StoreItem, Player, GameItem } from "@/lib/types";
 type StoreTab = "buy" | "sell";
 type BuySection = "local" | "marketplace";
 
+type SortOrder = "price-desc" | "price-asc" | "name" | "rarity";
+
 interface StorePanelProps {
   store: Store;
   player: Player;
+  inventory: GameItem[];
   onBuy: (itemId: string) => void;
   onSell: (itemId: string) => void;
   onClose: () => void;
@@ -154,9 +157,18 @@ function ItemDetail({
 
 // ── Main Component ───────────────────────────────────────────────────
 
+const RARITY_ORDER: Record<string, number> = {
+  legendary: 5,
+  epic: 4,
+  rare: 3,
+  uncommon: 2,
+  common: 1,
+};
+
 export function StorePanel({
   store,
   player,
+  inventory,
   onBuy,
   onSell,
   onClose,
@@ -166,17 +178,7 @@ export function StorePanel({
   const [buySection, setBuySection] = useState<BuySection>("local");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [confirmPurchase, setConfirmPurchase] = useState(false);
-
-  // Get player inventory items for sell tab
-  // Collect from equipment slots that exist
-  const playerItems = useMemo(() => {
-    const items: GameItem[] = [];
-    if (player.equipment.weapon) items.push(player.equipment.weapon);
-    if (player.equipment.armor) items.push(player.equipment.armor);
-    if (player.equipment.accessory) items.push(player.equipment.accessory);
-    // TODO: Add full inventory when player.inventory is available via tRPC
-    return items;
-  }, [player.equipment]);
+  const [sellSort, setSellSort] = useState<SortOrder>("price-desc");
 
   // Current store items based on tab/section
   const currentBuyItems = useMemo(() => {
@@ -186,7 +188,7 @@ export function StorePanel({
   }, [store, buySection]);
 
   const currentSellItems = useMemo(() => {
-    return playerItems.map((item) => ({
+    const withPrices = inventory.map((item) => ({
       item,
       sellPrice: Math.floor(
         (Object.values(item.stats).reduce((a, b) => a + b, 0) * 10 || 10) *
@@ -194,7 +196,29 @@ export function StorePanel({
           SELL_RATIO
       ),
     }));
-  }, [playerItems]);
+
+    // Sort: unequipped first, then by selected sort order
+    withPrices.sort((a, b) => {
+      // Equipped items always at bottom
+      if (a.item.isEquipped !== b.item.isEquipped) {
+        return a.item.isEquipped ? 1 : -1;
+      }
+      switch (sellSort) {
+        case "price-desc":
+          return b.sellPrice - a.sellPrice;
+        case "price-asc":
+          return a.sellPrice - b.sellPrice;
+        case "name":
+          return a.item.name.localeCompare(b.item.name);
+        case "rarity":
+          return (RARITY_ORDER[b.item.rarity] ?? 0) - (RARITY_ORDER[a.item.rarity] ?? 0);
+        default:
+          return 0;
+      }
+    });
+
+    return withPrices;
+  }, [inventory, sellSort]);
 
   // Clamp selected index
   const maxIndex =
@@ -449,8 +473,38 @@ export function StorePanel({
       {/* Sell tab content */}
       {tab === "sell" && (
         <div className="space-y-2">
-          <div className="text-[10px] text-terminal-border-bright uppercase tracking-wider">
-            Your Items (sell at {SELL_RATIO * 100}% value)
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-wider">
+            <span className="text-terminal-border-bright">
+              Your Items (sell at {SELL_RATIO * 100}% value)
+            </span>
+            <div className="flex gap-2">
+              <span className="text-terminal-border-bright">Sort:</span>
+              {(
+                [
+                  { id: "price-desc", label: "Gold↓" },
+                  { id: "price-asc", label: "Gold↑" },
+                  { id: "name", label: "Name" },
+                  { id: "rarity", label: "Rarity" },
+                ] as const
+              ).map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setSellSort(s.id);
+                    setSelectedIndex(0);
+                    setConfirmPurchase(false);
+                  }}
+                  className={cn(
+                    "transition-colors",
+                    sellSort === s.id
+                      ? "text-terminal-green"
+                      : "text-terminal-border-bright hover:text-terminal-green-dim"
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-0.5 max-h-[200px] overflow-y-auto">

@@ -14,11 +14,11 @@ const STARTING_EQUIPMENT: Record<
   CharacterClass,
   { weapon: { itemId: string; name: string } | null; armor: { itemId: string; name: string } | null }
 > = {
-  warrior: {
+  fighter: {
     weapon: { itemId: "rusty_sword", name: "Rusty Sword" },
     armor: { itemId: "leather_armor", name: "Leather Armor" },
   },
-  mage: {
+  wizard: {
     weapon: { itemId: "wooden_staff", name: "Wooden Staff" },
     armor: null,
   },
@@ -29,6 +29,38 @@ const STARTING_EQUIPMENT: Record<
   cleric: {
     weapon: { itemId: "wooden_mace", name: "Wooden Mace" },
     armor: { itemId: "chain_mail", name: "Chain Mail" },
+  },
+  barbarian: {
+    weapon: { itemId: "rusty_greataxe", name: "Rusty Greataxe" },
+    armor: { itemId: "hide_armor", name: "Hide Armor" },
+  },
+  bard: {
+    weapon: { itemId: "rusty_rapier", name: "Rusty Rapier" },
+    armor: { itemId: "leather_armor", name: "Leather Armor" },
+  },
+  druid: {
+    weapon: { itemId: "wooden_staff", name: "Wooden Staff" },
+    armor: { itemId: "leather_armor", name: "Leather Armor" },
+  },
+  monk: {
+    weapon: { itemId: "wooden_staff", name: "Wooden Staff" },
+    armor: null,
+  },
+  paladin: {
+    weapon: { itemId: "rusty_sword", name: "Rusty Sword" },
+    armor: { itemId: "chain_mail", name: "Chain Mail" },
+  },
+  ranger: {
+    weapon: { itemId: "rusty_shortbow", name: "Rusty Shortbow" },
+    armor: { itemId: "leather_armor", name: "Leather Armor" },
+  },
+  sorcerer: {
+    weapon: { itemId: "rusty_dagger", name: "Rusty Dagger" },
+    armor: null,
+  },
+  warlock: {
+    weapon: { itemId: "rusty_shortsword", name: "Rusty Shortsword" },
+    armor: { itemId: "leather_armor", name: "Leather Armor" },
   },
 };
 

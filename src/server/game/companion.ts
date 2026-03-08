@@ -3,7 +3,11 @@ import { CLASS_DEFINITIONS, type CharacterClass } from "@/lib/constants";
 import { rollCheck, rollDice } from "@/server/game/dice";
 import namesData from "@/server/gamedata/names.json";
 
-const CLASSES: CharacterClass[] = ["warrior", "mage", "rogue", "cleric"];
+const CLASSES: CharacterClass[] = [
+  "fighter", "wizard", "rogue", "cleric",
+  "barbarian", "bard", "druid", "monk",
+  "paladin", "ranger", "sorcerer", "warlock",
+];
 
 const PERSONALITIES = [
   "gruff but loyal",

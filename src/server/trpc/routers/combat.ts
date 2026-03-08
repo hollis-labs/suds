@@ -16,6 +16,7 @@ import { directionToOffset, computeMapViewport, roomKey } from "@/server/game/ma
 import { generateAdventurer, rollAdventurerAppearance, rollAdventurerHelps } from "@/server/game/companion";
 import { GAME_CONFIG } from "@/lib/constants";
 import { logGameEvent } from "@/server/game/events";
+import { buildEquipmentSlots } from "@/server/game/equipment";
 import type { CharacterClass, Theme } from "@/lib/constants";
 import type {
   Player,
@@ -54,9 +55,7 @@ function buildPlayer(
     isEquipped: item.isEquipped,
   });
 
-  const equippedWeapon = items.find((i) => i.type === "weapon" && i.isEquipped);
-  const equippedArmor = items.find((i) => i.type === "armor" && i.isEquipped);
-  const equippedAccessory = items.find((i) => i.type === "accessory" && i.isEquipped);
+  const slots = buildEquipmentSlots(items);
 
   return {
     id: character.id,
@@ -75,9 +74,12 @@ function buildPlayer(
     ac: character.ac,
     position: character.position as Position,
     equipment: {
-      weapon: equippedWeapon ? toGameItem(equippedWeapon) : undefined,
-      armor: equippedArmor ? toGameItem(equippedArmor) : undefined,
-      accessory: equippedAccessory ? toGameItem(equippedAccessory) : undefined,
+      weapon: slots.weapon ? toGameItem(slots.weapon) : undefined,
+      armor: slots.armor ? toGameItem(slots.armor) : undefined,
+      accessory: slots.accessory ? toGameItem(slots.accessory) : undefined,
+      ring: slots.ring ? toGameItem(slots.ring) : undefined,
+      amulet: slots.amulet ? toGameItem(slots.amulet) : undefined,
+      boots: slots.boots ? toGameItem(slots.boots) : undefined,
     },
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,

@@ -21,7 +21,7 @@ function makePlayer(overrides?: Partial<Player>): Player {
   return {
     id: "player_1",
     name: "TestHero",
-    class: "warrior",
+    class: "fighter",
     theme: "epic",
     level: 3,
     xp: 0,

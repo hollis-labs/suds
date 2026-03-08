@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { characters, inventoryItems } from "@/server/db/schema";
 import { statModifier } from "@/lib/constants";
+import { buildEquipmentSlots, getEquipSlot } from "@/server/game/equipment";
 import type {
   Player,
   PlayerBuff,
@@ -32,11 +33,7 @@ function buildPlayer(
     isEquipped: item.isEquipped,
   });
 
-  const equippedWeapon = items.find((i) => i.type === "weapon" && i.isEquipped);
-  const equippedArmor = items.find((i) => i.type === "armor" && i.isEquipped);
-  const equippedAccessory = items.find(
-    (i) => i.type === "accessory" && i.isEquipped
-  );
+  const slots = buildEquipmentSlots(items);
 
   return {
     id: character.id,
@@ -55,9 +52,12 @@ function buildPlayer(
     ac: character.ac,
     position: character.position as Position,
     equipment: {
-      weapon: equippedWeapon ? toGameItem(equippedWeapon) : undefined,
-      armor: equippedArmor ? toGameItem(equippedArmor) : undefined,
-      accessory: equippedAccessory ? toGameItem(equippedAccessory) : undefined,
+      weapon: slots.weapon ? toGameItem(slots.weapon) : undefined,
+      armor: slots.armor ? toGameItem(slots.armor) : undefined,
+      accessory: slots.accessory ? toGameItem(slots.accessory) : undefined,
+      ring: slots.ring ? toGameItem(slots.ring) : undefined,
+      amulet: slots.amulet ? toGameItem(slots.amulet) : undefined,
+      boots: slots.boots ? toGameItem(slots.boots) : undefined,
     },
     abilities: character.abilities,
     lastSafe: character.lastSafe as Position,
@@ -183,17 +183,29 @@ export const inventoryRouter = router({
         });
       }
 
-      // Unequip any currently equipped item of the same type
-      await ctx.db
-        .update(inventoryItems)
-        .set({ isEquipped: false })
+      // Determine which equipment slot this item occupies
+      const targetSlot = getEquipSlot(item.type, item.itemId);
+
+      // Unequip any currently equipped item in the same slot
+      // For weapon/armor: match by type. For accessories: match by sub-slot.
+      const allEquipped = await ctx.db
+        .select()
+        .from(inventoryItems)
         .where(
           and(
             eq(inventoryItems.characterId, character.id),
-            eq(inventoryItems.type, item.type),
             eq(inventoryItems.isEquipped, true)
           )
         );
+
+      for (const equipped of allEquipped) {
+        if (getEquipSlot(equipped.type, equipped.itemId) === targetSlot) {
+          await ctx.db
+            .update(inventoryItems)
+            .set({ isEquipped: false })
+            .where(eq(inventoryItems.id, equipped.id));
+        }
+      }
 
       // Equip the new item
       await ctx.db

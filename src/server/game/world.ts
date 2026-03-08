@@ -246,7 +246,8 @@ export function generateRoom(
   y: number,
   theme: Theme,
   depth: number,
-  entryDirection: Direction | null
+  entryDirection: Direction | null,
+  playerLevel?: number
 ): Room {
   const calculatedDepth = Math.abs(x) + Math.abs(y);
   // Use provided depth or calculated depth (prefer calculated for consistency)
@@ -258,11 +259,17 @@ export function generateRoom(
   const exits = generateExits(entryDirection);
 
   // Encounter check — skip for safe room types
+  // Reduce encounter chance at low levels for a gentler early game
   let hasEncounter = false;
   if (!SAFE_ROOM_TYPES.includes(roomType)) {
-    const encounterChance =
+    let encounterChance =
       GAME_CONFIG.ENCOUNTER_BASE_CHANCE +
       effectiveDepth * GAME_CONFIG.ENCOUNTER_DEPTH_MODIFIER;
+    // Low-level encounter reduction: level 1 = 50% of base, level 2 = 70%, level 3 = 85%
+    const lvl = playerLevel ?? 5;
+    if (lvl <= 1) encounterChance *= 0.5;
+    else if (lvl <= 2) encounterChance *= 0.7;
+    else if (lvl <= 3) encounterChance *= 0.85;
     hasEncounter = Math.random() < encounterChance;
   }
 

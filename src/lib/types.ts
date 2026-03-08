@@ -32,7 +32,10 @@ export interface GameItem {
 export interface Equipment {
   weapon?: GameItem;
   armor?: GameItem;
-  accessory?: GameItem;
+  accessory?: GameItem; // legacy catch-all
+  ring?: GameItem;
+  amulet?: GameItem;
+  boots?: GameItem;
 }
 
 // Active buffs (shield, blessing, etc.)

@@ -3,7 +3,7 @@ import type { Player, Room, MapViewport, MapCell } from "@/lib/types";
 export const mockPlayer: Player = {
   id: "player-001",
   name: "Thorn Ironforge",
-  class: "warrior",
+  class: "fighter",
   theme: "dark_fantasy",
   level: 3,
   xp: 840,

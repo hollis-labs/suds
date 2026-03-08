@@ -8,6 +8,7 @@ import { generateStartingRoom } from "@/server/game/world";
 import { CLASS_DEFINITIONS, THEMES } from "@/lib/constants";
 import type { CharacterClass, Theme } from "@/lib/constants";
 import type { Player, GameItem } from "@/lib/types";
+import { buildEquipmentSlots } from "@/server/game/equipment";
 
 const characterClasses = Object.keys(CLASS_DEFINITIONS) as [string, ...string[]];
 const themeKeys = Object.keys(THEMES) as [string, ...string[]];
@@ -53,17 +54,6 @@ export const characterRouter = router({
         .from(inventoryItems)
         .where(eq(inventoryItems.characterId, input.id));
 
-      // Build equipment from equipped items
-      const equippedWeapon = items.find(
-        (i) => i.type === "weapon" && i.isEquipped
-      );
-      const equippedArmor = items.find(
-        (i) => i.type === "armor" && i.isEquipped
-      );
-      const equippedAccessory = items.find(
-        (i) => i.type === "accessory" && i.isEquipped
-      );
-
       const toGameItem = (item: typeof items[number]): GameItem => ({
         id: item.id,
         itemId: item.itemId,
@@ -75,6 +65,8 @@ export const characterRouter = router({
         slot: item.slot,
         isEquipped: item.isEquipped,
       });
+
+      const slots = buildEquipmentSlots(items);
 
       const player: Player = {
         id: character.id,
@@ -93,11 +85,12 @@ export const characterRouter = router({
         ac: character.ac,
         position: character.position as Player["position"],
         equipment: {
-          weapon: equippedWeapon ? toGameItem(equippedWeapon) : undefined,
-          armor: equippedArmor ? toGameItem(equippedArmor) : undefined,
-          accessory: equippedAccessory
-            ? toGameItem(equippedAccessory)
-            : undefined,
+          weapon: slots.weapon ? toGameItem(slots.weapon) : undefined,
+          armor: slots.armor ? toGameItem(slots.armor) : undefined,
+          accessory: slots.accessory ? toGameItem(slots.accessory) : undefined,
+          ring: slots.ring ? toGameItem(slots.ring) : undefined,
+          amulet: slots.amulet ? toGameItem(slots.amulet) : undefined,
+          boots: slots.boots ? toGameItem(slots.boots) : undefined,
         },
         abilities: character.abilities,
         lastSafe: character.lastSafe as Player["lastSafe"],
