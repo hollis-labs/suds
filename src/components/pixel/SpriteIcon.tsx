@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { getSprite, type SpriteId } from "@/lib/sprites";
 
@@ -10,7 +11,7 @@ interface SpriteIconProps {
   className?: string;
 }
 
-export function SpriteIcon({ spriteId, size = 32, className }: SpriteIconProps) {
+export const SpriteIcon = memo(function SpriteIcon({ spriteId, size = 32, className }: SpriteIconProps) {
   const sprite = getSprite(spriteId);
   const { sheet, region } = sprite;
 
@@ -45,4 +46,4 @@ export function SpriteIcon({ spriteId, size = 32, className }: SpriteIconProps) 
       aria-label={sprite.label}
     />
   );
-}
+});

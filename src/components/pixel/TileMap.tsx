@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, memo } from "react";
 import { cn } from "@/lib/utils";
 import { SpriteIcon } from "./SpriteIcon";
 import { useKeyboard } from "@/hooks/useKeyboard";
@@ -85,7 +85,7 @@ function buildSlice(
   return slice;
 }
 
-function TileCell({
+const TileCell = memo(function TileCell({
   tile,
   tileSize,
   isPlayer,
@@ -170,7 +170,7 @@ function TileCell({
       </div>
     </TileTooltip>
   );
-}
+});
 
 export function TileMap({
   mapData,
