@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { TerminalModal, TerminalText } from "@/components/terminal";
+import { PixelModal } from "@/components/pixel/PixelModal";
+import { PixelButton } from "@/components/pixel/PixelButton";
 
 interface LevelUpData {
   newLevel: number;
@@ -17,6 +19,7 @@ interface LevelUpModalProps {
   open: boolean;
   onClose: () => void;
   levelData: LevelUpData;
+  isPixelMode?: boolean;
   className?: string;
 }
 
@@ -24,6 +27,7 @@ export function LevelUpModal({
   open,
   onClose,
   levelData,
+  isPixelMode,
   className,
 }: LevelUpModalProps) {
   const oldLevel = levelData.newLevel - 1;
@@ -39,75 +43,92 @@ export function LevelUpModal({
 
   const statLabel = levelData.statIncreased.toUpperCase();
 
-  return (
-    <TerminalModal
-      open={open}
-      onClose={onClose}
-      title="LEVEL UP!"
-      className={cn("shadow-[0_0_30px_rgba(255,215,0,0.15)]", className)}
-    >
-      <div className="font-mono space-y-3 text-center">
-        {/* Title flash */}
-        <div className="text-terminal-gold text-lg font-bold terminal-glow tracking-wider">
-          <TerminalText text="LEVEL UP!" speed={40} animate={true} />
-        </div>
+  const Modal = isPixelMode ? PixelModal : TerminalModal;
 
-        {/* Level change */}
-        <div className="text-terminal-green text-sm">
-          Level {oldLevel}{" "}
-          <span className="text-terminal-gold">&rarr;</span>{" "}
-          Level {levelData.newLevel}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-terminal-border" />
-
-        {/* Stats */}
-        <div className="text-left space-y-1 text-sm px-4">
-          {/* HP gained */}
-          <div className="text-terminal-green-dim">
-            <span className="text-terminal-green">HP:</span>{" "}
-            <span className="text-terminal-gold">
-              +{levelData.hpGained}
-            </span>
-          </div>
-
-          {/* Stat increased */}
-          <div className="text-terminal-green-dim">
-            <span className="text-terminal-green">{statLabel}:</span>{" "}
-            {levelData.statValue - 1}{" "}
-            <span className="text-terminal-gold">&rarr;</span>{" "}
-            <span className="text-terminal-gold">{levelData.statValue}</span>
-          </div>
-        </div>
-
-        {/* New abilities */}
-        {levelData.newAbilities.length > 0 && (
-          <>
-            <div className="border-t border-terminal-border" />
-            <div className="text-left space-y-1 px-4">
-              {levelData.newAbilities.map((ability) => (
-                <div key={ability}>
-                  <div className="text-terminal-gold text-sm font-bold">
-                    New Ability: {ability.replace(/_/g, " ").toUpperCase()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+  const content = (
+    <div className="font-mono space-y-3 text-center">
+      {/* Title flash */}
+      <div
+        className={cn(
+          "text-lg font-bold tracking-wider",
+          isPixelMode ? "text-[#ffd700]" : "text-terminal-gold terminal-glow"
         )}
+      >
+        <TerminalText text="LEVEL UP!" speed={40} animate={true} />
+      </div>
 
-        {/* Divider */}
-        <div className="border-t border-terminal-border" />
+      {/* Level change */}
+      <div className={cn("text-sm", isPixelMode ? "text-[#c8e6c8]" : "text-terminal-green")}>
+        Level {oldLevel}{" "}
+        <span className={cn(isPixelMode ? "text-[#ffd700]" : "text-terminal-gold")}>&rarr;</span>{" "}
+        Level {levelData.newLevel}
+      </div>
 
-        {/* Continue */}
+      {/* Divider */}
+      <div className={cn("border-t", isPixelMode ? "border-[#1a3a1a]" : "border-terminal-border")} />
+
+      {/* Stats */}
+      <div className="text-left space-y-1 text-sm px-4">
+        {/* HP gained */}
+        <div className={cn(isPixelMode ? "text-[#1a8c1a]" : "text-terminal-green-dim")}>
+          <span className={cn(isPixelMode ? "text-[#c8e6c8]" : "text-terminal-green")}>HP:</span>{" "}
+          <span className={cn(isPixelMode ? "text-[#ffd700]" : "text-terminal-gold")}>
+            +{levelData.hpGained}
+          </span>
+        </div>
+
+        {/* Stat increased */}
+        <div className={cn(isPixelMode ? "text-[#1a8c1a]" : "text-terminal-green-dim")}>
+          <span className={cn(isPixelMode ? "text-[#c8e6c8]" : "text-terminal-green")}>{statLabel}:</span>{" "}
+          {levelData.statValue - 1}{" "}
+          <span className={cn(isPixelMode ? "text-[#ffd700]" : "text-terminal-gold")}>&rarr;</span>{" "}
+          <span className={cn(isPixelMode ? "text-[#ffd700]" : "text-terminal-gold")}>{levelData.statValue}</span>
+        </div>
+      </div>
+
+      {/* New abilities */}
+      {levelData.newAbilities.length > 0 && (
+        <>
+          <div className={cn("border-t", isPixelMode ? "border-[#1a3a1a]" : "border-terminal-border")} />
+          <div className="text-left space-y-1 px-4">
+            {levelData.newAbilities.map((ability) => (
+              <div key={ability}>
+                <div className={cn("text-sm font-bold", isPixelMode ? "text-[#ffd700]" : "text-terminal-gold")}>
+                  New Ability: {ability.replace(/_/g, " ").toUpperCase()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Divider */}
+      <div className={cn("border-t", isPixelMode ? "border-[#1a3a1a]" : "border-terminal-border")} />
+
+      {/* Continue */}
+      {isPixelMode ? (
+        <PixelButton variant="action" onClick={onClose} size="sm">
+          [Enter] Continue
+        </PixelButton>
+      ) : (
         <button
           onClick={onClose}
           className="text-terminal-green hover:terminal-glow transition-colors text-sm"
         >
           [Enter] Continue
         </button>
-      </div>
-    </TerminalModal>
+      )}
+    </div>
+  );
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="LEVEL UP!"
+      className={cn("shadow-[0_0_30px_rgba(255,215,0,0.15)]", className)}
+    >
+      {content}
+    </Modal>
   );
 }

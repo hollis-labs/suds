@@ -40,7 +40,7 @@ function RoomTypeBadge({ type, pixel }: { type: string; pixel?: boolean }) {
     .join(" ");
 
   return (
-    <span className={cn("text-[10px] uppercase tracking-wider ml-2", pixel ? "text-gray-500" : "text-terminal-border-bright")}>
+    <span className={cn("text-[10px] uppercase tracking-wider ml-2", pixel ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
       {label}
     </span>
   );
@@ -65,13 +65,12 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
   const newEntryStart = prevLogLength;
   useEffect(() => {
     if (gameLog.length > prevLogLength) {
-      // Delay updating so the pulse animation has time to play
       const timer = setTimeout(() => setPrevLogLength(gameLog.length), 1500);
       return () => clearTimeout(timer);
     }
   }, [gameLog.length, prevLogLength]);
 
-  // Auto-scroll game log — scroll the container directly to avoid jumping outer elements
+  // Auto-scroll game log
   useEffect(() => {
     const container = logContainerRef.current;
     if (container) {
@@ -106,11 +105,11 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
       <div className="shrink-0 space-y-2 pb-3">
         {isLoading ? (
           <div className="space-y-2">
-            <div className={cn("text-xs italic animate-pulse", px ? "text-gray-400" : "text-terminal-green-dim")}>
+            <div className={cn("text-xs italic animate-pulse", px ? "text-[#1a8c1a]" : "text-terminal-green-dim")}>
               {transitionText}
             </div>
-            <div className={cn("flex items-center gap-2 text-[10px]", px ? "text-gray-500" : "text-terminal-border-bright")}>
-              <span className={cn("inline-block w-3 h-3 border rounded-full animate-spin", px ? "border-gray-600 border-t-gray-300" : "border-terminal-green/50 border-t-terminal-green")} />
+            <div className={cn("flex items-center gap-2 text-[10px]", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
+              <span className={cn("inline-block w-3 h-3 border rounded-full animate-spin", px ? "border-[#1a3a1a] border-t-[#33ff33]" : "border-terminal-green/50 border-t-terminal-green")} />
               <span>Exploring...</span>
             </div>
           </div>
@@ -118,14 +117,17 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
           <>
             {/* Room name + type badge */}
             <div className="flex items-baseline">
-              <h2 className={cn("text-sm font-bold", px ? "text-gray-200" : "text-terminal-green terminal-glow")}>
+              <h2
+                className={cn("text-sm font-bold", px ? "text-[#c8e6c8]" : "text-terminal-green terminal-glow")}
+                style={px ? { textShadow: "0 0 8px rgba(51, 255, 51, 0.4)" } : undefined}
+              >
                 {room.name}
               </h2>
               <RoomTypeBadge type={room.type} pixel={px} />
             </div>
 
             {/* Description */}
-            <div className={cn("text-xs leading-relaxed", px ? "text-gray-400" : "text-terminal-green-dim")}>
+            <div className={cn("text-xs leading-relaxed", px ? "text-[#1a8c1a]" : "text-terminal-green-dim")}>
               {isNewRoom && !px ? (
                 <TerminalText text={room.description} speed={10} animate={true} />
               ) : (
@@ -136,10 +138,10 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
             {/* Exits */}
             {room.exits.length > 0 && (
               <div className="text-xs">
-                <span className={px ? "text-gray-500" : "text-terminal-green-dim"}>Exits: </span>
+                <span className={px ? "text-[#1a8c1a]" : "text-terminal-green-dim"}>Exits: </span>
                 {room.exits.map((exit, i) => (
                   <span key={exit}>
-                    <span className={px ? "text-gray-300" : "text-terminal-green"}>
+                    <span className={px ? "text-[#33ff33]" : "text-terminal-green"}>
                       {exitLabel(exit)}
                     </span>
                     {i < room.exits.length - 1 && <span> </span>}
@@ -150,10 +152,10 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
 
             {/* Rest indicator */}
             {["safe_room", "shrine", "npc_room"].includes(room.type) && (
-              <div className={cn("text-xs", px ? "text-gray-500" : "text-terminal-green-dim")}>
+              <div className={cn("text-xs", px ? "text-[#1a8c1a]" : "text-terminal-green-dim")}>
                 This area is safe to rest.
                 {(room.roomFeatures as Record<string, unknown>)?.campfire === true && (
-                  <span className={px ? "text-amber-400" : "text-terminal-amber"}> A campfire crackles warmly nearby.</span>
+                  <span className={px ? "text-[#ffaa00]" : "text-terminal-amber"}> A campfire crackles warmly nearby.</span>
                 )}
               </div>
             )}
@@ -171,13 +173,13 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
                   shrine.shrineType === "shield" ? "Shield Shrine" :
                   "Blessing Shrine";
                 return (
-                  <div className={cn("text-xs", px ? "text-blue-400" : "text-terminal-blue")}>
+                  <div className={cn("text-xs", px ? "text-[#44aaff]" : "text-terminal-blue")}>
                     A {typeLabel} glows softly before you. ({shrine.usesRemaining}/{shrine.maxUses} uses)
                   </div>
                 );
               }
               return (
-                <div className={cn("text-xs", px ? "text-gray-600" : "text-terminal-border-bright")}>
+                <div className={cn("text-xs", px ? "text-[#145214]" : "text-terminal-border-bright")}>
                   A shrine stands here, its light extinguished.
                 </div>
               );
@@ -185,26 +187,26 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
 
             {/* Loot indicator */}
             {room.hasLoot && room.lootData && room.lootData.length > 0 && (
-              <div className={cn("text-xs", px ? "text-amber-400" : "text-terminal-amber")}>
+              <div className={cn("text-xs", px ? "text-[#ffaa00]" : "text-terminal-amber")}>
                 You notice something on the ground...
               </div>
             )}
           </>
         ) : (
-          <div className={cn("text-xs", px ? "text-gray-500" : "text-terminal-green-dim")}>
+          <div className={cn("text-xs", px ? "text-[#1a8c1a]" : "text-terminal-green-dim")}>
             No room data available.
           </div>
         )}
       </div>
 
       {/* Divider */}
-      <div className={cn("shrink-0 border-t my-1", px ? "border-gray-700" : "border-terminal-border")} />
+      <div className={cn("shrink-0 border-t my-1", px ? "border-[#1a3a1a]" : "border-terminal-border")} />
 
       {/* Game log section */}
       <div ref={logContainerRef} className={cn("flex-1 overflow-y-auto min-h-0", !px && "terminal-scrollbar")}>
         <div className="space-y-0.5 text-[11px]">
           {gameLog.length === 0 ? (
-            <p className={cn("italic", px ? "text-gray-600" : "text-terminal-border-bright")}>
+            <p className={cn("italic", px ? "text-[#145214]" : "text-terminal-border-bright")}>
               Awaiting adventure...
             </p>
           ) : (
@@ -217,7 +219,7 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
                   className={cn(
                     "transition-all",
                     px
-                      ? cn("text-gray-500", isLatest && "text-gray-300")
+                      ? cn("text-[#1a8c1a]", isLatest && "text-[#c8e6c8]")
                       : cn("text-terminal-green-dim", isLatest && "text-terminal-green"),
                     isNew && "animate-alert-pulse"
                   )}
@@ -225,7 +227,7 @@ export function TextPanel({ room, gameLog, isLoading, isPixelMode: px, className
                   <span className={cn(
                     "mr-1",
                     px
-                      ? (isLatest ? "text-amber-400" : "text-gray-600")
+                      ? (isLatest ? "text-[#ffaa00]" : "text-[#145214]")
                       : (isLatest ? "text-terminal-amber" : "text-terminal-border")
                   )}>
                     {logIcon(entry)}

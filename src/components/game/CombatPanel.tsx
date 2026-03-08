@@ -37,9 +37,9 @@ function asciiHpBar(current: number, max: number, width: number = 16): string {
 function hpBarColor(current: number, max: number, pixel?: boolean): string {
   const ratio = max > 0 ? current / max : 0;
   if (pixel) {
-    if (ratio > 0.5) return "text-green-400";
-    if (ratio > 0.25) return "text-amber-400";
-    return "text-red-400";
+    if (ratio > 0.5) return "text-[#33ff33]";
+    if (ratio > 0.25) return "text-[#ffaa00]";
+    return "text-[#ff4444]";
   }
   if (ratio > 0.5) return "text-terminal-green";
   if (ratio > 0.25) return "text-terminal-amber";
@@ -48,15 +48,15 @@ function hpBarColor(current: number, max: number, pixel?: boolean): string {
 
 function logEntryColor(entry: { actor: string; action: string }, playerName?: string, pixel?: boolean): string {
   if (entry.actor === "player" || entry.actor === "Player" || entry.actor === playerName) {
-    return pixel ? "text-green-300" : "text-terminal-green";
+    return pixel ? "text-[#33ff33]" : "text-terminal-green";
   }
   if (entry.action === "status" || entry.action === "info") {
-    return pixel ? "text-amber-300" : "text-terminal-amber";
+    return pixel ? "text-[#ffaa00]" : "text-terminal-amber";
   }
   if (entry.actor.includes(" the ")) {
-    return pixel ? "text-blue-300" : "text-terminal-blue";
+    return pixel ? "text-[#44aaff]" : "text-terminal-blue";
   }
-  return pixel ? "text-red-300" : "text-terminal-red";
+  return pixel ? "text-[#ff4444]" : "text-terminal-red";
 }
 
 function isPlayerTurn(combatState: CombatState): boolean {
@@ -65,12 +65,6 @@ function isPlayerTurn(combatState: CombatState): boolean {
 }
 
 function getUsableItems(player: Player): GameItem[] {
-  // Filter for potions and scrolls that can be used in combat
-  // Player equipment has items; we look for consumables
-  // Since Player type doesn't have an inventory array, we rely on
-  // the abilities/items passed. For now, return empty — the parent
-  // component should provide usable items via the player object or
-  // a separate prop. We'll check for items in equipment that are potions/scrolls.
   return [];
 }
 
@@ -94,7 +88,7 @@ function MonsterCard({
       className={cn(
         "px-3 py-2 min-w-[180px]",
         pixel
-          ? cn("border-2 border-gray-600 bg-gray-900/95 rounded-sm", isTarget && "border-red-500 bg-red-900/10")
+          ? cn("border-2 border-[#1a3a1a] bg-[#0d140d] rounded-sm", isTarget && "border-[#ff4444] bg-[#ff4444]/5")
           : cn("border border-terminal-border", isTarget && "border-terminal-green bg-terminal-green/5"),
         isDead && "opacity-40"
       )}
@@ -104,20 +98,20 @@ function MonsterCard({
           className={cn(
             "text-sm font-bold",
             isDead
-              ? (pixel ? "text-gray-500 line-through" : "text-terminal-border line-through")
-              : (pixel ? "text-red-400" : "text-terminal-red")
+              ? (pixel ? "text-[#145214] line-through" : "text-terminal-border line-through")
+              : (pixel ? "text-[#ff4444]" : "text-terminal-red")
           )}
         >
-          {isTarget && <span className={pixel ? "text-red-400 mr-1" : "text-terminal-green mr-1"}>&gt;</span>}
+          {isTarget && <span className={pixel ? "text-[#ff4444] mr-1" : "text-terminal-green mr-1"}>&gt;</span>}
           {monster.name}
         </span>
-        <span className={pixel ? "text-[10px] text-gray-500" : "text-[10px] text-terminal-border-bright"}>
+        <span className={pixel ? "text-[10px] text-[#1a8c1a]" : "text-[10px] text-terminal-border-bright"}>
           Lv.{monster.level}
         </span>
       </div>
 
       <div className="mt-1 text-xs">
-        <span className={pixel ? "text-gray-500" : "text-terminal-border-bright"}>HP: </span>
+        <span className={pixel ? "text-[#1a8c1a]" : "text-terminal-border-bright"}>HP: </span>
         <span className={hpBarColor(monster.hp, monster.hpMax, pixel)}>
           [{asciiHpBar(monster.hp, monster.hpMax, 12)}]
         </span>
@@ -126,7 +120,7 @@ function MonsterCard({
         </span>
       </div>
 
-      <div className={cn("mt-0.5 text-[10px]", pixel ? "text-gray-500" : "text-terminal-border-bright")}>
+      <div className={cn("mt-0.5 text-[10px]", pixel ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
         AC: {monster.ac} | ATK: +{monster.attack} | DMG: {monster.damage}
       </div>
     </div>
@@ -137,16 +131,13 @@ function MonsterCard({
 
 function getDiceInfo(entry: CombatState["log"][number]): { value: number; sides: number } | null {
   const action = entry.action;
-  // Actions that involve a d20 roll
   const rollActions = ["attack", "cast", "flee", "defend", "info"];
   if (!rollActions.includes(action) && !action.includes("_")) return null;
 
   if (entry.damage !== undefined && entry.damage > 0) {
-    // Hit — show damage value
     return { value: entry.damage, sides: 20 };
   }
 
-  // Miss, flee, initiative, defend, special abilities — show a d20 roll
   const result = entry.result.toLowerCase();
   if (result.includes("miss") || result.includes("fumble")) {
     return { value: Math.floor(Math.random() * 5) + 1, sides: 20 };
@@ -163,7 +154,6 @@ function getDiceInfo(entry: CombatState["log"][number]): { value: number; sides:
   if (result.includes("defensive") || result.includes("stance")) {
     return { value: Math.floor(Math.random() * 6) + 1, sides: 6 };
   }
-  // Special monster abilities
   if (action !== "info" && action !== "status") {
     return { value: entry.damage ?? Math.floor(Math.random() * 12) + 1, sides: 20 };
   }
@@ -177,7 +167,6 @@ function CombatLog({ log, pixel }: { log: CombatState["log"]; pixel?: boolean })
   const [diceKey, setDiceKey] = useState(0);
   const prevLogLen = useRef(log.length);
 
-  // Reset dice animation when new entries arrive
   useEffect(() => {
     if (log.length > prevLogLen.current) {
       setDiceComplete(false);
@@ -191,10 +180,10 @@ function CombatLog({ log, pixel }: { log: CombatState["log"]; pixel?: boolean })
   }, [log.length, diceComplete]);
 
   return (
-    <div className={cn("flex-1 overflow-y-auto min-h-0 p-2", pixel ? "border-2 border-gray-600 bg-gray-900/50 rounded-sm" : "border border-terminal-border")}>
+    <div className={cn("flex-1 overflow-y-auto min-h-0 p-2", pixel ? "border-2 border-[#1a3a1a] bg-[#0d140d]/80 rounded-sm" : "border border-terminal-border")}>
       <div className="space-y-0.5 text-[11px] font-mono">
         {log.length === 0 ? (
-          <p className={pixel ? "text-gray-500 italic" : "text-terminal-border-bright italic"}>
+          <p className={pixel ? "text-[#1a8c1a] italic" : "text-terminal-border-bright italic"}>
             Combat begins...
           </p>
         ) : (
@@ -205,7 +194,7 @@ function CombatLog({ log, pixel }: { log: CombatState["log"]; pixel?: boolean })
 
             return (
               <p key={i} className={cn(color, isLast && "font-bold")}>
-                <span className={pixel ? "text-gray-600 mr-1" : "text-terminal-border mr-1"}>
+                <span className={pixel ? "text-[#145214] mr-1" : "text-terminal-border mr-1"}>
                   [{entry.round}]
                 </span>
                 {diceInfo && (
@@ -251,8 +240,6 @@ export function CombatPanel({
   const playerTurn = isPlayerTurn(combatState);
   const aliveMonsters = combatState.monsters.filter((m) => m.hp > 0);
 
-  // Reset phase when turn changes
-  // Include round + log length to handle cases where currentTurn stays at same index
   useEffect(() => {
     if (playerTurn) {
       setActionPhase("choose_action");
@@ -263,14 +250,10 @@ export function CombatPanel({
     }
   }, [combatState.currentTurn, combatState.round, combatState.log.length, playerTurn]);
 
-  // Safety: if the server returned a state where it's the enemy's turn,
-  // auto-fire an action to resolve monster turns server-side.
   const [autoResolveAttempted, setAutoResolveAttempted] = useState(false);
   useEffect(() => {
     if (!playerTurn && !autoResolveAttempted) {
       setAutoResolveAttempted(true);
-      // Send a dummy action — the server will resolve the monster turn
-      // since resolveTurn dispatches based on whose turn it actually is
       const timer = setTimeout(() => {
         onAction("attack");
       }, 500);
@@ -281,7 +264,6 @@ export function CombatPanel({
     }
   }, [playerTurn, autoResolveAttempted, onAction]);
 
-  // Get combat-usable abilities for the player
   const combatAbilities = useMemo(() => {
     return player.abilities
       .filter((id) => {
@@ -306,7 +288,6 @@ export function CombatPanel({
       switch (action) {
         case "attack":
           if (aliveMonsters.length === 1) {
-            // Single target, skip target selection
             onAction("attack", 0);
           } else {
             setSelectedAction("attack");
@@ -413,7 +394,7 @@ export function CombatPanel({
   return (
     <div className={cn("flex flex-col h-full font-mono gap-2", className)}>
       {/* ── Round indicator ── */}
-      <div className={cn("shrink-0 text-[10px] text-center uppercase tracking-widest", px ? "text-gray-500" : "text-terminal-border-bright")}>
+      <div className={cn("shrink-0 text-[10px] text-center uppercase tracking-widest", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
         -- Round {combatState.round} --
       </div>
 
@@ -438,17 +419,17 @@ export function CombatPanel({
       {/* ── Companion (if present) ── */}
       {combatState.companion && combatState.companion.hp > 0 && (
         <div className="shrink-0 flex justify-center">
-          <div className={cn("px-3 py-1.5 min-w-[180px]", px ? "border-2 border-blue-800 bg-gray-900/95 rounded-sm" : "border border-terminal-blue/40")}>
+          <div className={cn("px-3 py-1.5 min-w-[180px]", px ? "border-2 border-[#44aaff]/40 bg-[#0d140d] rounded-sm" : "border border-terminal-blue/40")}>
             <div className="flex items-baseline justify-between gap-2">
-              <span className={cn("text-sm font-bold", px ? "text-blue-400" : "text-terminal-blue")}>
+              <span className={cn("text-sm font-bold", px ? "text-[#44aaff]" : "text-terminal-blue")}>
                 {combatState.companion.name}
               </span>
-              <span className={cn("text-[10px]", px ? "text-gray-500" : "text-terminal-border-bright")}>
+              <span className={cn("text-[10px]", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
                 Ally Lv.{combatState.companion.level}
               </span>
             </div>
             <div className="mt-0.5 text-xs">
-              <span className={px ? "text-gray-500" : "text-terminal-border-bright"}>HP: </span>
+              <span className={px ? "text-[#1a8c1a]" : "text-terminal-border-bright"}>HP: </span>
               <span className={hpBarColor(combatState.companion.hp, combatState.companion.hpMax, px)}>
                 [{asciiHpBar(combatState.companion.hp, combatState.companion.hpMax, 12)}]
               </span>
@@ -464,18 +445,18 @@ export function CombatPanel({
       <CombatLog log={combatState.log} pixel={px} />
 
       {/* ── Action Menu (bottom ~40%) ── */}
-      <div className={cn("shrink-0 p-2", px ? "border-2 border-gray-600 bg-gray-900/95 rounded-sm" : "border border-terminal-border")}>
+      <div className={cn("shrink-0 p-2", px ? "border-2 border-[#1a3a1a] bg-[#0d140d] rounded-sm" : "border border-terminal-border")}>
         {/* Player HP/MP status line */}
         <div className="text-xs mb-2 flex gap-4">
           <span>
-            <span className={px ? "text-gray-500" : "text-terminal-border-bright"}>HP: </span>
+            <span className={px ? "text-[#1a8c1a]" : "text-terminal-border-bright"}>HP: </span>
             <span className={hpBarColor(player.hp, player.hpMax, px)}>
               {player.hp}/{player.hpMax}
             </span>
           </span>
           <span>
-            <span className={px ? "text-gray-500" : "text-terminal-border-bright"}>MP: </span>
-            <span className={px ? "text-blue-400" : "text-terminal-blue"}>
+            <span className={px ? "text-[#1a8c1a]" : "text-terminal-border-bright"}>MP: </span>
+            <span className={px ? "text-[#44aaff]" : "text-terminal-blue"}>
               {player.mp}/{player.mpMax}
             </span>
           </span>
@@ -483,20 +464,20 @@ export function CombatPanel({
 
         {/* Action phase content */}
         {actionPhase === "enemy_turn" && (
-          <div className={cn("text-sm animate-pulse", px ? "text-red-400" : "text-terminal-red")}>
+          <div className={cn("text-sm animate-pulse", px ? "text-[#ff4444]" : "text-terminal-red")}>
             Enemy turn...
           </div>
         )}
 
         {actionPhase === "resolving" && (
-          <div className={cn("text-sm animate-pulse", px ? "text-amber-400" : "text-terminal-amber")}>
+          <div className={cn("text-sm animate-pulse", px ? "text-[#ffaa00]" : "text-terminal-amber")}>
             Resolving...
           </div>
         )}
 
         {actionPhase === "choose_action" && playerTurn && (
           <div className="space-y-0.5">
-            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
               Choose action:
             </div>
             {[
@@ -518,14 +499,14 @@ export function CombatPanel({
                 className={cn(
                   "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                   opt.disabled
-                    ? (px ? "text-gray-600 opacity-50 cursor-not-allowed" : "text-terminal-border opacity-50 cursor-not-allowed")
-                    : (px ? "text-gray-200 hover:bg-gray-800 hover:text-white" : "text-terminal-green hover:bg-terminal-green/5 hover:terminal-glow")
+                    ? (px ? "text-[#145214] opacity-50 cursor-not-allowed" : "text-terminal-border opacity-50 cursor-not-allowed")
+                    : (px ? "text-[#c8e6c8] hover:bg-[#1a3a1a] hover:text-[#33ff33]" : "text-terminal-green hover:bg-terminal-green/5 hover:terminal-glow")
                 )}
               >
-                <span className={px ? "text-gray-400" : "text-terminal-green"}>[{opt.key}]</span>{" "}
+                <span className={px ? "text-[#33ff33]" : "text-terminal-green"}>[{opt.key}]</span>{" "}
                 {opt.label}
                 {opt.action === "cast" && combatAbilities.length === 0 && (
-                  <span className={cn("text-[10px] ml-2", px ? "text-gray-600" : "text-terminal-border")}>
+                  <span className={cn("text-[10px] ml-2", px ? "text-[#145214]" : "text-terminal-border")}>
                     (no abilities)
                   </span>
                 )}
@@ -536,8 +517,8 @@ export function CombatPanel({
 
         {actionPhase === "choose_target" && (
           <div className="space-y-0.5">
-            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
-              Select target: <span className={px ? "text-gray-600" : "text-terminal-green-dim"}>[Esc] Back</span>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
+              Select target: <span className={px ? "text-[#145214]" : "text-terminal-green-dim"}>[Esc] Back</span>
             </div>
             {aliveMonsters.map((monster, i) => (
               <button
@@ -547,11 +528,11 @@ export function CombatPanel({
                 className={cn(
                   "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                   selectedTarget === i
-                    ? (px ? "text-white bg-gray-800" : "text-terminal-green bg-terminal-green/5 terminal-glow")
-                    : (px ? "text-gray-400" : "text-terminal-green-dim")
+                    ? (px ? "text-[#33ff33] bg-[#1a3a1a]" : "text-terminal-green bg-terminal-green/5 terminal-glow")
+                    : (px ? "text-[#1a8c1a]" : "text-terminal-green-dim")
                 )}
               >
-                <span className={px ? "text-gray-300" : "text-terminal-green"}>[{i + 1}]</span>{" "}
+                <span className={px ? "text-[#33ff33]" : "text-terminal-green"}>[{i + 1}]</span>{" "}
                 {monster.name}{" "}
                 <span className={cn("text-[10px]", hpBarColor(monster.hp, monster.hpMax, px))}>
                   ({monster.hp}/{monster.hpMax})
@@ -563,8 +544,8 @@ export function CombatPanel({
 
         {actionPhase === "choose_ability" && (
           <div className="space-y-0.5">
-            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
-              Cast ability: <span className={px ? "text-gray-600" : "text-terminal-green-dim"}>[Esc] Back</span>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
+              Cast ability: <span className={px ? "text-[#145214]" : "text-terminal-green-dim"}>[Esc] Back</span>
             </div>
             {combatAbilities.map((ability, i) => {
               const canAfford = player.mp >= ability.mpCost;
@@ -576,16 +557,16 @@ export function CombatPanel({
                   className={cn(
                     "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                     !canAfford
-                      ? (px ? "text-gray-600 opacity-50 cursor-not-allowed" : "text-terminal-border opacity-50 cursor-not-allowed")
-                      : (px ? "text-gray-200 hover:bg-gray-800" : "text-terminal-green hover:bg-terminal-green/5")
+                      ? (px ? "text-[#145214] opacity-50 cursor-not-allowed" : "text-terminal-border opacity-50 cursor-not-allowed")
+                      : (px ? "text-[#c8e6c8] hover:bg-[#1a3a1a]" : "text-terminal-green hover:bg-terminal-green/5")
                   )}
                 >
-                  <span className={px ? "text-gray-400" : "text-terminal-green"}>[{i + 1}]</span>{" "}
+                  <span className={px ? "text-[#33ff33]" : "text-terminal-green"}>[{i + 1}]</span>{" "}
                   {ability.name}
-                  <span className={cn("text-[10px] ml-2", px ? "text-blue-400" : "text-terminal-blue")}>
+                  <span className={cn("text-[10px] ml-2", px ? "text-[#44aaff]" : "text-terminal-blue")}>
                     {ability.mpCost > 0 ? `${ability.mpCost} MP` : "Free"}
                   </span>
-                  <span className={cn("text-[10px] ml-2", px ? "text-gray-500" : "text-terminal-border-bright")}>
+                  <span className={cn("text-[10px] ml-2", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
                     {ability.description}
                   </span>
                 </button>
@@ -596,10 +577,10 @@ export function CombatPanel({
 
         {actionPhase === "choose_item" && (
           <div className="space-y-0.5">
-            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
-              Use item: <span className={px ? "text-gray-600" : "text-terminal-green-dim"}>[Esc] Back</span>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
+              Use item: <span className={px ? "text-[#145214]" : "text-terminal-green-dim"}>[Esc] Back</span>
             </div>
-            <p className={cn("text-xs italic", px ? "text-gray-500" : "text-terminal-border-bright")}>
+            <p className={cn("text-xs italic", px ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
               No usable items in inventory.
             </p>
           </div>

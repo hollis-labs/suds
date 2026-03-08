@@ -1134,23 +1134,13 @@ export default function PlayCharacterPage() {
       if (e.ctrlKey || e.altKey) return;
       if (e.key === "Meta" || e.key === "Control" || e.key === "Alt" || e.key === "Shift") return;
 
-      // ── Escape: close drawer or go back one layer ──
+      // ── Escape: close open overlays only (no auto-navigation) ──
       if (e.key === "Escape") {
         e.preventDefault();
         if (drawerOpen) {
           setDrawerOpen(false);
-        } else if (isWorldCharacterEarly) {
-          if (navigationLayer === "building") {
-            setNavigationLayer("area");
-            setScreen("exploring");
-          } else if (navigationLayer === "area") {
-            setNavigationLayer("region");
-            setScreen("region_map");
-          } else if (navigationLayer === "region") {
-            setNavigationLayer("world");
-            setScreen("world_map");
-          }
         }
+        // Don't navigate to world map on Escape — use M key or breadcrumb instead
         return;
       }
 
@@ -1486,7 +1476,7 @@ export default function PlayCharacterPage() {
   // ── NPC dialog content (shared between both modal types) ──
   const npcDialogContent = npcQuery.isLoading ? (
     <div className="font-mono text-sm space-y-4 p-2">
-      <div className={cn("text-xs italic text-center animate-pulse", isWorldCharacter ? "text-gray-400" : "text-terminal-amber-dim")}>
+      <div className={cn("text-xs italic text-center animate-pulse", isWorldCharacter ? "text-[#1a8c1a]" : "text-terminal-amber-dim")}>
         {(() => {
           const phrases = [
             "A shadowy figure turns to face you...",
@@ -1498,8 +1488,8 @@ export default function PlayCharacterPage() {
           return phrases[Math.floor(Math.random() * phrases.length)];
         })()}
       </div>
-      <div className={cn("flex items-center justify-center gap-2 text-[10px]", isWorldCharacter ? "text-gray-500" : "text-terminal-border-bright")}>
-        <span className={cn("inline-block w-3 h-3 border rounded-full animate-spin", isWorldCharacter ? "border-gray-500 border-t-gray-300" : "border-terminal-amber/50 border-t-terminal-amber")} />
+      <div className={cn("flex items-center justify-center gap-2 text-[10px]", isWorldCharacter ? "text-[#1a8c1a]" : "text-terminal-border-bright")}>
+        <span className={cn("inline-block w-3 h-3 border rounded-full animate-spin", isWorldCharacter ? "border-[#1a3a1a] border-t-[#33ff33]" : "border-terminal-amber/50 border-t-terminal-amber")} />
         <span>Preparing dialogue</span>
       </div>
     </div>
@@ -1539,14 +1529,14 @@ export default function PlayCharacterPage() {
       <PixelModal open={!!pendingAdventurer} onClose={() => setPendingAdventurer(null)} title="Adventurer Encountered" icon="marker_npc">
         {pendingAdventurer && (
           <div className="space-y-3 font-mono text-sm">
-            <p className="text-blue-400 font-bold">{pendingAdventurer.name}</p>
-            <p className="text-gray-400 text-xs">
+            <p className="text-[#44aaff] font-bold">{pendingAdventurer.name}</p>
+            <p className="text-[#1a8c1a] text-xs">
               Level {pendingAdventurer.level} {pendingAdventurer.class} — {pendingAdventurer.personality}
             </p>
-            <p className="text-gray-400 text-xs">
+            <p className="text-[#1a8c1a] text-xs">
               HP: {pendingAdventurer.hp}/{pendingAdventurer.hpMax} | AC: {pendingAdventurer.ac} | ATK: +{pendingAdventurer.attack} | DMG: {pendingAdventurer.damage}
             </p>
-            <p className="text-amber-400 text-xs mt-2">
+            <p className="text-[#ffaa00] text-xs mt-2">
               &quot;Hey, want to team up? These dungeons are no place to go alone.&quot;
             </p>
             <div className="flex gap-2 mt-3">
@@ -1632,7 +1622,7 @@ export default function PlayCharacterPage() {
     return (
       // eslint-disable-next-line jsx-a11y/no-autofocus
       <div {...rootProps}>
-      <div className="w-full max-w-[1400px] h-full bg-gray-950 flex flex-col">
+      <div className="w-full max-w-[1400px] h-full bg-[#0a0f0a] flex flex-col">
         {/* Top: HudBar */}
         <HudBar
           hp={player.hp}
@@ -1689,8 +1679,8 @@ export default function PlayCharacterPage() {
           <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative p-2 md:p-3">
             {/* Navigation loading overlay */}
             {navLoadingMessage && (
-              <div className="absolute inset-0 z-30 bg-gray-950/80 flex items-center justify-center">
-                <div className="text-gray-400 font-mono text-sm animate-pulse">{navLoadingMessage}</div>
+              <div className="absolute inset-0 z-30 bg-[#0a0f0a]/80 flex items-center justify-center">
+                <div className="text-[#1a8c1a] font-mono text-sm animate-pulse">{navLoadingMessage}</div>
               </div>
             )}
             {screen === "world_map" && worldMapQuery.data ? (
@@ -1738,30 +1728,52 @@ export default function PlayCharacterPage() {
                   />
                 </div>
 
-                {/* Pixel action buttons */}
-                <div className="shrink-0 pt-2 border-t border-gray-700 mt-1 px-2 pb-1">
-                  <div className="flex flex-wrap gap-1.5">
+                {/* Pixel action buttons with key badges */}
+                <div className="shrink-0 pt-2 border-t border-[#1a3a1a] mt-1 px-2 pb-1">
+                  <div className="flex flex-wrap gap-1.5 font-mono text-xs">
                     {/* Context actions */}
-                    <PixelButton variant="action" size="sm" onClick={() => handleAction("search")}>Search</PixelButton>
+                    <button onClick={(e) => { handleAction("search"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">X</span>Search
+                    </button>
                     {currentRoom?.type && ["safe_room", "shrine", "npc_room"].includes(currentRoom.type) && (
-                      <PixelButton variant="action" size="sm" onClick={() => handleAction("rest")}>Rest</PixelButton>
+                      <button onClick={(e) => { handleAction("rest"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">R</span>Rest
+                      </button>
                     )}
                     {currentRoom?.type === "shrine" && (
-                      <PixelButton variant="info" size="sm" onClick={() => handleAction("interact_shrine")}>Pray</PixelButton>
+                      <button onClick={(e) => { handleAction("interact_shrine"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#44aaff] hover:border-[#44aaff] transition-colors">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#aa66ff] text-[10px] font-bold">F</span>Shrine
+                      </button>
                     )}
                     {currentRoom?.type === "npc_room" && (
-                      <PixelButton variant="info" size="sm" onClick={() => handleAction("talk")}>Talk</PixelButton>
+                      <button onClick={(e) => { handleAction("talk"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#44aaff] hover:border-[#44aaff] transition-colors">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#44aaff] text-[10px] font-bold">T</span>Talk
+                      </button>
                     )}
                     {currentRoom?.type === "store" && (
-                      <PixelButton variant="nav" size="sm" onClick={() => handleAction("shop")}>Shop</PixelButton>
+                      <button onClick={(e) => { handleAction("shop"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#ffd700] hover:border-[#ffd700] transition-colors">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#ffd700] text-[10px] font-bold">B</span>Shop
+                      </button>
                     )}
                     {/* Menu actions */}
-                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("inventory")}>Inv</PixelButton>
-                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("character")}>Char</PixelButton>
-                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("lore")}>Codex</PixelButton>
-                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("party")}>Party</PixelButton>
-                    <PixelButton variant="info" size="sm" onClick={() => handleAction("help")}>Help</PixelButton>
-                    <PixelButton variant="danger" size="sm" onClick={() => handleAction("exit")}>Exit</PixelButton>
+                    <button onClick={(e) => { handleAction("inventory"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">I</span>Inv
+                    </button>
+                    <button onClick={(e) => { handleAction("character"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">C</span>Char
+                    </button>
+                    <button onClick={(e) => { handleAction("lore"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">L</span>Codex
+                    </button>
+                    <button onClick={(e) => { handleAction("party"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">P</span>Party
+                    </button>
+                    <button onClick={(e) => { handleAction("help"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#1a8c1a] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">?</span>Help
+                    </button>
+                    <button onClick={(e) => { handleAction("exit"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#ff4444] hover:border-[#ff4444] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#ff4444] text-[10px] font-bold">Q</span>Exit
+                    </button>
                   </div>
                 </div>
               </>

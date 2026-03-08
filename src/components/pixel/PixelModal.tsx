@@ -88,23 +88,26 @@ export function PixelModal({
         aria-label={title}
         className={cn(
           "relative z-10 w-full max-w-lg",
-          "border-2 border-gray-600 bg-gray-900/95 rounded-sm",
+          "border-2 rounded-sm",
           "shadow-[2px_2px_0_0_rgba(0,0,0,0.5)]",
           className
         )}
-        style={{ imageRendering: "pixelated" }}
+        style={{ imageRendering: "pixelated", borderColor: "#2a5a2a", backgroundColor: "rgba(13, 20, 13, 0.97)" }}
       >
         {/* Title bar */}
-        <div className="flex items-center justify-between px-3 py-1.5 border-b-2 border-gray-600 bg-gray-800/80">
+        <div className="flex items-center justify-between px-3 py-1.5 border-b-2" style={{ borderColor: "#2a5a2a", backgroundColor: "rgba(10, 15, 10, 0.9)" }}>
           <div className="flex items-center gap-2">
             {icon && <SpriteIcon spriteId={icon} size={18} />}
-            <span className="font-mono text-sm text-gray-200 font-bold truncate">
+            <span className="font-mono text-sm font-bold truncate" style={{ color: "#c8e6c8", textShadow: "0 0 8px rgba(51, 255, 51, 0.4)" }}>
               {title}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors font-mono text-sm px-1"
+            className="transition-colors font-mono text-sm px-1"
+            style={{ color: "#1a8c1a" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#33ff33"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#1a8c1a"; }}
             aria-label="Close"
           >
             ✕

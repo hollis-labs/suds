@@ -33,18 +33,18 @@ export function HudBar({
   return (
     <div
       className={cn(
-        "bg-black/80 border-b border-gray-700",
+        "bg-[#0d140d] border-b border-[#1a3a1a]",
         className
       )}
     >
       {/* Header row: name + class */}
       {name && (
-        <div className="flex items-center gap-2 px-2 sm:px-3 py-0.5 text-gray-200 font-mono text-xs">
-          <span className="font-bold truncate">{name}</span>
+        <div className="flex items-center gap-2 px-2 sm:px-3 py-0.5 font-mono text-xs" style={{ color: "#c8e6c8" }}>
+          <span className="font-bold truncate" style={{ textShadow: "0 0 8px rgba(51, 255, 51, 0.4)" }}>{name}</span>
           {displayClass && (
             <>
-              <span className="text-gray-500">&mdash;</span>
-              <span className="text-gray-400">Lv.{level} {displayClass}</span>
+              <span style={{ color: "#145214" }}>&mdash;</span>
+              <span style={{ color: "#1a8c1a" }}>Lv.{level} {displayClass}</span>
             </>
           )}
         </div>
