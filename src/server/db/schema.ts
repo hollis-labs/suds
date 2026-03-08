@@ -124,6 +124,25 @@ export const areas = pgTable("areas", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 
+// ─── Buildings ──────────────────────────────────────────────────────────────
+
+export const buildings = pgTable("buildings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  areaId: uuid("area_id")
+    .notNull()
+    .references(() => areas.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  buildingType: text("building_type").notNull(), // tavern | shop | temple | house | castle | dungeon
+  floors: integer("floors").default(1).notNull(),
+  gridWidth: integer("grid_width").notNull(),
+  gridHeight: integer("grid_height").notNull(),
+  position: jsonb("position").notNull(), // {x, y} on area grid
+  metadata: jsonb("metadata").default({}).notNull(), // NPCs, special features
+  generatedBy: text("generated_by").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
 // ─── Characters ──────────────────────────────────────────────────────────────
 
 export const characters = pgTable("characters", {
@@ -466,3 +485,6 @@ export type NewRegion = InferInsertModel<typeof regions>;
 
 export type Area = InferSelectModel<typeof areas>;
 export type NewArea = InferInsertModel<typeof areas>;
+
+export type Building = InferSelectModel<typeof buildings>;
+export type NewBuilding = InferInsertModel<typeof buildings>;
