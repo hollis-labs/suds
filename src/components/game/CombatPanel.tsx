@@ -21,6 +21,7 @@ interface CombatPanelProps {
   combatState: CombatState;
   player: Player;
   onAction: (action: CombatAction, targetIndex?: number, itemId?: string) => void;
+  isPixelMode?: boolean;
   className?: string;
 }
 
@@ -33,26 +34,29 @@ function asciiHpBar(current: number, max: number, width: number = 16): string {
   return "\u2588".repeat(filled) + "\u2591".repeat(empty);
 }
 
-function hpBarColor(current: number, max: number): string {
+function hpBarColor(current: number, max: number, pixel?: boolean): string {
   const ratio = max > 0 ? current / max : 0;
+  if (pixel) {
+    if (ratio > 0.5) return "text-green-400";
+    if (ratio > 0.25) return "text-amber-400";
+    return "text-red-400";
+  }
   if (ratio > 0.5) return "text-terminal-green";
   if (ratio > 0.25) return "text-terminal-amber";
   return "text-terminal-red";
 }
 
-function logEntryColor(entry: { actor: string; action: string }, playerName?: string): string {
-  // Player actions green, companion actions blue, monster actions red, status/other yellow
+function logEntryColor(entry: { actor: string; action: string }, playerName?: string, pixel?: boolean): string {
   if (entry.actor === "player" || entry.actor === "Player" || entry.actor === playerName) {
-    return "text-terminal-green";
+    return pixel ? "text-green-300" : "text-terminal-green";
   }
   if (entry.action === "status" || entry.action === "info") {
-    return "text-terminal-amber";
+    return pixel ? "text-amber-300" : "text-terminal-amber";
   }
-  // Check if the actor name suggests a companion (contains "the Warrior/Mage/etc")
   if (entry.actor.includes(" the ")) {
-    return "text-terminal-blue";
+    return pixel ? "text-blue-300" : "text-terminal-blue";
   }
-  return "text-terminal-red";
+  return pixel ? "text-red-300" : "text-terminal-red";
 }
 
 function isPlayerTurn(combatState: CombatState): boolean {
@@ -77,17 +81,21 @@ function MonsterCard({
   index,
   isTarget,
   isDead,
+  pixel,
 }: {
   monster: Monster;
   index: number;
   isTarget: boolean;
   isDead: boolean;
+  pixel?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "border border-terminal-border px-3 py-2 min-w-[180px]",
-        isTarget && "border-terminal-green bg-terminal-green/5",
+        "px-3 py-2 min-w-[180px]",
+        pixel
+          ? cn("border-2 border-gray-600 bg-gray-900/95 rounded-sm", isTarget && "border-red-500 bg-red-900/10")
+          : cn("border border-terminal-border", isTarget && "border-terminal-green bg-terminal-green/5"),
         isDead && "opacity-40"
       )}
     >
@@ -95,28 +103,30 @@ function MonsterCard({
         <span
           className={cn(
             "text-sm font-bold",
-            isDead ? "text-terminal-border line-through" : "text-terminal-red"
+            isDead
+              ? (pixel ? "text-gray-500 line-through" : "text-terminal-border line-through")
+              : (pixel ? "text-red-400" : "text-terminal-red")
           )}
         >
-          {isTarget && <span className="text-terminal-green mr-1">&gt;</span>}
+          {isTarget && <span className={pixel ? "text-red-400 mr-1" : "text-terminal-green mr-1"}>&gt;</span>}
           {monster.name}
         </span>
-        <span className="text-[10px] text-terminal-border-bright">
+        <span className={pixel ? "text-[10px] text-gray-500" : "text-[10px] text-terminal-border-bright"}>
           Lv.{monster.level}
         </span>
       </div>
 
       <div className="mt-1 text-xs">
-        <span className="text-terminal-border-bright">HP: </span>
-        <span className={hpBarColor(monster.hp, monster.hpMax)}>
+        <span className={pixel ? "text-gray-500" : "text-terminal-border-bright"}>HP: </span>
+        <span className={hpBarColor(monster.hp, monster.hpMax, pixel)}>
           [{asciiHpBar(monster.hp, monster.hpMax, 12)}]
         </span>
-        <span className={cn("ml-1", hpBarColor(monster.hp, monster.hpMax))}>
+        <span className={cn("ml-1", hpBarColor(monster.hp, monster.hpMax, pixel))}>
           {monster.hp}/{monster.hpMax}
         </span>
       </div>
 
-      <div className="mt-0.5 text-[10px] text-terminal-border-bright">
+      <div className={cn("mt-0.5 text-[10px]", pixel ? "text-gray-500" : "text-terminal-border-bright")}>
         AC: {monster.ac} | ATK: +{monster.attack} | DMG: {monster.damage}
       </div>
     </div>
@@ -161,7 +171,7 @@ function getDiceInfo(entry: CombatState["log"][number]): { value: number; sides:
   return null;
 }
 
-function CombatLog({ log }: { log: CombatState["log"] }) {
+function CombatLog({ log, pixel }: { log: CombatState["log"]; pixel?: boolean }) {
   const logEndRef = useRef<HTMLDivElement>(null);
   const [diceComplete, setDiceComplete] = useState(false);
   const [diceKey, setDiceKey] = useState(0);
@@ -181,21 +191,21 @@ function CombatLog({ log }: { log: CombatState["log"] }) {
   }, [log.length, diceComplete]);
 
   return (
-    <div className="flex-1 overflow-y-auto min-h-0 border border-terminal-border p-2">
+    <div className={cn("flex-1 overflow-y-auto min-h-0 p-2", pixel ? "border-2 border-gray-600 bg-gray-900/50 rounded-sm" : "border border-terminal-border")}>
       <div className="space-y-0.5 text-[11px] font-mono">
         {log.length === 0 ? (
-          <p className="text-terminal-border-bright italic">
+          <p className={pixel ? "text-gray-500 italic" : "text-terminal-border-bright italic"}>
             Combat begins...
           </p>
         ) : (
           log.map((entry, i) => {
             const isLast = i === log.length - 1;
-            const color = logEntryColor(entry);
+            const color = logEntryColor(entry, undefined, pixel);
             const diceInfo = isLast && !diceComplete ? getDiceInfo(entry) : null;
 
             return (
               <p key={i} className={cn(color, isLast && "font-bold")}>
-                <span className="text-terminal-border mr-1">
+                <span className={pixel ? "text-gray-600 mr-1" : "text-terminal-border mr-1"}>
                   [{entry.round}]
                 </span>
                 {diceInfo && (
@@ -231,6 +241,7 @@ export function CombatPanel({
   combatState,
   player,
   onAction,
+  isPixelMode: px,
   className,
 }: CombatPanelProps) {
   const [actionPhase, setActionPhase] = useState<ActionPhase>("choose_action");
@@ -402,7 +413,7 @@ export function CombatPanel({
   return (
     <div className={cn("flex flex-col h-full font-mono gap-2", className)}>
       {/* ── Round indicator ── */}
-      <div className="shrink-0 text-[10px] text-terminal-border-bright text-center uppercase tracking-widest">
+      <div className={cn("shrink-0 text-[10px] text-center uppercase tracking-widest", px ? "text-gray-500" : "text-terminal-border-bright")}>
         -- Round {combatState.round} --
       </div>
 
@@ -418,6 +429,7 @@ export function CombatPanel({
                 actionPhase === "choose_target" && selectedTarget === i
               }
               isDead={monster.hp <= 0}
+              pixel={px}
             />
           ))}
         </div>
@@ -426,21 +438,21 @@ export function CombatPanel({
       {/* ── Companion (if present) ── */}
       {combatState.companion && combatState.companion.hp > 0 && (
         <div className="shrink-0 flex justify-center">
-          <div className="border border-terminal-blue/40 px-3 py-1.5 min-w-[180px]">
+          <div className={cn("px-3 py-1.5 min-w-[180px]", px ? "border-2 border-blue-800 bg-gray-900/95 rounded-sm" : "border border-terminal-blue/40")}>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-bold text-terminal-blue">
+              <span className={cn("text-sm font-bold", px ? "text-blue-400" : "text-terminal-blue")}>
                 {combatState.companion.name}
               </span>
-              <span className="text-[10px] text-terminal-border-bright">
+              <span className={cn("text-[10px]", px ? "text-gray-500" : "text-terminal-border-bright")}>
                 Ally Lv.{combatState.companion.level}
               </span>
             </div>
             <div className="mt-0.5 text-xs">
-              <span className="text-terminal-border-bright">HP: </span>
-              <span className={hpBarColor(combatState.companion.hp, combatState.companion.hpMax)}>
+              <span className={px ? "text-gray-500" : "text-terminal-border-bright"}>HP: </span>
+              <span className={hpBarColor(combatState.companion.hp, combatState.companion.hpMax, px)}>
                 [{asciiHpBar(combatState.companion.hp, combatState.companion.hpMax, 12)}]
               </span>
-              <span className={cn("ml-1", hpBarColor(combatState.companion.hp, combatState.companion.hpMax))}>
+              <span className={cn("ml-1", hpBarColor(combatState.companion.hp, combatState.companion.hpMax, px))}>
                 {combatState.companion.hp}/{combatState.companion.hpMax}
               </span>
             </div>
@@ -449,21 +461,21 @@ export function CombatPanel({
       )}
 
       {/* ── Combat Log (middle ~30%) ── */}
-      <CombatLog log={combatState.log} />
+      <CombatLog log={combatState.log} pixel={px} />
 
       {/* ── Action Menu (bottom ~40%) ── */}
-      <div className="shrink-0 border border-terminal-border p-2">
+      <div className={cn("shrink-0 p-2", px ? "border-2 border-gray-600 bg-gray-900/95 rounded-sm" : "border border-terminal-border")}>
         {/* Player HP/MP status line */}
         <div className="text-xs mb-2 flex gap-4">
           <span>
-            <span className="text-terminal-border-bright">HP: </span>
-            <span className={hpBarColor(player.hp, player.hpMax)}>
+            <span className={px ? "text-gray-500" : "text-terminal-border-bright"}>HP: </span>
+            <span className={hpBarColor(player.hp, player.hpMax, px)}>
               {player.hp}/{player.hpMax}
             </span>
           </span>
           <span>
-            <span className="text-terminal-border-bright">MP: </span>
-            <span className="text-terminal-blue">
+            <span className={px ? "text-gray-500" : "text-terminal-border-bright"}>MP: </span>
+            <span className={px ? "text-blue-400" : "text-terminal-blue"}>
               {player.mp}/{player.mpMax}
             </span>
           </span>
@@ -471,20 +483,20 @@ export function CombatPanel({
 
         {/* Action phase content */}
         {actionPhase === "enemy_turn" && (
-          <div className="text-terminal-red text-sm animate-pulse">
+          <div className={cn("text-sm animate-pulse", px ? "text-red-400" : "text-terminal-red")}>
             Enemy turn...
           </div>
         )}
 
         {actionPhase === "resolving" && (
-          <div className="text-terminal-amber text-sm animate-pulse">
+          <div className={cn("text-sm animate-pulse", px ? "text-amber-400" : "text-terminal-amber")}>
             Resolving...
           </div>
         )}
 
         {actionPhase === "choose_action" && playerTurn && (
           <div className="space-y-0.5">
-            <div className="text-[10px] text-terminal-border-bright mb-1 uppercase tracking-wider">
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
               Choose action:
             </div>
             {[
@@ -506,14 +518,14 @@ export function CombatPanel({
                 className={cn(
                   "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                   opt.disabled
-                    ? "text-terminal-border opacity-50 cursor-not-allowed"
-                    : "text-terminal-green hover:bg-terminal-green/5 hover:terminal-glow"
+                    ? (px ? "text-gray-600 opacity-50 cursor-not-allowed" : "text-terminal-border opacity-50 cursor-not-allowed")
+                    : (px ? "text-gray-200 hover:bg-gray-800 hover:text-white" : "text-terminal-green hover:bg-terminal-green/5 hover:terminal-glow")
                 )}
               >
-                <span className="text-terminal-green">[{opt.key}]</span>{" "}
+                <span className={px ? "text-gray-400" : "text-terminal-green"}>[{opt.key}]</span>{" "}
                 {opt.label}
                 {opt.action === "cast" && combatAbilities.length === 0 && (
-                  <span className="text-terminal-border text-[10px] ml-2">
+                  <span className={cn("text-[10px] ml-2", px ? "text-gray-600" : "text-terminal-border")}>
                     (no abilities)
                   </span>
                 )}
@@ -524,8 +536,8 @@ export function CombatPanel({
 
         {actionPhase === "choose_target" && (
           <div className="space-y-0.5">
-            <div className="text-[10px] text-terminal-border-bright mb-1 uppercase tracking-wider">
-              Select target: <span className="text-terminal-green-dim">[Esc] Back</span>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
+              Select target: <span className={px ? "text-gray-600" : "text-terminal-green-dim"}>[Esc] Back</span>
             </div>
             {aliveMonsters.map((monster, i) => (
               <button
@@ -535,13 +547,13 @@ export function CombatPanel({
                 className={cn(
                   "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                   selectedTarget === i
-                    ? "text-terminal-green bg-terminal-green/5 terminal-glow"
-                    : "text-terminal-green-dim"
+                    ? (px ? "text-white bg-gray-800" : "text-terminal-green bg-terminal-green/5 terminal-glow")
+                    : (px ? "text-gray-400" : "text-terminal-green-dim")
                 )}
               >
-                <span className="text-terminal-green">[{i + 1}]</span>{" "}
+                <span className={px ? "text-gray-300" : "text-terminal-green"}>[{i + 1}]</span>{" "}
                 {monster.name}{" "}
-                <span className={cn("text-[10px]", hpBarColor(monster.hp, monster.hpMax))}>
+                <span className={cn("text-[10px]", hpBarColor(monster.hp, monster.hpMax, px))}>
                   ({monster.hp}/{monster.hpMax})
                 </span>
               </button>
@@ -551,8 +563,8 @@ export function CombatPanel({
 
         {actionPhase === "choose_ability" && (
           <div className="space-y-0.5">
-            <div className="text-[10px] text-terminal-border-bright mb-1 uppercase tracking-wider">
-              Cast ability: <span className="text-terminal-green-dim">[Esc] Back</span>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
+              Cast ability: <span className={px ? "text-gray-600" : "text-terminal-green-dim"}>[Esc] Back</span>
             </div>
             {combatAbilities.map((ability, i) => {
               const canAfford = player.mp >= ability.mpCost;
@@ -564,16 +576,16 @@ export function CombatPanel({
                   className={cn(
                     "block text-left text-sm px-2 py-1.5 md:py-0.5 transition-colors w-full",
                     !canAfford
-                      ? "text-terminal-border opacity-50 cursor-not-allowed"
-                      : "text-terminal-green hover:bg-terminal-green/5"
+                      ? (px ? "text-gray-600 opacity-50 cursor-not-allowed" : "text-terminal-border opacity-50 cursor-not-allowed")
+                      : (px ? "text-gray-200 hover:bg-gray-800" : "text-terminal-green hover:bg-terminal-green/5")
                   )}
                 >
-                  <span className="text-terminal-green">[{i + 1}]</span>{" "}
+                  <span className={px ? "text-gray-400" : "text-terminal-green"}>[{i + 1}]</span>{" "}
                   {ability.name}
-                  <span className="text-terminal-blue text-[10px] ml-2">
+                  <span className={cn("text-[10px] ml-2", px ? "text-blue-400" : "text-terminal-blue")}>
                     {ability.mpCost > 0 ? `${ability.mpCost} MP` : "Free"}
                   </span>
-                  <span className="text-terminal-border-bright text-[10px] ml-2">
+                  <span className={cn("text-[10px] ml-2", px ? "text-gray-500" : "text-terminal-border-bright")}>
                     {ability.description}
                   </span>
                 </button>
@@ -584,10 +596,10 @@ export function CombatPanel({
 
         {actionPhase === "choose_item" && (
           <div className="space-y-0.5">
-            <div className="text-[10px] text-terminal-border-bright mb-1 uppercase tracking-wider">
-              Use item: <span className="text-terminal-green-dim">[Esc] Back</span>
+            <div className={cn("text-[10px] mb-1 uppercase tracking-wider", px ? "text-gray-500" : "text-terminal-border-bright")}>
+              Use item: <span className={px ? "text-gray-600" : "text-terminal-green-dim"}>[Esc] Back</span>
             </div>
-            <p className="text-terminal-border-bright text-xs italic">
+            <p className={cn("text-xs italic", px ? "text-gray-500" : "text-terminal-border-bright")}>
               No usable items in inventory.
             </p>
           </div>

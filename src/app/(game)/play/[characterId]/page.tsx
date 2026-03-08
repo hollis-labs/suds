@@ -1703,6 +1703,7 @@ export default function PlayCharacterPage() {
                 combatState={combatState}
                 player={player}
                 onAction={handleCombatAction}
+                isPixelMode
                 className="flex-1 min-h-0"
               />
             ) : (
