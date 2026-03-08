@@ -145,5 +145,6 @@ export function buildTileFromRoom(
     visibility,
     markers,
     roomId: room.id,
+    buildingId: room.buildingId,
   };
 }

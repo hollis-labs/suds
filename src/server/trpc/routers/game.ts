@@ -108,6 +108,7 @@ function buildRoom(row: typeof rooms.$inferSelect): RoomData {
     lootData: row.lootData as GameItem[] | null,
     visited: row.visited,
     roomFeatures: (row.roomFeatures ?? {}) as Record<string, unknown>,
+    buildingId: row.buildingId ?? undefined,
   };
 }
 

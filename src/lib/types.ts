@@ -98,6 +98,7 @@ export interface Room {
   lootData: GameItem[] | null;
   visited: boolean;
   roomFeatures: Record<string, unknown>;
+  buildingId?: string;
 }
 
 // Companion (NPC adventurer ally)
