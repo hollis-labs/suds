@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TerminalHUD, TerminalModal, TerminalLoading } from "@/components/terminal";
 import { HudBar } from "@/components/pixel/HudBar";
+import { PixelButton } from "@/components/pixel/PixelButton";
 import {
   StatusBar,
   Map, // TODO: Remove legacy Map component after one release cycle post-migration
@@ -1744,9 +1745,31 @@ export default function PlayCharacterPage() {
                   />
                 </div>
 
-                {/* Action buttons */}
-                <div className="shrink-0 pt-3 border-t border-gray-700 mt-2">
-                  <ExploringActions onAction={handleAction} roomType={currentRoom?.type} />
+                {/* Pixel action buttons */}
+                <div className="shrink-0 pt-2 border-t border-gray-700 mt-1 px-2 pb-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    {/* Context actions */}
+                    <PixelButton variant="action" size="sm" onClick={() => handleAction("search")}>Search</PixelButton>
+                    {currentRoom?.type && ["safe_room", "shrine", "npc_room"].includes(currentRoom.type) && (
+                      <PixelButton variant="action" size="sm" onClick={() => handleAction("rest")}>Rest</PixelButton>
+                    )}
+                    {currentRoom?.type === "shrine" && (
+                      <PixelButton variant="info" size="sm" onClick={() => handleAction("interact_shrine")}>Pray</PixelButton>
+                    )}
+                    {currentRoom?.type === "npc_room" && (
+                      <PixelButton variant="info" size="sm" onClick={() => handleAction("talk")}>Talk</PixelButton>
+                    )}
+                    {currentRoom?.type === "store" && (
+                      <PixelButton variant="nav" size="sm" onClick={() => handleAction("shop")}>Shop</PixelButton>
+                    )}
+                    {/* Menu actions */}
+                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("inventory")}>Inv</PixelButton>
+                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("character")}>Char</PixelButton>
+                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("lore")}>Codex</PixelButton>
+                    <PixelButton variant="nav" size="sm" onClick={() => handleAction("party")}>Party</PixelButton>
+                    <PixelButton variant="info" size="sm" onClick={() => handleAction("help")}>Help</PixelButton>
+                    <PixelButton variant="danger" size="sm" onClick={() => handleAction("exit")}>Exit</PixelButton>
+                  </div>
                 </div>
               </>
             )}
