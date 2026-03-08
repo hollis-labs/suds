@@ -3,6 +3,7 @@
 import { useCallback, useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { TerminalHUD, TerminalModal, TerminalLoading } from "@/components/terminal";
+import { HudBar } from "@/components/pixel/HudBar";
 import {
   StatusBar,
   Map, // TODO: Remove legacy Map component after one release cycle post-migration
@@ -1183,32 +1184,7 @@ export default function PlayCharacterPage() {
     [screen, handleAction, handleRespawn, drawerOpen, isWorldCharacterEarly, navigationLayer, setDrawerOpen, setNavigationLayer, setScreen]
   );
 
-  // ── Loading state ──
-  if (characterQuery.isLoading || mapQuery.isLoading) {
-    return (
-      <div className="h-dvh w-dvw flex items-center justify-center">
-        <TerminalLoading />
-      </div>
-    );
-  }
-
-  if (characterQuery.error) {
-    return (
-      <div className="h-dvh w-dvw flex items-center justify-center text-terminal-red font-mono">
-        Failed to load character: {characterQuery.error.message}
-      </div>
-    );
-  }
-
-  if (!player || !currentRoom || !mapViewport) {
-    return (
-      <div className="h-dvh w-dvw flex items-center justify-center">
-        <TerminalLoading />
-      </div>
-    );
-  }
-
-  // Determine if character uses new world system
+  // Determine if character uses new world system (derived before hooks that need it)
   const isWorldCharacter = !!player?.worldId;
   const legacyMapEnabled = process.env.NEXT_PUBLIC_LEGACY_MAP_ENABLED !== "false";
 
@@ -1436,141 +1412,34 @@ export default function PlayCharacterPage() {
     currentNode: "start",
   };
 
+  // ── Loading / error states (after all hooks) ──
+  if (characterQuery.isLoading || mapQuery.isLoading) {
+    return (
+      <div className="h-dvh w-dvw flex items-center justify-center">
+        <TerminalLoading />
+      </div>
+    );
+  }
 
-  return (
-    <div
-      className="h-dvh w-dvw overflow-hidden outline-none flex justify-center"
-      tabIndex={-1}
-      ref={rootRef}
-      onKeyDown={handleRootKeyDown}
-      onClick={handleRootClick}
-      // eslint-disable-next-line jsx-a11y/no-autofocus
-      autoFocus
-    >
-    <div className="w-full max-w-[1400px] h-full">
-      <TerminalHUD
-        className="h-full"
-        topBar={<StatusBar player={player} />}
-        bottomBar={<KeyHintsBar screen={screen} roomType={currentRoom?.type} />}
-      >
-        {/* Main content: stacked on mobile, side-by-side on md+ */}
-        <div className="flex flex-col md:flex-row h-full min-h-0 gap-2 md:gap-4">
-          {/* ── Left panel (35%): Map + DPad — compact on mobile ── */}
-          <div className="w-full md:w-[35%] shrink-0 md:shrink flex flex-col md:flex-col items-center justify-center md:justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-1 md:pb-0 md:pr-4 gap-1 md:gap-4">
-            <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
-              {isWorldCharacter ? (isInBuilding ? "Building Interior" : "Area Map") : "Dungeon Map"}
-            </div>
-            <div className={cn("overflow-hidden w-full", inCombat ? "max-h-[20dvh]" : "max-h-[40dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
-              {isWorldCharacter && tileMapData && player ? (
-                <TileMap
-                  mapData={tileMapData}
-                  playerPosition={player.position}
-                  viewportWidth={Math.min(tileMapData.width, 11)}
-                  viewportHeight={Math.min(tileMapData.height, 9)}
-                  tileSize={32}
-                  onTileClick={handleTileClick}
-                  onMove={handleTileMove}
-                  keyboardEnabled={screen === "exploring" && !inCombat}
-                />
-              ) : !isWorldCharacter && !legacyMapEnabled ? (
-                <div className="flex items-center justify-center h-full p-4 text-center text-amber-400">
-                  <div>
-                    <p className="font-bold mb-2">Character Migration Needed</p>
-                    <p className="text-sm text-zinc-400">
-                      This character needs to be migrated to the shared world.
-                      Contact an administrator to run the migration.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* TODO: Legacy MapPanel — remove after one release cycle */
-                <Map viewport={mapViewport} />
-              )}
-            </div>
-            {/* Breadcrumb for world characters */}
-            {isWorldCharacter && navigationNames.worldName && (
-              <Breadcrumb
-                segments={breadcrumbSegments}
-                onBack={breadcrumbOnBack}
-                className="w-full"
-              />
-            )}
-            {/* TODO: Remove legacy DPad after one release cycle post-migration */}
-            {!inCombat && !isWorldCharacter && legacyMapEnabled && (
-              <DPad
-                onMove={handleDPadMove}
-                onSearch={handleDPadSearch}
-                disabled={moveMutation.isPending || searchMutation.isPending}
-                availableExits={currentRoom?.exits ?? []}
-              />
-            )}
-          </div>
+  if (characterQuery.error) {
+    return (
+      <div className="h-dvh w-dvw flex items-center justify-center text-terminal-red font-mono">
+        Failed to load character: {characterQuery.error.message}
+      </div>
+    );
+  }
 
-          {/* ── Right panel (65%): Text + Actions/Combat/WorldMap/RegionMap ── */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
-            {/* Navigation loading overlay */}
-            {navLoadingMessage && (
-              <div className="absolute inset-0 z-30 loading-overlay flex items-center justify-center">
-                <TerminalLoading message={navLoadingMessage} />
-              </div>
-            )}
-            {screen === "world_map" && worldMapQuery.data ? (
-              /* ── World Map View ── */
-              <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
-                <WorldMapView
-                  regions={worldMapQuery.data.regions}
-                  currentRegionId={currentRegionId ?? undefined}
-                  onSelectRegion={(regionId) => {
-                    travelToRegionMutation.mutate({ characterId, regionId });
-                  }}
-                />
-              </div>
-            ) : screen === "region_map" && regionMapQuery.data ? (
-              /* ── Region Map View ── */
-              <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
-                <RegionMapView
-                  regionName={regionMapQuery.data.region.name}
-                  areas={regionMapQuery.data.areas}
-                  currentAreaId={undefined}
-                  onSelectArea={(areaId) => {
-                    travelToAreaMutation.mutate({ characterId, areaId });
-                  }}
-                  onBack={() => {
-                    setScreen("world_map");
-                    setNavigationLayer("world");
-                  }}
-                />
-              </div>
-            ) : inCombat && combatState ? (
-              /* ── Combat View ── */
-              <CombatPanel
-                combatState={combatState}
-                player={player}
-                onAction={handleCombatAction}
-                className="flex-1 min-h-0"
-              />
-            ) : (
-              /* ── Exploring View ── */
-              <>
-                {/* Text panel (room desc + game log) */}
-                <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
-                  <TextPanel
-                    room={currentRoom}
-                    gameLog={gameLog}
-                    isLoading={moveMutation.isPending}
-                  />
-                </div>
+  if (!player || !currentRoom || !mapViewport) {
+    return (
+      <div className="h-dvh w-dvw flex items-center justify-center">
+        <TerminalLoading />
+      </div>
+    );
+  }
 
-                {/* Action buttons below text */}
-                <div className="shrink-0 pt-3 border-t border-terminal-border mt-2">
-                  <ExploringActions onAction={handleAction} roomType={currentRoom?.type} />
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </TerminalHUD>
-
+  // ── Shared overlay elements (used by both layouts) ──
+  const overlayElements = (
+    <>
       {/* ── Death Screen Overlay ── */}
       {isDead && deathData && (
         <DeathScreen goldLost={deathData.goldLost} onRespawn={handleRespawn} />
@@ -1595,6 +1464,14 @@ export default function PlayCharacterPage() {
         />
       )}
 
+      {/* ── Help Modal ── */}
+      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+    </>
+  );
+
+  // ── Modal wrappers (terminal for legacy, later pixel for world characters) ──
+  const modalElements = (
+    <>
       {/* ── Inventory Overlay ── */}
       <TerminalModal
         open={showInventory}
@@ -1648,7 +1525,6 @@ export default function PlayCharacterPage() {
         className="max-w-lg"
       >
         {npcQuery.isLoading ? (
-          /* NPC loading state — shown while AI generates dialogue */
           <div className="font-mono text-sm space-y-4 p-2">
             <div className="text-terminal-amber-dim text-xs italic text-center animate-pulse">
               {(() => {
@@ -1754,8 +1630,251 @@ export default function PlayCharacterPage() {
           </div>
         )}
       </TerminalModal>
+    </>
+  );
 
-      {/* ── Room Detail Drawer (world characters) ── */}
+  // ── Root wrapper (shared by both layouts) ──
+  const rootProps = {
+    className: "h-dvh w-dvw overflow-hidden outline-none flex justify-center",
+    tabIndex: -1 as const,
+    ref: rootRef,
+    onKeyDown: handleRootKeyDown,
+    onClick: handleRootClick,
+    autoFocus: true,
+  };
+
+  // ── PIXEL LAYOUT (world characters) ──
+  if (isWorldCharacter) {
+    return (
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      <div {...rootProps}>
+      <div className="w-full max-w-[1400px] h-full bg-gray-950 flex flex-col">
+        {/* Top: HudBar */}
+        <HudBar
+          hp={player.hp}
+          maxHp={player.hpMax}
+          mp={player.mp}
+          maxMp={player.mpMax}
+          gold={player.gold}
+          level={player.level}
+        />
+
+        {/* Main content: stacked on mobile, side-by-side on md+ */}
+        <div className="flex flex-col md:flex-row flex-1 min-h-0">
+          {/* ── Left panel: TileMap + Breadcrumb ── */}
+          <div className="w-full md:w-[40%] shrink-0 flex flex-col items-center md:border-r border-b md:border-b-0 border-gray-700">
+            <div className={cn("overflow-hidden w-full flex-1", inCombat ? "max-h-[20dvh]" : "max-h-[60dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+              {tileMapData && player ? (
+                <TileMap
+                  mapData={tileMapData}
+                  playerPosition={player.position}
+                  viewportWidth={Math.min(tileMapData.width, 11)}
+                  viewportHeight={Math.min(tileMapData.height, 9)}
+                  tileSize={32}
+                  onTileClick={handleTileClick}
+                  onMove={handleTileMove}
+                  keyboardEnabled={screen === "exploring" && !inCombat}
+                />
+              ) : null}
+            </div>
+            {/* Breadcrumb */}
+            {navigationNames.worldName && (
+              <Breadcrumb
+                segments={breadcrumbSegments}
+                onBack={breadcrumbOnBack}
+                className="w-full"
+              />
+            )}
+          </div>
+
+          {/* ── Right panel: Game log + Actions / Combat / WorldMap / RegionMap ── */}
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
+            {/* Navigation loading overlay */}
+            {navLoadingMessage && (
+              <div className="absolute inset-0 z-30 bg-gray-950/80 flex items-center justify-center">
+                <div className="text-gray-400 font-mono text-sm animate-pulse">{navLoadingMessage}</div>
+              </div>
+            )}
+            {screen === "world_map" && worldMapQuery.data ? (
+              <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+                <WorldMapView
+                  regions={worldMapQuery.data.regions}
+                  currentRegionId={currentRegionId ?? undefined}
+                  onSelectRegion={(regionId) => {
+                    travelToRegionMutation.mutate({ characterId, regionId });
+                  }}
+                />
+              </div>
+            ) : screen === "region_map" && regionMapQuery.data ? (
+              <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+                <RegionMapView
+                  regionName={regionMapQuery.data.region.name}
+                  areas={regionMapQuery.data.areas}
+                  currentAreaId={undefined}
+                  onSelectArea={(areaId) => {
+                    travelToAreaMutation.mutate({ characterId, areaId });
+                  }}
+                  onBack={() => {
+                    setScreen("world_map");
+                    setNavigationLayer("world");
+                  }}
+                />
+              </div>
+            ) : inCombat && combatState ? (
+              <CombatPanel
+                combatState={combatState}
+                player={player}
+                onAction={handleCombatAction}
+                className="flex-1 min-h-0"
+              />
+            ) : (
+              <>
+                {/* Room info + game log */}
+                <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+                  <TextPanel
+                    room={currentRoom}
+                    gameLog={gameLog}
+                    isLoading={moveMutation.isPending}
+                  />
+                </div>
+
+                {/* Action buttons */}
+                <div className="shrink-0 pt-3 border-t border-gray-700 mt-2">
+                  <ExploringActions onAction={handleAction} roomType={currentRoom?.type} />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Overlays and modals */}
+        {overlayElements}
+        {modalElements}
+
+        {/* Room Detail Drawer */}
+        <RoomDetailDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          room={currentRoom}
+          onAction={(action) => {
+            handleAction(action);
+            if (["talk", "shop"].includes(action)) {
+              setDrawerOpen(false);
+            }
+          }}
+        />
+      </div>
+      </div>
+    );
+  }
+
+  // ── TERMINAL LAYOUT (legacy characters) ──
+  return (
+    <div
+      className="h-dvh w-dvw overflow-hidden outline-none flex justify-center"
+      tabIndex={-1}
+      ref={rootRef}
+      onKeyDown={handleRootKeyDown}
+      onClick={handleRootClick}
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      autoFocus
+    >
+    <div className="w-full max-w-[1400px] h-full">
+      <TerminalHUD
+        className="h-full"
+        topBar={<StatusBar player={player} />}
+        bottomBar={<KeyHintsBar screen={screen} roomType={currentRoom?.type} />}
+      >
+        {/* Main content: stacked on mobile, side-by-side on md+ */}
+        <div className="flex flex-col md:flex-row h-full min-h-0 gap-2 md:gap-4">
+          {/* ── Left panel (35%): Map + DPad ── */}
+          <div className="w-full md:w-[35%] shrink-0 md:shrink flex flex-col md:flex-col items-center justify-center md:justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-1 md:pb-0 md:pr-4 gap-1 md:gap-4">
+            <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
+              Dungeon Map
+            </div>
+            <div className={cn("overflow-hidden w-full", inCombat ? "max-h-[20dvh]" : "max-h-[40dvh]", "md:max-h-none")}>
+              {!legacyMapEnabled ? (
+                <div className="flex items-center justify-center h-full p-4 text-center text-amber-400">
+                  <div>
+                    <p className="font-bold mb-2">Character Migration Needed</p>
+                    <p className="text-sm text-zinc-400">
+                      This character needs to be migrated to the shared world.
+                      Contact an administrator to run the migration.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <Map viewport={mapViewport} />
+              )}
+            </div>
+            {/* Legacy DPad */}
+            {!inCombat && legacyMapEnabled && (
+              <DPad
+                onMove={handleDPadMove}
+                onSearch={handleDPadSearch}
+                disabled={moveMutation.isPending || searchMutation.isPending}
+                availableExits={currentRoom?.exits ?? []}
+              />
+            )}
+          </div>
+
+          {/* ── Right panel (65%): Text + Actions/Combat ── */}
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
+            {screen === "world_map" && worldMapQuery.data ? (
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <WorldMapView
+                  regions={worldMapQuery.data.regions}
+                  currentRegionId={currentRegionId ?? undefined}
+                  onSelectRegion={(regionId) => {
+                    travelToRegionMutation.mutate({ characterId, regionId });
+                  }}
+                />
+              </div>
+            ) : screen === "region_map" && regionMapQuery.data ? (
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <RegionMapView
+                  regionName={regionMapQuery.data.region.name}
+                  areas={regionMapQuery.data.areas}
+                  currentAreaId={undefined}
+                  onSelectArea={(areaId) => {
+                    travelToAreaMutation.mutate({ characterId, areaId });
+                  }}
+                  onBack={() => {
+                    setScreen("world_map");
+                    setNavigationLayer("world");
+                  }}
+                />
+              </div>
+            ) : inCombat && combatState ? (
+              <CombatPanel
+                combatState={combatState}
+                player={player}
+                onAction={handleCombatAction}
+                className="flex-1 min-h-0"
+              />
+            ) : (
+              <>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <TextPanel
+                    room={currentRoom}
+                    gameLog={gameLog}
+                    isLoading={moveMutation.isPending}
+                  />
+                </div>
+                <div className="shrink-0 pt-3 border-t border-terminal-border mt-2">
+                  <ExploringActions onAction={handleAction} roomType={currentRoom?.type} />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </TerminalHUD>
+
+      {/* Overlays and modals */}
+      {overlayElements}
+      {modalElements}
+
+      {/* ── Room Detail Drawer (world characters — shouldn't render for legacy, but kept for safety) ── */}
       {isWorldCharacter && (
         <RoomDetailDrawer
           open={drawerOpen}
@@ -1763,16 +1882,12 @@ export default function PlayCharacterPage() {
           room={currentRoom}
           onAction={(action) => {
             handleAction(action);
-            // Close drawer after triggering actions that open full-screen panels
             if (["talk", "shop"].includes(action)) {
               setDrawerOpen(false);
             }
           }}
         />
       )}
-
-      {/* ── Help Modal ── */}
-      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
     </div>
   );
