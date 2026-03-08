@@ -320,6 +320,19 @@ export default function PlayCharacterPage() {
     { enabled: screen === "region_map" && !!currentRegionId }
   );
 
+  // ── Nearby players (shared world only, 30s refresh) ──
+  const nearbyPlayersQuery = trpc.game.getNearbyPlayers.useQuery(
+    { characterId },
+    {
+      enabled: isWorldCharacterEarly && screen === "exploring",
+      refetchInterval: 30000,
+    }
+  );
+  const nearbyPlayerPositions = useMemo(
+    () => nearbyPlayersQuery.data?.players.map((p) => p.position) ?? [],
+    [nearbyPlayersQuery.data]
+  );
+
   // ── Populate navigation names on initial world map load ──
   const navNamesInitialized = useRef(false);
   useEffect(() => {
@@ -1223,7 +1236,8 @@ export default function PlayCharacterPage() {
               cell.room,
               player.position,
               visibility,
-              isInBuilding
+              isInBuilding,
+              nearbyPlayerPositions
             )
           );
         } else {
@@ -1240,7 +1254,7 @@ export default function PlayCharacterPage() {
       tiles.push(row);
     }
     return { width, height, tiles };
-  }, [isWorldCharacter, mapViewport, player, isInBuilding]);
+  }, [isWorldCharacter, mapViewport, player, isInBuilding, nearbyPlayerPositions]);
 
   // ── Navigation loading state ──
   const navLoadingMessage = useMemo(() => {

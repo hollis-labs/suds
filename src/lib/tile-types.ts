@@ -115,7 +115,8 @@ export function buildTileFromRoom(
   room: Room,
   playerPos: { x: number; y: number },
   visibility: TileVisibility,
-  interior = false
+  interior = false,
+  nearbyPlayerPositions?: { x: number; y: number }[]
 ): TileData {
   const isPlayer = room.x === playerPos.x && room.y === playerPos.y;
   const markers = roomFeaturesToMarkers(
@@ -126,6 +127,11 @@ export function buildTileFromRoom(
 
   if (isPlayer) {
     markers.push("player");
+  }
+
+  // Show other players on this tile
+  if (nearbyPlayerPositions?.some((p) => p.x === room.x && p.y === room.y)) {
+    markers.push("other_player");
   }
 
   // Boss rooms get skull marker

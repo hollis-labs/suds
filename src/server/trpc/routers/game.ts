@@ -1209,4 +1209,54 @@ export const gameRouter = router({
       const userId = ctx.session.user.id!;
       return changeFloor(ctx.db, input.characterId, userId, input.direction, input.currentFloor, input.buildingId);
     }),
+
+  // ─── Nearby Players ──────────────────────────────────────────────────────
+  getNearbyPlayers: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
+
+      // Only world characters can see nearby players
+      if (!character.worldId || !character.currentAreaId) {
+        return { players: [] };
+      }
+
+      // Find other characters in the same area (or building)
+      const conditions = [
+        eq(characters.worldId, character.worldId),
+      ];
+
+      if (character.currentBuildingId) {
+        conditions.push(eq(characters.currentBuildingId, character.currentBuildingId));
+      } else {
+        conditions.push(eq(characters.currentAreaId, character.currentAreaId));
+      }
+
+      const nearby = await ctx.db
+        .select({
+          id: characters.id,
+          name: characters.name,
+          level: characters.level,
+          class: characters.class,
+          position: characters.position,
+        })
+        .from(characters)
+        .where(and(...conditions))
+        .limit(21); // 20 + self
+
+      // Filter out self
+      const others = nearby
+        .filter((c) => c.id !== character.id)
+        .slice(0, 20)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          level: c.level,
+          class: c.class,
+          position: c.position as Position,
+        }));
+
+      return { players: others };
+    }),
 });
