@@ -1173,7 +1173,7 @@ export default function PlayCharacterPage() {
   // ── Loading state ──
   if (characterQuery.isLoading || mapQuery.isLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center">
+      <div className="h-dvh w-dvw flex items-center justify-center">
         <TerminalLoading />
       </div>
     );
@@ -1181,7 +1181,7 @@ export default function PlayCharacterPage() {
 
   if (characterQuery.error) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center text-terminal-red font-mono">
+      <div className="h-dvh w-dvw flex items-center justify-center text-terminal-red font-mono">
         Failed to load character: {characterQuery.error.message}
       </div>
     );
@@ -1189,7 +1189,7 @@ export default function PlayCharacterPage() {
 
   if (!player || !currentRoom || !mapViewport) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center">
+      <div className="h-dvh w-dvw flex items-center justify-center">
         <TerminalLoading />
       </div>
     );
@@ -1424,7 +1424,7 @@ export default function PlayCharacterPage() {
 
   return (
     <div
-      className="h-screen w-screen overflow-hidden outline-none flex justify-center"
+      className="h-dvh w-dvw overflow-hidden outline-none flex justify-center"
       tabIndex={-1}
       ref={rootRef}
       onKeyDown={handleRootKeyDown}
@@ -1445,7 +1445,7 @@ export default function PlayCharacterPage() {
             <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
               {isWorldCharacter ? (isInBuilding ? "Building Interior" : "Area Map") : "Dungeon Map"}
             </div>
-            <div className={cn("overflow-hidden w-full", inCombat ? "max-h-[20vh]" : "max-h-[40vh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+            <div className={cn("overflow-hidden w-full", inCombat ? "max-h-[20dvh]" : "max-h-[40dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {isWorldCharacter && tileMapData && player ? (
                 <TileMap
                   mapData={tileMapData}

@@ -80,7 +80,7 @@ export function ContextDrawer({ open, onClose, title, children, className }: Con
           "fixed z-50 bg-gray-900 border-gray-700 overflow-y-auto",
           "transition-transform duration-300 ease-in-out",
           // Mobile: bottom sheet
-          "inset-x-0 bottom-0 max-h-[60vh] rounded-t-lg border-t",
+          "inset-x-0 bottom-0 max-h-[60dvh] rounded-t-lg border-t pb-[env(safe-area-inset-bottom)]",
           "md:inset-x-auto md:bottom-auto",
           // Desktop: right panel
           "md:top-0 md:right-0 md:h-full md:w-[320px] md:max-h-none md:rounded-none md:border-l md:border-t-0",
