@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { SpriteIcon } from "./SpriteIcon";
 import { useKeyboard } from "@/hooks/useKeyboard";
@@ -31,24 +31,42 @@ function isAdjacent(ax: number, ay: number, bx: number, by: number): boolean {
   return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
 }
 
-function getViewportSlice(
+/** Dead zone size — viewport only scrolls when player enters this many tiles from edge */
+const DEAD_ZONE = 3;
+
+function computeDeadZoneOffset(
+  playerPos: number,
+  currentOffset: number,
+  vpSize: number,
+  mapSize: number
+): number {
+  let offset = currentOffset;
+
+  // Small maps: center the map
+  if (mapSize <= vpSize) return -Math.floor((vpSize - mapSize) / 2);
+
+  // Player hit left/top dead zone → scroll left/up
+  if (playerPos - offset < DEAD_ZONE) {
+    offset = playerPos - DEAD_ZONE;
+  }
+  // Player hit right/bottom dead zone → scroll right/down
+  if (playerPos - offset > vpSize - 1 - DEAD_ZONE) {
+    offset = playerPos - (vpSize - 1 - DEAD_ZONE);
+  }
+
+  // Clamp to map bounds
+  return Math.max(0, Math.min(offset, mapSize - vpSize));
+}
+
+function buildSlice(
   tiles: TileData[][],
   mapWidth: number,
   mapHeight: number,
-  playerX: number,
-  playerY: number,
+  offsetX: number,
+  offsetY: number,
   vpW: number,
   vpH: number
-): { slice: (TileData | null)[][]; offsetX: number; offsetY: number } {
-  let offsetX = playerX - Math.floor(vpW / 2);
-  let offsetY = playerY - Math.floor(vpH / 2);
-
-  offsetX = Math.max(0, Math.min(offsetX, mapWidth - vpW));
-  offsetY = Math.max(0, Math.min(offsetY, mapHeight - vpH));
-
-  if (mapWidth < vpW) offsetX = -Math.floor((vpW - mapWidth) / 2);
-  if (mapHeight < vpH) offsetY = -Math.floor((vpH - mapHeight) / 2);
-
+): (TileData | null)[][] {
   const slice: (TileData | null)[][] = [];
   for (let vy = 0; vy < vpH; vy++) {
     const row: (TileData | null)[] = [];
@@ -63,8 +81,7 @@ function getViewportSlice(
     }
     slice.push(row);
   }
-
-  return { slice, offsetX, offsetY };
+  return slice;
 }
 
 function TileCell({
@@ -164,20 +181,43 @@ export function TileMap({
   className,
 }: TileMapProps) {
   const [flashCell, setFlashCell] = useState<{ x: number; y: number; key: number } | null>(null);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const prevOffsetRef = useRef({ x: 0, y: 0 });
+  const [isScrolling, setIsScrolling] = useState(false);
 
-  const { slice } = useMemo(
-    () =>
-      getViewportSlice(
-        mapData.tiles,
-        mapData.width,
-        mapData.height,
-        playerPosition.x,
-        playerPosition.y,
-        viewportWidth,
-        viewportHeight
-      ),
-    [mapData, playerPosition.x, playerPosition.y, viewportWidth, viewportHeight]
-  );
+  // Compute viewport offset with dead-zone scrolling
+  const { slice, offsetX, offsetY } = useMemo(() => {
+    const ox = computeDeadZoneOffset(
+      playerPosition.x,
+      offsetRef.current.x,
+      viewportWidth,
+      mapData.width
+    );
+    const oy = computeDeadZoneOffset(
+      playerPosition.y,
+      offsetRef.current.y,
+      viewportHeight,
+      mapData.height
+    );
+    offsetRef.current = { x: ox, y: oy };
+
+    return {
+      slice: buildSlice(mapData.tiles, mapData.width, mapData.height, ox, oy, viewportWidth, viewportHeight),
+      offsetX: ox,
+      offsetY: oy,
+    };
+  }, [mapData, playerPosition.x, playerPosition.y, viewportWidth, viewportHeight]);
+
+  // Trigger smooth scroll animation when viewport offset changes
+  const offsetChanged =
+    prevOffsetRef.current.x !== offsetX || prevOffsetRef.current.y !== offsetY;
+  if (offsetChanged) {
+    prevOffsetRef.current = { x: offsetX, y: offsetY };
+    if (!isScrolling) {
+      setIsScrolling(true);
+      setTimeout(() => setIsScrolling(false), 200);
+    }
+  }
 
   const tryMove = useCallback(
     (dx: number, dy: number) => {
