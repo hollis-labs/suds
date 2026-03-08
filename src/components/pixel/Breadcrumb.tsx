@@ -17,8 +17,8 @@ export function Breadcrumb({ segments, onBack, className }: BreadcrumbProps) {
   return (
     <nav
       className={cn(
-        "flex items-center gap-1 px-3 py-1.5 bg-black/60 border-b border-gray-800",
-        "overflow-x-auto scrollbar-none font-mono text-xs",
+        "flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-black/60 border-b border-gray-800",
+        "overflow-x-auto scrollbar-none font-mono text-[10px] sm:text-xs",
         className
       )}
       aria-label="Navigation breadcrumb"
@@ -26,7 +26,7 @@ export function Breadcrumb({ segments, onBack, className }: BreadcrumbProps) {
       {onBack && (
         <button
           onClick={onBack}
-          className="shrink-0 px-1.5 py-0.5 text-gray-400 hover:text-white transition-colors cursor-pointer"
+          className="shrink-0 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center px-1.5 py-0.5 text-gray-400 hover:text-white active:text-white transition-colors cursor-pointer"
           aria-label="Go back"
         >
           &larr;
@@ -46,7 +46,7 @@ export function Breadcrumb({ segments, onBack, className }: BreadcrumbProps) {
             ) : (
               <button
                 onClick={segment.onClick}
-                className="text-amber-400 hover:text-amber-200 transition-colors cursor-pointer"
+                className="text-amber-400 hover:text-amber-200 active:text-amber-200 transition-colors cursor-pointer"
               >
                 {segment.label}
               </button>

@@ -17,7 +17,7 @@ export function HudBar({ hp, maxHp, mp, maxMp, gold, level, className }: HudBarP
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-3 py-1.5 bg-black/80 border-b border-gray-700",
+        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1 sm:py-1.5 bg-black/80 border-b border-gray-700",
         "flex-wrap",
         className
       )}

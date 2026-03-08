@@ -1384,11 +1384,11 @@ export default function PlayCharacterPage() {
         {/* Main content: stacked on mobile, side-by-side on md+ */}
         <div className="flex flex-col md:flex-row h-full min-h-0 gap-2 md:gap-4">
           {/* ── Left panel (35%): Map + DPad — compact on mobile ── */}
-          <div className="w-full md:w-[35%] shrink-0 md:shrink flex flex-row md:flex-col items-center justify-center md:justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-2 md:pb-0 md:pr-4 gap-2 md:gap-4">
+          <div className="w-full md:w-[35%] shrink-0 md:shrink flex flex-col md:flex-col items-center justify-center md:justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-1 md:pb-0 md:pr-4 gap-1 md:gap-4">
             <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
               {isWorldCharacter ? (isInBuilding ? "Building Interior" : "Area Map") : "Dungeon Map"}
             </div>
-            <div className={cn("max-h-[30vh] md:max-h-none overflow-hidden", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+            <div className={cn("max-h-[40vh] md:max-h-none overflow-hidden w-full", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {isWorldCharacter && tileMapData && player ? (
                 <TileMap
                   mapData={tileMapData}
