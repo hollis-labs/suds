@@ -21,6 +21,61 @@ const C = {
   white: "#c8e6c8",
 } as const;
 
+// ── Log entry classification ──────────────────────────────────────────
+type LogActor = "player" | "monster" | "companion" | "reward" | "system";
+
+function classifyLogEntry(entry: string): LogActor {
+  const lower = entry.toLowerCase();
+  // Player actions
+  if (/^you /i.test(entry) || lower.includes("your ")) return "player";
+  // Monster actions
+  if (
+    lower.includes("attacks you") ||
+    lower.includes("hits you") ||
+    lower.includes("deals damage to you") ||
+    lower.includes("strikes you") ||
+    lower.includes("bites you") ||
+    lower.includes("claws you")
+  )
+    return "monster";
+  // Companion actions
+  if (
+    lower.includes("companion ") ||
+    lower.includes("ally ") ||
+    lower.includes(" joins your party")
+  )
+    return "companion";
+  // Reward / system messages
+  if (
+    lower.includes("defeated") ||
+    lower.includes("victory") ||
+    lower.includes("loot") ||
+    lower.includes("found") ||
+    lower.includes("gained")
+  )
+    return "reward";
+  // Default narrative
+  return "system";
+}
+
+const LOG_STYLE: Record<LogActor, { color: string; latestColor: string; icon: string }> = {
+  player:    { color: C.green,    latestColor: C.green,  icon: "@" },
+  monster:   { color: C.red,      latestColor: C.red,    icon: "x" },
+  companion: { color: C.blue,     latestColor: C.blue,   icon: "&" },
+  reward:    { color: C.amber,    latestColor: C.amber,  icon: "*" },
+  system:    { color: C.greenDim, latestColor: C.white,  icon: "\u203A" },
+};
+
+// Extract the first few words (up to 4) for bold emphasis
+function extractActorPrefix(entry: string): { prefix: string; rest: string } {
+  const words = entry.split(" ");
+  const prefixLen = Math.min(words.length, 4);
+  return {
+    prefix: words.slice(0, prefixLen).join(" "),
+    rest: words.length > prefixLen ? " " + words.slice(prefixLen).join(" ") : "",
+  };
+}
+
 const EXIT_KEYS: Record<string, string> = {
   north: "W",
   south: "S",
@@ -175,14 +230,18 @@ export function RoomInfoPanel({
         ) : (
           gameLog.slice(-10).map((entry, i) => {
             const isLatest = i === Math.min(gameLog.length, 10) - 1;
+            const actor = classifyLogEntry(entry);
+            const style = LOG_STYLE[actor];
+            const { prefix, rest } = extractActorPrefix(entry);
             return (
               <p
                 key={gameLog.length - 10 + i}
                 className="text-[11px]"
-                style={{ color: isLatest ? C.white : C.greenDim }}
+                style={{ color: isLatest ? style.latestColor : style.color }}
               >
-                <span style={{ color: isLatest ? C.amber : C.greenMuted }} className="mr-1">›</span>
-                {entry}
+                <span style={{ color: isLatest ? style.color : C.greenMuted }} className="mr-1 font-bold">{style.icon}</span>
+                <span className="font-bold">{prefix}</span>
+                {rest}
               </p>
             );
           })
