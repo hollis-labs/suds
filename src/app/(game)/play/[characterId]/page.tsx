@@ -30,11 +30,9 @@ import {
   MiniMap,
   RoomInfoPanel,
 } from "@/components/game";
-import { TileMap } from "@/components/pixel/TileMap";
 import { Breadcrumb } from "@/components/pixel/Breadcrumb";
 import type { BreadcrumbSegment } from "@/components/pixel/Breadcrumb";
-import { buildTileFromRoom } from "@/lib/tile-types";
-import type { TileMapData, TileData } from "@/lib/tile-types";
+import type { TileData } from "@/lib/tile-types";
 import { useGameStore } from "@/stores/gameStore";
 import { GAME_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -1186,50 +1184,7 @@ export default function PlayCharacterPage() {
   const isWorldCharacter = !!player?.worldId;
   const legacyMapEnabled = process.env.NEXT_PUBLIC_LEGACY_MAP_ENABLED !== "false";
 
-  // Build TileMapData from mapViewport for new-system characters
   const isInBuilding = navigationLayer === "building";
-  const tileMapData = useMemo<TileMapData | null>(() => {
-    if (!isWorldCharacter || !mapViewport || !player) return null;
-    const cells = mapViewport.cells;
-    const height = cells.length;
-    const width = cells[0]?.length ?? 0;
-    if (width === 0 || height === 0) return null;
-
-    const tiles: TileData[][] = [];
-    for (let y = 0; y < height; y++) {
-      const row: TileData[] = [];
-      for (let x = 0; x < width; x++) {
-        const cell = cells[y]![x]!;
-        if (cell.room) {
-          const visibility = cell.isCurrent
-            ? "visible" as const
-            : cell.room.visited
-              ? "discovered" as const
-              : "hidden" as const;
-          row.push(
-            buildTileFromRoom(
-              cell.room,
-              player.position,
-              visibility,
-              isInBuilding,
-              nearbyPlayerPositions
-            )
-          );
-        } else {
-          row.push({
-            x: cell.x,
-            y: cell.y,
-            spriteId: isInBuilding ? "terrain_wall" : "terrain_stone",
-            walkable: false,
-            visibility: "hidden" as const,
-            markers: [],
-          });
-        }
-      }
-      tiles.push(row);
-    }
-    return { width, height, tiles };
-  }, [isWorldCharacter, mapViewport, player, isInBuilding, nearbyPlayerPositions]);
 
   // ── Navigation loading state ──
   const navLoadingMessage = useMemo(() => {
@@ -1828,6 +1783,12 @@ export default function PlayCharacterPage() {
                     <button onClick={(e) => { handleAction("party"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">P</span>Party
                     </button>
+                    <button onClick={(e) => { handleAction("news"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">N</span>News
+                    </button>
+                    <button onClick={(e) => { handleAction("about"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">~</span>About
+                    </button>
                     <button onClick={(e) => { handleAction("help"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#1a8c1a] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">?</span>Help
                     </button>
@@ -1887,6 +1848,12 @@ export default function PlayCharacterPage() {
                 </button>
                 <button onClick={(e) => { handleAction("party"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                   <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">P</span>Party
+                </button>
+                <button onClick={(e) => { handleAction("news"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">N</span>News
+                </button>
+                <button onClick={(e) => { handleAction("about"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">~</span>About
                 </button>
                 <button onClick={(e) => { handleAction("help"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#1a8c1a] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                   <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">?</span>Help

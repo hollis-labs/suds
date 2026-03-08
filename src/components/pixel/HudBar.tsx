@@ -67,7 +67,7 @@ export function HudBar({
 
         {/* Companion HP */}
         {companion && companion.hp > 0 && (
-          <div className="inline-flex items-center gap-1 font-mono text-xs text-blue-400" title={`Ally: ${companion.name}`}>
+          <div className="inline-flex items-center gap-1 font-mono text-xs text-[#44aaff]" title={`Ally: ${companion.name}`}>
             <SpriteIcon spriteId="marker_npc" size={14} />
             <span className="tabular-nums leading-none">{companion.name} {companion.hp}/{companion.hpMax}</span>
           </div>
@@ -77,7 +77,7 @@ export function HudBar({
         {buffs?.map((buff, i) => {
           if (buff.type === "shield" && buff.value > 0) {
             return (
-              <div key={`buff-${i}`} className="inline-flex items-center gap-1 font-mono text-xs text-cyan-400" title={`Shield: ${buff.value}`}>
+              <div key={`buff-${i}`} className="inline-flex items-center gap-1 font-mono text-xs text-[#44aaff]" title={`Shield: ${buff.value}`}>
                 <SpriteIcon spriteId="ui_shield" size={14} />
                 <span className="tabular-nums leading-none">{buff.value}</span>
               </div>
@@ -86,7 +86,7 @@ export function HudBar({
           if (buff.type === "blessing" && buff.combatsRemaining && buff.combatsRemaining > 0) {
             const label = buff.stat === "attack" ? `+${buff.value} ATK` : `+${buff.value} AC`;
             return (
-              <div key={`buff-${i}`} className="inline-flex items-center gap-1 font-mono text-xs text-amber-400" title={`${label} (${buff.combatsRemaining} combats)`}>
+              <div key={`buff-${i}`} className="inline-flex items-center gap-1 font-mono text-xs text-[#ffaa00]" title={`${label} (${buff.combatsRemaining} combats)`}>
                 <SpriteIcon spriteId="ui_star" size={14} />
                 <span className="tabular-nums leading-none">{label} ({buff.combatsRemaining})</span>
               </div>

@@ -89,7 +89,8 @@ export default function NewCharacterPage() {
         theme: wizard.theme,
       });
       router.push(`/play/${newChar.id}`);
-    } catch {
+    } catch (err) {
+      console.error("Character creation failed:", err);
       setIsCreating(false);
     }
   }, [wizard, router]);

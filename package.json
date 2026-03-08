@@ -21,7 +21,12 @@
     "dev:setup": "bash scripts/dev-setup.sh",
     "dev:db:up": "docker compose -f docker-compose.dev.yml up -d postgres",
     "dev:db:down": "docker compose -f docker-compose.dev.yml down",
-    "dev:db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d postgres"
+    "dev:db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d postgres",
+    "test:db:push": "dotenv -e .env.test -- drizzle-kit push",
+    "test:db:seed-world": "dotenv -e .env.test -- tsx src/server/game/world-seed.ts",
+    "test:db:migrate-legacy": "dotenv -e .env.test -- tsx src/server/game/migration/migrate-legacy-characters.ts",
+    "test:db:studio": "dotenv -e .env.test -- drizzle-kit studio",
+    "test:dev": "bash scripts/test-dev.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -53,6 +58,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.27",
+    "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.9",
     "eslint": "^10.0.2",
     "eslint-config-next": "^16.1.6",

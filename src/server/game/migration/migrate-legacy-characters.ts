@@ -266,7 +266,7 @@ export async function migrateLegacyCharacters(): Promise<MigrationResult> {
 }
 
 // CLI entrypoint: `pnpm db:migrate-legacy`
-if (require.main === module || process.argv[1]?.includes("migrate-legacy")) {
+if (process.argv[1]?.includes("migrate-legacy")) {
   migrateLegacyCharacters()
     .then((result) => {
       console.log(JSON.stringify(result, null, 2));

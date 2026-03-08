@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Terminal, TerminalText } from "@/components/terminal";
 import { cn } from "@/lib/utils";
 import { CLASS_DEFINITIONS, THEMES } from "@/lib/constants";
@@ -172,7 +173,7 @@ export default function CharactersPage() {
               <span className="text-terminal-amber">[H]</span> Hall of Fame
             </button>
             <button
-              onClick={() => router.push("/login")}
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="block w-full text-left px-2 py-0.5 text-terminal-green-dim hover:text-terminal-green hover:terminal-glow transition-colors"
             >
               <span className="text-terminal-amber">[L]</span> Logout

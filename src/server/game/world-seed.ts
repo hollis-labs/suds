@@ -282,7 +282,7 @@ export async function seedStarterWorld() {
 }
 
 // CLI entrypoint: `npx tsx src/server/game/world-seed.ts`
-if (require.main === module || process.argv[1]?.includes("world-seed")) {
+if (process.argv[1]?.includes("world-seed")) {
   seedStarterWorld()
     .then(() => process.exit(0))
     .catch((err) => {
