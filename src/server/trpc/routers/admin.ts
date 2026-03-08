@@ -16,6 +16,10 @@ import {
   npcs,
   stores,
   quests,
+  worlds,
+  regions,
+  areas,
+  buildings,
 } from "@/server/db/schema";
 import {
   CLASS_DEFINITIONS,
@@ -1398,6 +1402,118 @@ export const adminRouter = router({
       ]);
 
       return { entries, total: totalResult[0]?.count ?? 0 };
+    }),
+
+  // ─── World Hierarchy Browser (Sprint 4) ───────────────────────────────────
+
+  getWorldHierarchy: adminProcedure.query(async ({ ctx }) => {
+    const [worldRows, regionRows, areaRows, buildingRows, roomCount] =
+      await Promise.all([
+        ctx.db.select().from(worlds).orderBy(worlds.createdAt),
+        ctx.db.select().from(regions).orderBy(regions.createdAt),
+        ctx.db.select().from(areas).orderBy(areas.createdAt),
+        ctx.db.select().from(buildings).orderBy(buildings.createdAt),
+        ctx.db.select({ count: count() }).from(rooms),
+      ]);
+
+    // Build hierarchy
+    const worldData = worldRows.map((w) => {
+      const worldRegions = regionRows.filter((r) => r.worldId === w.id);
+      return {
+        ...w,
+        regionCount: worldRegions.length,
+        areaCount: worldRegions.reduce(
+          (sum, r) => sum + areaRows.filter((a) => a.regionId === r.id).length,
+          0,
+        ),
+        buildingCount: worldRegions.reduce((sum, r) => {
+          const regionAreas = areaRows.filter((a) => a.regionId === r.id);
+          return sum + regionAreas.reduce(
+            (s, a) => s + buildingRows.filter((b) => b.areaId === a.id).length,
+            0,
+          );
+        }, 0),
+      };
+    });
+
+    return {
+      worlds: worldData,
+      stats: {
+        totalWorlds: worldRows.length,
+        totalRegions: regionRows.length,
+        totalAreas: areaRows.length,
+        totalBuildings: buildingRows.length,
+        totalRooms: roomCount[0]?.count ?? 0,
+      },
+    };
+  }),
+
+  getRegionDetail: adminProcedure
+    .input(z.object({ regionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [region] = await ctx.db
+        .select()
+        .from(regions)
+        .where(eq(regions.id, input.regionId))
+        .limit(1);
+
+      if (!region) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Region not found" });
+      }
+
+      const regionAreas = await ctx.db
+        .select()
+        .from(areas)
+        .where(eq(areas.regionId, input.regionId))
+        .orderBy(areas.createdAt);
+
+      return { region, areas: regionAreas };
+    }),
+
+  getAreaDetail: adminProcedure
+    .input(z.object({ areaId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [area] = await ctx.db
+        .select()
+        .from(areas)
+        .where(eq(areas.id, input.areaId))
+        .limit(1);
+
+      if (!area) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Area not found" });
+      }
+
+      const areaBuildings = await ctx.db
+        .select()
+        .from(buildings)
+        .where(eq(buildings.areaId, input.areaId))
+        .orderBy(buildings.createdAt);
+
+      return { area, buildings: areaBuildings };
+    }),
+
+  getBuildingDetail: adminProcedure
+    .input(z.object({ buildingId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [building] = await ctx.db
+        .select()
+        .from(buildings)
+        .where(eq(buildings.id, input.buildingId))
+        .limit(1);
+
+      if (!building) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Building not found" });
+      }
+
+      const [roomCount] = await ctx.db
+        .select({ count: count() })
+        .from(rooms)
+        .where(eq(rooms.buildingId, input.buildingId));
+
+      return {
+        building,
+        roomCount: roomCount?.count ?? 0,
+      };
     }),
 
   getWorldQuests: adminProcedure
