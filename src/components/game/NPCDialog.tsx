@@ -101,7 +101,7 @@ export function NPCDialog({
   // ── Render ──
 
   return (
-    <div className={cn("font-mono text-sm space-y-3", className)}>
+    <div className={cn("font-mono text-sm space-y-3 max-w-full overflow-hidden", className)}>
       {/* NPC Name */}
       <div className="text-terminal-amber terminal-glow font-bold text-center">
         {npc.name}
@@ -162,8 +162,8 @@ export function NPCDialog({
             key={i}
             onClick={() => handleChoice(i)}
             className={cn(
-              "block text-left text-xs px-1 py-0.5 transition-colors w-full",
-              "text-terminal-green hover:bg-terminal-green/5 hover:terminal-glow"
+              "block text-left text-xs px-2 py-2 sm:py-1 transition-colors w-full min-h-[44px] sm:min-h-0",
+              "text-terminal-green hover:bg-terminal-green/5 active:bg-terminal-green/10 hover:terminal-glow"
             )}
           >
             <span className="text-terminal-green">[{i + 1}]</span>{" "}

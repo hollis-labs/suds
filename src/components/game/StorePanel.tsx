@@ -338,7 +338,7 @@ export function StorePanel({
   // ── Render ──
 
   return (
-    <div className={cn("font-mono text-sm space-y-2", className)}>
+    <div className={cn("font-mono text-sm space-y-2 max-w-full overflow-hidden", className)}>
       {/* Store name */}
       <div className="text-terminal-green terminal-glow font-bold text-center">
         {store.name}

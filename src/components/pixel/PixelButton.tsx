@@ -26,8 +26,8 @@ const VARIANT_COLORS = {
 } as const;
 
 const SIZE_CLASSES = {
-  sm: "px-3 py-1 text-xs min-h-[28px]",
-  md: "px-5 py-1.5 text-sm min-h-[36px]",
+  sm: "px-3 py-1 text-xs min-h-[44px] sm:min-h-[28px]",
+  md: "px-5 py-1.5 text-sm min-h-[44px] sm:min-h-[36px]",
   lg: "px-7 py-2 text-base min-h-[44px]",
 } as const;
 
