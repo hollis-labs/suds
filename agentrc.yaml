@@ -1,0 +1,2 @@
+project: suds-v2
+storage_backend: db+files
