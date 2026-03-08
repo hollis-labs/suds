@@ -30,6 +30,11 @@ import {
   XP_TABLE,
   type CharacterClass,
 } from "@/lib/constants";
+import {
+  promoteToTemplate,
+  updateContentQuality,
+  getTemplateStats,
+} from "@/server/game/content-library";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -1515,6 +1520,74 @@ export const adminRouter = router({
         roomCount: roomCount?.count ?? 0,
       };
     }),
+
+  // ─── Content Template Manager (Sprint 4) ──────────────────────────────────
+
+  getTemplates: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+        typeFilter: z.string().optional(),
+        themeFilter: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [gte(contentLibrary.quality, 4)];
+      if (input.typeFilter) conditions.push(eq(contentLibrary.type, input.typeFilter));
+      if (input.themeFilter) conditions.push(eq(contentLibrary.theme, input.themeFilter));
+
+      const where = and(...conditions);
+
+      const [entries, totalResult] = await Promise.all([
+        ctx.db
+          .select()
+          .from(contentLibrary)
+          .where(where)
+          .orderBy(desc(contentLibrary.quality), desc(contentLibrary.usageCount))
+          .limit(input.limit)
+          .offset(input.offset),
+        ctx.db.select({ count: count() }).from(contentLibrary).where(where),
+      ]);
+
+      return { entries, total: totalResult[0]?.count ?? 0 };
+    }),
+
+  promoteTemplate: adminProcedure
+    .input(z.object({ contentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await promoteToTemplate(ctx.db, input.contentId);
+      return { success: true, id: input.contentId };
+    }),
+
+  updateTemplate: adminProcedure
+    .input(
+      z.object({
+        contentId: z.string().uuid(),
+        content: z.unknown().optional(),
+        quality: z.number().min(1).max(5).optional(),
+        tags: z.array(z.string()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updates: Record<string, unknown> = {};
+      if (input.content !== undefined) updates.content = input.content;
+      if (input.quality !== undefined) updates.quality = input.quality;
+      if (input.tags !== undefined) updates.tags = input.tags;
+
+      if (Object.keys(updates).length > 0) {
+        await ctx.db
+          .update(contentLibrary)
+          .set(updates)
+          .where(eq(contentLibrary.id, input.contentId));
+      }
+
+      return { success: true, id: input.contentId };
+    }),
+
+  getTemplateStats: adminProcedure.query(async ({ ctx }) => {
+    return getTemplateStats(ctx.db);
+  }),
 
   getWorldQuests: adminProcedure
     .input(
