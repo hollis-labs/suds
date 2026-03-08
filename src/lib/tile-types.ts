@@ -13,7 +13,9 @@ export type TileMarker =
   | "exit"
   | "quest"
   | "campfire"
-  | "other_player";
+  | "other_player"
+  | "stairs_up"
+  | "stairs_down";
 
 export type TileVisibility = "hidden" | "discovered" | "visible";
 
@@ -46,6 +48,8 @@ export const MARKER_SPRITE: Record<TileMarker, SpriteId> = {
   quest: "marker_quest",
   campfire: "marker_campfire",
   other_player: "marker_other_player",
+  stairs_up: "terrain_stairs_up",
+  stairs_down: "terrain_stairs_down",
 };
 
 // --- Mapping functions ---
@@ -61,7 +65,26 @@ const ROOM_TYPE_SPRITE: Record<string, SpriteId> = {
   safe_room: "terrain_grass",
 };
 
-export function roomTypeToSpriteId(roomType: RoomType | string): SpriteId {
+/** Interior sprites for building rooms — used when inside a building */
+const INTERIOR_ROOM_TYPE_SPRITE: Record<string, SpriteId> = {
+  corridor: "terrain_floor_wood",
+  chamber: "terrain_floor_wood",
+  shrine: "terrain_floor_wood",
+  trap_room: "terrain_lava",
+  store: "terrain_floor_wood",
+  npc_room: "terrain_floor_wood",
+  boss_room: "terrain_stone",
+  safe_room: "terrain_floor_wood",
+  wall: "terrain_wall",
+  door: "terrain_door",
+  stairs_up: "terrain_stairs_up",
+  stairs_down: "terrain_stairs_down",
+};
+
+export function roomTypeToSpriteId(roomType: RoomType | string, interior = false): SpriteId {
+  if (interior) {
+    return INTERIOR_ROOM_TYPE_SPRITE[roomType] ?? "terrain_floor_wood";
+  }
   return ROOM_TYPE_SPRITE[roomType] ?? "terrain_stone";
 }
 
@@ -80,6 +103,8 @@ export function roomFeaturesToMarkers(
   if (features.isExit || features.exit) markers.push("exit");
   if (features.quest || features.hasQuest) markers.push("quest");
   if (features.campfire || features.isSafe) markers.push("campfire");
+  if (features.stairsUp) markers.push("stairs_up");
+  if (features.stairsDown) markers.push("stairs_down");
 
   return markers;
 }
@@ -87,7 +112,8 @@ export function roomFeaturesToMarkers(
 export function buildTileFromRoom(
   room: Room,
   playerPos: { x: number; y: number },
-  visibility: TileVisibility
+  visibility: TileVisibility,
+  interior = false
 ): TileData {
   const isPlayer = room.x === playerPos.x && room.y === playerPos.y;
   const markers = roomFeaturesToMarkers(
@@ -114,7 +140,7 @@ export function buildTileFromRoom(
   return {
     x: room.x,
     y: room.y,
-    spriteId: roomTypeToSpriteId(room.type),
+    spriteId: roomTypeToSpriteId(room.type, interior),
     walkable: true,
     visibility,
     markers,

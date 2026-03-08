@@ -1042,6 +1042,7 @@ export default function PlayCharacterPage() {
   const isWorldCharacter = !!player?.worldId;
 
   // Build TileMapData from mapViewport for new-system characters
+  const isInBuilding = navigationLayer === "building";
   const tileMapData = useMemo<TileMapData | null>(() => {
     if (!isWorldCharacter || !mapViewport || !player) return null;
     const cells = mapViewport.cells;
@@ -1064,14 +1065,15 @@ export default function PlayCharacterPage() {
             buildTileFromRoom(
               cell.room,
               player.position,
-              visibility
+              visibility,
+              isInBuilding
             )
           );
         } else {
           row.push({
             x: cell.x,
             y: cell.y,
-            spriteId: "terrain_stone",
+            spriteId: isInBuilding ? "terrain_wall" : "terrain_stone",
             walkable: false,
             visibility: "hidden" as const,
             markers: [],
@@ -1081,7 +1083,7 @@ export default function PlayCharacterPage() {
       tiles.push(row);
     }
     return { width, height, tiles };
-  }, [isWorldCharacter, mapViewport, player]);
+  }, [isWorldCharacter, mapViewport, player, isInBuilding]);
 
   // TileMap click handler — translate tile click to directional move
   const handleTileMove = useCallback(
@@ -1105,7 +1107,16 @@ export default function PlayCharacterPage() {
     (_x: number, _y: number, tile: TileData) => {
       // Click on building entrance → future enterBuilding
       if (tile.markers.includes("entrance") && tile.buildingId) {
-        addToGameLog("Building entrances coming soon...");
+        addToGameLog("You see a building entrance. (Enter building coming soon)");
+        return;
+      }
+      // Stairs up/down in building → future changeFloor
+      if (tile.markers.includes("stairs_up")) {
+        addToGameLog("You see stairs leading up. (Floor navigation coming soon)");
+        return;
+      }
+      if (tile.markers.includes("stairs_down")) {
+        addToGameLog("You see stairs leading down. (Floor navigation coming soon)");
         return;
       }
       // Click on current tile → show room info
@@ -1161,7 +1172,7 @@ export default function PlayCharacterPage() {
           {/* ── Left panel (35%): Map + DPad — compact on mobile ── */}
           <div className="w-full md:w-[35%] shrink-0 md:shrink flex flex-row md:flex-col items-center justify-center md:justify-start md:border-r border-b md:border-b-0 border-terminal-border pb-2 md:pb-0 md:pr-4 gap-2 md:gap-4">
             <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
-              {isWorldCharacter ? "Area Map" : "Dungeon Map"}
+              {isWorldCharacter ? (isInBuilding ? "Building Interior" : "Area Map") : "Dungeon Map"}
             </div>
             <div className="max-h-[30vh] md:max-h-none overflow-hidden">
               {isWorldCharacter && tileMapData && player ? (
