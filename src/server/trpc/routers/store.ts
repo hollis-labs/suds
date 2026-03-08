@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import type { Theme } from "@/lib/constants";
@@ -79,6 +79,9 @@ function buildPlayer(
     companion: (character.companion as Player["companion"]) ?? null,
     buffs: (character.buffs as PlayerBuff[]) ?? [],
     worldId: character.worldId ?? null,
+    currentRegionId: character.currentRegionId ?? null,
+    currentAreaId: character.currentAreaId ?? null,
+    currentBuildingId: character.currentBuildingId ?? null,
   };
 }
 
@@ -103,6 +106,36 @@ async function getOwnedCharacter(
   return character;
 }
 
+/** Get room at position handling both shared and legacy rooms */
+async function getRoomAtForStore(
+  db: DbClient,
+  character: typeof characters.$inferSelect,
+  x: number,
+  y: number
+) {
+  // World character: check shared rooms first
+  if (character.worldId && character.currentAreaId) {
+    const conditions = [eq(rooms.x, x), eq(rooms.y, y)];
+    if (character.currentBuildingId) {
+      conditions.push(eq(rooms.buildingId, character.currentBuildingId));
+      if (character.currentFloor != null) {
+        conditions.push(eq(rooms.floor, character.currentFloor));
+      }
+    } else {
+      conditions.push(eq(rooms.areaId, character.currentAreaId));
+      conditions.push(isNull(rooms.buildingId));
+    }
+    const [sharedRoom] = await db.select().from(rooms).where(and(...conditions));
+    if (sharedRoom) return sharedRoom;
+  }
+  // Legacy fallback
+  const [room] = await db
+    .select()
+    .from(rooms)
+    .where(and(eq(rooms.characterId, character.id), eq(rooms.x, x), eq(rooms.y, y)));
+  return room ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -122,16 +155,7 @@ export const storeRouter = router({
       const stats = character.stats as Stats;
 
       // Get current room
-      const [currentRoom] = await ctx.db
-        .select()
-        .from(rooms)
-        .where(
-          and(
-            eq(rooms.characterId, character.id),
-            eq(rooms.x, position.x),
-            eq(rooms.y, position.y)
-          )
-        );
+      const currentRoom = await getRoomAtForStore(ctx.db, character, position.x, position.y);
 
       if (!currentRoom) {
         throw new TRPCError({
@@ -240,7 +264,8 @@ export const storeRouter = router({
         });
       }
 
-      if (storeRow.characterId !== character.id) {
+      // Legacy stores are per-character; shared stores have null characterId
+      if (storeRow.characterId && storeRow.characterId !== character.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "This store is not accessible",
@@ -387,16 +412,7 @@ export const storeRouter = router({
 
       // Verify player is in a store room
       const position = character.position as Position;
-      const [currentRoom] = await ctx.db
-        .select()
-        .from(rooms)
-        .where(
-          and(
-            eq(rooms.characterId, character.id),
-            eq(rooms.x, position.x),
-            eq(rooms.y, position.y)
-          )
-        );
+      const currentRoom = await getRoomAtForStore(ctx.db, character, position.x, position.y);
 
       if (!currentRoom || currentRoom.type !== "store") {
         throw new TRPCError({

@@ -229,11 +229,18 @@ export async function travelToRegion(db: DbClient, characterId: string, userId: 
     await markDiscovered(db, characterId, "area", defaultArea.id);
   }
 
-  // Update character position
+  // Update character position and current region/area
   const newPosition: Position = { x: 0, y: 0 };
   await db
     .update(characters)
-    .set({ position: newPosition, updatedAt: new Date() })
+    .set({
+      position: newPosition,
+      currentRegionId: regionId,
+      currentAreaId: defaultArea?.id ?? null,
+      currentBuildingId: null,
+      currentFloor: null,
+      updatedAt: new Date(),
+    })
     .where(eq(characters.id, characterId));
 
   return {
@@ -309,7 +316,13 @@ export async function travelToArea(db: DbClient, characterId: string, userId: st
 
   await db
     .update(characters)
-    .set({ position: newPosition, updatedAt: new Date() })
+    .set({
+      position: newPosition,
+      currentAreaId: areaId,
+      currentBuildingId: null,
+      currentFloor: null,
+      updatedAt: new Date(),
+    })
     .where(eq(characters.id, characterId));
 
   return {
@@ -346,7 +359,12 @@ export async function enterBuilding(db: DbClient, characterId: string, userId: s
 
   await db
     .update(characters)
-    .set({ position: newPosition, currentFloor: 0, updatedAt: new Date() })
+    .set({
+      position: newPosition,
+      currentBuildingId: buildingId,
+      currentFloor: 0,
+      updatedAt: new Date(),
+    })
     .where(eq(characters.id, characterId));
 
   return {
@@ -399,7 +417,12 @@ export async function exitBuilding(db: DbClient, characterId: string, userId: st
 
   await db
     .update(characters)
-    .set({ position: newPosition, currentFloor: null, updatedAt: new Date() })
+    .set({
+      position: newPosition,
+      currentBuildingId: null,
+      currentFloor: null,
+      updatedAt: new Date(),
+    })
     .where(eq(characters.id, characterId));
 
   return { position: newPosition };

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { characters, rooms, npcs } from "@/server/db/schema";
@@ -34,6 +34,29 @@ async function getOwnedCharacter(
   return character;
 }
 
+/** Get room at position handling both shared and legacy rooms */
+async function getRoomAtForNpc(
+  db: DbClient,
+  character: typeof characters.$inferSelect,
+  x: number,
+  y: number
+) {
+  if (character.worldId && character.currentAreaId) {
+    const conditions = [eq(rooms.x, x), eq(rooms.y, y)];
+    if (character.currentBuildingId) {
+      conditions.push(eq(rooms.buildingId, character.currentBuildingId));
+      if (character.currentFloor != null) conditions.push(eq(rooms.floor, character.currentFloor));
+    } else {
+      conditions.push(eq(rooms.areaId, character.currentAreaId));
+      conditions.push(isNull(rooms.buildingId));
+    }
+    const [sharedRoom] = await db.select().from(rooms).where(and(...conditions));
+    if (sharedRoom) return sharedRoom;
+  }
+  const [room] = await db.select().from(rooms).where(and(eq(rooms.characterId, character.id), eq(rooms.x, x), eq(rooms.y, y)));
+  return room ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -56,17 +79,8 @@ export const npcRouter = router({
       );
       const position = character.position as Position;
 
-      // Get current room
-      const [currentRoom] = await ctx.db
-        .select()
-        .from(rooms)
-        .where(
-          and(
-            eq(rooms.characterId, character.id),
-            eq(rooms.x, position.x),
-            eq(rooms.y, position.y)
-          )
-        );
+      // Get current room (handles shared + legacy)
+      const currentRoom = await getRoomAtForNpc(ctx.db, character, position.x, position.y);
 
       if (!currentRoom) {
         throw new TRPCError({

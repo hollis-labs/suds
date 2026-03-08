@@ -171,6 +171,9 @@ export const characters = pgTable("characters", {
   companion: jsonb("companion"), // NPC adventurer companion, nullable
   buffs: jsonb("buffs").default([]).notNull(), // active buffs (shield, blessing)
   worldId: uuid("world_id").references(() => worlds.id), // nullable for legacy characters
+  currentRegionId: uuid("current_region_id").references(() => regions.id), // nullable
+  currentAreaId: uuid("current_area_id").references(() => areas.id), // nullable
+  currentBuildingId: uuid("current_building_id").references(() => buildings.id), // nullable
   currentFloor: integer("current_floor"), // nullable — set when inside a building
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
@@ -201,8 +204,7 @@ export const rooms = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     characterId: uuid("character_id")
-      .notNull()
-      .references(() => characters.id, { onDelete: "cascade" }),
+      .references(() => characters.id, { onDelete: "cascade" }), // nullable for shared rooms
     x: integer("x").notNull(),
     y: integer("y").notNull(),
     name: text("name").notNull(),
@@ -224,7 +226,12 @@ export const rooms = pgTable(
     floor: integer("floor"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   },
-  (table) => [unique().on(table.characterId, table.x, table.y)]
+  (table) => [
+    // Legacy rooms: unique per character + position
+    unique("rooms_character_position").on(table.characterId, table.x, table.y),
+    // Shared rooms: unique per area/building/floor + position
+    unique("rooms_shared_position").on(table.areaId, table.buildingId, table.floor, table.x, table.y),
+  ]
 );
 
 // ─── Fog of War ─────────────────────────────────────────────────────────────

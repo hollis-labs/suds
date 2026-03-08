@@ -80,6 +80,9 @@ export interface Player {
   companion?: Companion | null;
   buffs?: PlayerBuff[];
   worldId?: string | null;
+  currentRegionId?: string | null;
+  currentAreaId?: string | null;
+  currentBuildingId?: string | null;
 }
 
 // Room

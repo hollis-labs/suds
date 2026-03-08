@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import {
@@ -87,6 +87,9 @@ function buildPlayer(
     companion: (character.companion as Player["companion"]) ?? null,
     buffs: (character.buffs as PlayerBuff[]) ?? [],
     worldId: character.worldId ?? null,
+    currentRegionId: character.currentRegionId ?? null,
+    currentAreaId: character.currentAreaId ?? null,
+    currentBuildingId: character.currentBuildingId ?? null,
   };
 }
 
@@ -174,13 +177,38 @@ async function getOwnedCharacter(
   return character;
 }
 
-/** Get room at position */
-async function getRoomAt(db: DbClient, characterId: string, x: number, y: number) {
+/** Get room at position — handles shared (world) and legacy (per-character) rooms */
+async function getRoomAt(
+  db: DbClient,
+  characterId: string,
+  x: number,
+  y: number,
+  context?: { areaId?: string | null; buildingId?: string | null; floor?: number | null }
+) {
+  if (context?.areaId) {
+    const conditions = [eq(rooms.x, x), eq(rooms.y, y)];
+    if (context.buildingId) {
+      conditions.push(eq(rooms.buildingId, context.buildingId));
+      if (context.floor != null) conditions.push(eq(rooms.floor, context.floor));
+    } else {
+      conditions.push(eq(rooms.areaId, context.areaId));
+      conditions.push(isNull(rooms.buildingId));
+    }
+    const [sharedRoom] = await db.select().from(rooms).where(and(...conditions));
+    if (sharedRoom) return sharedRoom;
+  }
   const [room] = await db
     .select()
     .from(rooms)
     .where(and(eq(rooms.characterId, characterId), eq(rooms.x, x), eq(rooms.y, y)));
   return room ?? null;
+}
+
+/** Build hierarchy context for room lookups from a character record */
+function hierContextFor(character: typeof characters.$inferSelect) {
+  return character.worldId
+    ? { areaId: character.currentAreaId, buildingId: character.currentBuildingId, floor: character.currentFloor }
+    : undefined;
 }
 
 /** Build typed Room from a DB row */
@@ -212,23 +240,34 @@ function buildRoomMap(rows: (typeof rooms.$inferSelect)[]): Map<string, RoomType
   return map;
 }
 
+/** Get all rooms visible to a character (shared or legacy) */
+async function getCharacterRooms(db: DbClient, character: typeof characters.$inferSelect) {
+  if (character.worldId && character.currentAreaId) {
+    const conditions = character.currentBuildingId
+      ? [
+          eq(rooms.buildingId, character.currentBuildingId),
+          ...(character.currentFloor != null ? [eq(rooms.floor, character.currentFloor)] : []),
+        ]
+      : [eq(rooms.areaId, character.currentAreaId), isNull(rooms.buildingId)];
+    return db.select().from(rooms).where(and(...conditions));
+  }
+  return db.select().from(rooms).where(eq(rooms.characterId, character.id));
+}
+
 /** Get full room + mapViewport data for a flee destination */
 async function getFleeRoomData(
   db: DbClient,
-  characterId: string,
+  character: typeof characters.$inferSelect,
   x: number,
   y: number,
 ): Promise<{ room: RoomType; mapViewport: MapViewport }> {
-  const roomRow = await getRoomAt(db, characterId, x, y);
+  const roomRow = await getRoomAt(db, character.id, x, y, hierContextFor(character));
   if (!roomRow) {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Flee destination room not found" });
   }
   const room = buildRoom(roomRow);
 
-  const allRooms = await db
-    .select()
-    .from(rooms)
-    .where(eq(rooms.characterId, characterId));
+  const allRooms = await getCharacterRooms(db, character);
 
   const mapViewport = computeMapViewport({ x, y }, buildRoomMap(allRooms));
 
@@ -545,16 +584,7 @@ export const combatRouter = router({
 
       // Get current room
       const position = character.position as Position;
-      const [currentRoom] = await ctx.db
-        .select()
-        .from(rooms)
-        .where(
-          and(
-            eq(rooms.characterId, character.id),
-            eq(rooms.x, position.x),
-            eq(rooms.y, position.y)
-          )
-        );
+      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y, hierContextFor(character));
 
       if (!currentRoom) {
         throw new TRPCError({
@@ -892,16 +922,8 @@ export const combatRouter = router({
           }
 
           // Clear encounter from room
-          const [currentRoom] = await ctx.db
-            .select()
-            .from(rooms)
-            .where(
-              and(
-                eq(rooms.characterId, character.id),
-                eq(rooms.x, (character.position as Position).x),
-                eq(rooms.y, (character.position as Position).y)
-              )
-            );
+          const pos = character.position as Position;
+          const currentRoom = await getRoomAt(ctx.db, character.id, pos.x, pos.y, hierContextFor(character));
 
           if (currentRoom) {
             await ctx.db
@@ -961,14 +983,15 @@ export const combatRouter = router({
         const fled = turnResult.state.round === -1;
         if (fled) {
           const position = character.position as Position;
-          const currentRoomRow = await getRoomAt(ctx.db, character.id, position.x, position.y);
+          const hCtx = hierContextFor(character);
+          const currentRoomRow = await getRoomAt(ctx.db, character.id, position.x, position.y, hCtx);
           const exits = currentRoomRow?.exits ?? [];
 
           // Filter exits to only those with existing rooms in DB
           const validExits: string[] = [];
           for (const exit of exits) {
             const off = directionToOffset(exit as "north" | "south" | "east" | "west");
-            const room = await getRoomAt(ctx.db, character.id, position.x + off.x, position.y + off.y);
+            const room = await getRoomAt(ctx.db, character.id, position.x + off.x, position.y + off.y, hCtx);
             if (room) validExits.push(exit);
           }
 
@@ -1062,7 +1085,7 @@ export const combatRouter = router({
               const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
 
               // Store the encounter on the new room so combat.start picks it up
-              const newRoomRow = await getRoomAt(ctx.db, character.id, newX, newY);
+              const newRoomRow = await getRoomAt(ctx.db, character.id, newX, newY, hCtx);
               if (newRoomRow) {
                 await ctx.db
                   .update(rooms)
@@ -1074,7 +1097,7 @@ export const combatRouter = router({
               }
 
               // Get full room data for client transition
-              const fleeRoomData = await getFleeRoomData(ctx.db, character.id, newX, newY);
+              const fleeRoomData = await getFleeRoomData(ctx.db, character, newX, newY);
 
               logGameEvent({
                 characterId: character.id,
@@ -1143,7 +1166,7 @@ export const combatRouter = router({
             const updatedPlayer = buildPlayer(updatedChar!, updatedItems);
 
             // Get full room data for client transition
-            const fleeRoomData = await getFleeRoomData(ctx.db, character.id, newX, newY);
+            const fleeRoomData = await getFleeRoomData(ctx.db, character, newX, newY);
 
             // Check for encounter in new room
             let newEncounter = false;
@@ -1317,16 +1340,13 @@ export const combatRouter = router({
       const player = buildPlayer(updatedChar!, updatedItems);
 
       // Fetch respawn room
-      const [respawnRoom] = await ctx.db
-        .select()
-        .from(rooms)
-        .where(
-          and(
-            eq(rooms.characterId, input.characterId),
-            eq(rooms.x, deathResult.respawnPosition.x),
-            eq(rooms.y, deathResult.respawnPosition.y)
-          )
-        );
+      const respawnRoom = await getRoomAt(
+        ctx.db,
+        input.characterId,
+        deathResult.respawnPosition.x,
+        deathResult.respawnPosition.y,
+        hierContextFor(updatedChar!)
+      );
 
       if (!respawnRoom) {
         throw new TRPCError({

@@ -2,9 +2,10 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
-import { characters, inventoryItems, rooms } from "@/server/db/schema";
+import { characters, inventoryItems, rooms, fogOfWar, worlds, regions, areas } from "@/server/db/schema";
 import { createNewCharacter } from "@/server/game/player";
 import { generateStartingRoom } from "@/server/game/world";
+import { seedStarterWorld } from "@/server/game/world-seed";
 import { CLASS_DEFINITIONS, THEMES } from "@/lib/constants";
 import type { CharacterClass, Theme } from "@/lib/constants";
 import type { Player, GameItem } from "@/lib/types";
@@ -97,6 +98,9 @@ export const characterRouter = router({
         baseLevel: character.baseLevel,
         buffs: (character.buffs as Player["buffs"]) ?? [],
         worldId: character.worldId ?? null,
+        currentRegionId: character.currentRegionId ?? null,
+        currentAreaId: character.currentAreaId ?? null,
+        currentBuildingId: character.currentBuildingId ?? null,
       };
 
       return player;
@@ -132,7 +136,34 @@ export const characterRouter = router({
       const { character: charData, inventoryItems: startingItems } =
         createNewCharacter(input.name, characterClass, theme);
 
-      // Insert character
+      // ── Look up or seed the shared world ────────────────────────────────────
+      let world = await ctx.db.query.worlds.findFirst({
+        where: (w, { eq: weq }) => weq(w.name, "Aethermoor"),
+      });
+      if (!world) {
+        world = await seedStarterWorld();
+      }
+
+      // Find starting region and area
+      const worldRegions = await ctx.db
+        .select()
+        .from(regions)
+        .where(eq(regions.worldId, world.id));
+      const startingRegion = worldRegions[0]!;
+
+      const regionAreas = await ctx.db
+        .select()
+        .from(areas)
+        .where(eq(areas.regionId, startingRegion.id));
+      // Pick first town area, or first area
+      const startingArea =
+        regionAreas.find((a) => a.areaType === "town") ?? regionAreas[0]!;
+
+      // Starting position: center of the area grid
+      const startX = Math.floor(startingArea.gridWidth / 2);
+      const startY = Math.floor(startingArea.gridHeight / 2);
+
+      // Insert character with worldId and starting position
       const [newCharacter] = await ctx.db
         .insert(characters)
         .values({
@@ -150,11 +181,14 @@ export const characterRouter = router({
           gold: charData.gold,
           stats: charData.stats,
           ac: charData.ac,
-          position: charData.position,
+          position: { x: startX, y: startY },
           equipment: charData.equipment,
           abilities: charData.abilities,
-          lastSafe: charData.lastSafe,
+          lastSafe: { x: startX, y: startY },
           baseLevel: charData.baseLevel,
+          worldId: world.id,
+          currentRegionId: startingRegion.id,
+          currentAreaId: startingArea.id,
         })
         .returning();
 
@@ -174,24 +208,56 @@ export const characterRouter = router({
         );
       }
 
-      // Generate and insert starting room
+      // ── Create initial fog_of_war entries ───────────────────────────────────
+      await ctx.db.insert(fogOfWar).values([
+        {
+          characterId: newCharacter!.id,
+          entityType: "region",
+          entityId: startingRegion.id,
+        },
+        {
+          characterId: newCharacter!.id,
+          entityType: "area",
+          entityId: startingArea.id,
+        },
+      ]);
+
+      // ── Generate starting room with hierarchy fields ────────────────────────
       const roomData = generateStartingRoom(newCharacter!.id, theme);
-      await ctx.db.insert(rooms).values({
-        characterId: roomData.characterId,
-        x: roomData.x,
-        y: roomData.y,
-        name: roomData.name,
-        type: roomData.type,
-        description: roomData.description,
-        exits: roomData.exits,
-        depth: roomData.depth,
-        hasEncounter: roomData.hasEncounter,
-        encounterData: roomData.encounterData,
-        hasLoot: roomData.hasLoot,
-        lootData: roomData.lootData,
-        visited: roomData.visited,
-        roomFeatures: roomData.roomFeatures,
-      });
+
+      // Check if a shared room already exists at this position in this area
+      const [existingSharedRoom] = await ctx.db
+        .select()
+        .from(rooms)
+        .where(
+          and(
+            eq(rooms.areaId, startingArea.id),
+            eq(rooms.x, startX),
+            eq(rooms.y, startY)
+          )
+        );
+
+      if (!existingSharedRoom) {
+        await ctx.db.insert(rooms).values({
+          characterId: null, // shared room
+          x: startX,
+          y: startY,
+          name: roomData.name,
+          type: roomData.type,
+          description: roomData.description,
+          exits: roomData.exits,
+          depth: roomData.depth,
+          hasEncounter: roomData.hasEncounter,
+          encounterData: roomData.encounterData,
+          hasLoot: roomData.hasLoot,
+          lootData: roomData.lootData,
+          visited: roomData.visited,
+          roomFeatures: roomData.roomFeatures,
+          worldId: world.id,
+          regionId: startingRegion.id,
+          areaId: startingArea.id,
+        });
+      }
 
       return newCharacter!;
     }),

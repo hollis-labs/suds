@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
-import { characters, rooms, inventoryItems } from "@/server/db/schema";
+import { characters, rooms, inventoryItems, areas } from "@/server/db/schema";
 import { generateRoom } from "@/server/game/world";
 import { generateEncounter } from "@/server/game/encounters";
 import { computeMapViewport, directionToOffset, oppositeDirection, roomKey } from "@/server/game/map";
@@ -88,6 +88,9 @@ function buildPlayer(
     companion: (character.companion as Player["companion"]) ?? null,
     buffs: (character.buffs as PlayerBuff[]) ?? [],
     worldId: character.worldId ?? null,
+    currentRegionId: character.currentRegionId ?? null,
+    currentAreaId: character.currentAreaId ?? null,
+    currentBuildingId: character.currentBuildingId ?? null,
   };
 }
 
@@ -134,13 +137,43 @@ async function getOwnedCharacter(
   return character;
 }
 
-/** Get the room at a given position for a character */
+/** Get the room at a given position for a character.
+ *  For world characters: looks up shared rooms by area/building context.
+ *  For legacy characters: looks up by characterId + position.
+ */
 async function getRoomAt(
   db: DbClient,
   characterId: string,
   x: number,
-  y: number
+  y: number,
+  context?: { areaId?: string | null; buildingId?: string | null; floor?: number | null }
 ) {
+  // If we have hierarchy context, look for shared rooms first
+  if (context?.areaId) {
+    const conditions = [
+      eq(rooms.x, x),
+      eq(rooms.y, y),
+    ];
+
+    if (context.buildingId) {
+      conditions.push(eq(rooms.buildingId, context.buildingId));
+      if (context.floor != null) {
+        conditions.push(eq(rooms.floor, context.floor));
+      }
+    } else {
+      conditions.push(eq(rooms.areaId, context.areaId));
+      conditions.push(isNull(rooms.buildingId));
+    }
+
+    const [sharedRoom] = await db
+      .select()
+      .from(rooms)
+      .where(and(...conditions));
+
+    if (sharedRoom) return sharedRoom;
+  }
+
+  // Fallback: legacy room lookup by characterId
   const [room] = await db
     .select()
     .from(rooms)
@@ -148,6 +181,44 @@ async function getRoomAt(
       and(eq(rooms.characterId, characterId), eq(rooms.x, x), eq(rooms.y, y))
     );
   return room ?? null;
+}
+
+/** Build hierarchy context for room lookups from a character record */
+function hierContextFor(character: typeof characters.$inferSelect) {
+  return character.worldId
+    ? {
+        areaId: character.currentAreaId,
+        buildingId: character.currentBuildingId,
+        floor: character.currentFloor,
+      }
+    : undefined;
+}
+
+/** Get all rooms visible to a character (shared or legacy) */
+async function getCharacterRooms(db: DbClient, character: typeof characters.$inferSelect) {
+  if (character.worldId && character.currentAreaId) {
+    // World character: get shared rooms in current area/building
+    const conditions = character.currentBuildingId
+      ? [
+          eq(rooms.buildingId, character.currentBuildingId),
+          ...(character.currentFloor != null ? [eq(rooms.floor, character.currentFloor)] : []),
+        ]
+      : [
+          eq(rooms.areaId, character.currentAreaId),
+          isNull(rooms.buildingId),
+        ];
+
+    return db
+      .select()
+      .from(rooms)
+      .where(and(...conditions));
+  }
+
+  // Legacy character: per-character rooms
+  return db
+    .select()
+    .from(rooms)
+    .where(eq(rooms.characterId, character.id));
 }
 
 /** Convert an array of DB room rows into a Map<string, Room> keyed by "x,y" */
@@ -224,8 +295,11 @@ export const gameRouter = router({
       const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
       const position = character.position as Position;
 
+      // Build hierarchy context for world characters
+      const hierCtx = hierContextFor(character);
+
       // Get current room
-      const currentRoomRow = await getRoomAt(ctx.db, character.id, position.x, position.y);
+      const currentRoomRow = await getRoomAt(ctx.db, character.id, position.x, position.y, hierCtx);
       if (!currentRoomRow) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
       }
@@ -245,7 +319,7 @@ export const gameRouter = router({
       const targetDepth = Math.abs(targetX) + Math.abs(targetY);
 
       // Check if target room exists
-      let targetRoomRow = await getRoomAt(ctx.db, character.id, targetX, targetY);
+      let targetRoomRow = await getRoomAt(ctx.db, character.id, targetX, targetY, hierCtx);
 
       if (!targetRoomRow) {
         // Generate new room
@@ -282,37 +356,45 @@ export const gameRouter = router({
         newRoom.description = aiDescription as string;
 
         // Insert into DB — handle race condition from rapid key presses
-        // Include hierarchy columns for world characters
-        const hierarchyFields = character.worldId
-          ? { worldId: character.worldId }
-          : {};
+        // World characters get shared rooms (characterId = null, hierarchy set)
+        // Legacy characters get per-character rooms
+        const isWorldChar = !!character.worldId;
+        const roomInsertValues = {
+          characterId: isWorldChar ? null : character.id,
+          x: targetX,
+          y: targetY,
+          name: newRoom.name,
+          type: newRoom.type,
+          description: newRoom.description,
+          exits: newRoom.exits,
+          depth: newRoom.depth,
+          hasEncounter: newRoom.hasEncounter,
+          encounterData,
+          hasLoot: newRoom.hasLoot,
+          lootData,
+          visited: true,
+          roomFeatures: newRoom.roomFeatures,
+          ...(isWorldChar
+            ? {
+                worldId: character.worldId,
+                regionId: character.currentRegionId,
+                areaId: character.currentAreaId,
+                buildingId: character.currentBuildingId,
+                floor: character.currentFloor,
+              }
+            : {}),
+        };
         try {
           const [inserted] = await ctx.db
             .insert(rooms)
-            .values({
-              characterId: character.id,
-              x: targetX,
-              y: targetY,
-              name: newRoom.name,
-              type: newRoom.type,
-              description: newRoom.description,
-              exits: newRoom.exits,
-              depth: newRoom.depth,
-              hasEncounter: newRoom.hasEncounter,
-              encounterData,
-              hasLoot: newRoom.hasLoot,
-              lootData,
-              visited: true,
-              roomFeatures: newRoom.roomFeatures,
-              ...hierarchyFields,
-            })
+            .values(roomInsertValues)
             .returning();
 
           targetRoomRow = inserted!;
         } catch {
           // Likely a unique constraint violation from concurrent move
           // Re-fetch the room that was created by the other request
-          targetRoomRow = await getRoomAt(ctx.db, character.id, targetX, targetY);
+          targetRoomRow = await getRoomAt(ctx.db, character.id, targetX, targetY, hierCtx);
           if (!targetRoomRow) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
@@ -362,10 +444,7 @@ export const gameRouter = router({
       }
 
       // Compute map viewport
-      const allRooms = await ctx.db
-        .select()
-        .from(rooms)
-        .where(eq(rooms.characterId, character.id));
+      const allRooms = await getCharacterRooms(ctx.db, character);
 
       const mapViewport = computeMapViewport(
         newPosition,
@@ -396,10 +475,7 @@ export const gameRouter = router({
       const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
       const position = character.position as Position;
 
-      const allRooms = await ctx.db
-        .select()
-        .from(rooms)
-        .where(eq(rooms.characterId, character.id));
+      const allRooms = await getCharacterRooms(ctx.db, character);
 
       const mapViewport = computeMapViewport(
         position,
@@ -418,7 +494,7 @@ export const gameRouter = router({
       const position = character.position as Position;
       const stats = character.stats as Stats;
 
-      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y);
+      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y, hierContextFor(character));
       if (!currentRoom) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
       }
@@ -567,7 +643,7 @@ export const gameRouter = router({
       const position = character.position as Position;
       const stats = character.stats as Stats;
 
-      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y);
+      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y, hierContextFor(character));
       if (!currentRoom) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
       }
@@ -773,7 +849,7 @@ export const gameRouter = router({
       const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
       const position = character.position as Position;
 
-      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y);
+      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y, hierContextFor(character));
       if (!currentRoom) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
       }
@@ -852,7 +928,7 @@ export const gameRouter = router({
       const character = await getOwnedCharacter(ctx.db, input.characterId, userId);
       const position = character.position as Position;
 
-      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y);
+      const currentRoom = await getRoomAt(ctx.db, character.id, position.x, position.y, hierContextFor(character));
       if (!currentRoom) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Current room not found" });
       }
@@ -1010,7 +1086,7 @@ export const gameRouter = router({
         .where(eq(characters.id, character.id));
 
       // Get base room
-      const baseRoom = await getRoomAt(ctx.db, character.id, 0, 0);
+      const baseRoom = await getRoomAt(ctx.db, character.id, 0, 0, hierContextFor(character));
       if (!baseRoom) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Base room not found" });
       }
@@ -1056,7 +1132,7 @@ export const gameRouter = router({
         .where(eq(characters.id, character.id));
 
       // Get base room
-      const baseRoom = await getRoomAt(ctx.db, character.id, 0, 0);
+      const baseRoom = await getRoomAt(ctx.db, character.id, 0, 0, hierContextFor(character));
       if (!baseRoom) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Base room not found" });
       }
