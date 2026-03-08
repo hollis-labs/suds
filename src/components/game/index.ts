@@ -18,3 +18,4 @@ export { PartyPanel } from "./PartyPanel";
 export { NewsPanel } from "./NewsPanel";
 export { AboutPanel } from "./AboutPanel";
 export { WorldMapView } from "./WorldMapView";
+export { RegionMapView } from "./RegionMapView";
