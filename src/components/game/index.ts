@@ -22,3 +22,4 @@ export { RegionMapView } from "./RegionMapView";
 export { RoomDetailDrawer } from "./RoomDetailDrawer";
 export { DungeonMap } from "./DungeonMap";
 export { MiniMap } from "./MiniMap";
+export { RoomInfoPanel } from "./RoomInfoPanel";

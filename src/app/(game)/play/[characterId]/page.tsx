@@ -28,6 +28,7 @@ import {
   RoomDetailDrawer,
   DungeonMap,
   MiniMap,
+  RoomInfoPanel,
 } from "@/components/game";
 import { TileMap } from "@/components/pixel/TileMap";
 import { Breadcrumb } from "@/components/pixel/Breadcrumb";
@@ -1720,11 +1721,11 @@ export default function PlayCharacterPage() {
               <>
                 {/* Room info + game log */}
                 <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
-                  <TextPanel
+                  <RoomInfoPanel
                     room={currentRoom}
                     gameLog={gameLog}
-                    isLoading={moveMutation.isPending}
-                    isPixelMode
+                    onMove={handleDPadMove}
+                    onAction={handleAction}
                   />
                 </div>
 
