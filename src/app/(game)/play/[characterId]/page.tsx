@@ -1445,7 +1445,7 @@ export default function PlayCharacterPage() {
             <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
               {isWorldCharacter ? (isInBuilding ? "Building Interior" : "Area Map") : "Dungeon Map"}
             </div>
-            <div className={cn("max-h-[40vh] md:max-h-none overflow-hidden w-full", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+            <div className={cn("overflow-hidden w-full", inCombat ? "max-h-[20vh]" : "max-h-[40vh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {isWorldCharacter && tileMapData && player ? (
                 <TileMap
                   mapData={tileMapData}

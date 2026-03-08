@@ -15,7 +15,8 @@ export type TileMarker =
   | "campfire"
   | "other_player"
   | "stairs_up"
-  | "stairs_down";
+  | "stairs_down"
+  | "boss";
 
 export type TileVisibility = "hidden" | "discovered" | "visible";
 
@@ -50,6 +51,7 @@ export const MARKER_SPRITE: Record<TileMarker, SpriteId> = {
   other_player: "marker_other_player",
   stairs_up: "terrain_stairs_up",
   stairs_down: "terrain_stairs_down",
+  boss: "ui_skull",
 };
 
 // --- Mapping functions ---
@@ -126,6 +128,10 @@ export function buildTileFromRoom(
     markers.push("player");
   }
 
+  // Boss rooms get skull marker
+  if (room.type === "boss_room") {
+    markers.push("boss");
+  }
   // Store/NPC rooms get special markers
   if (room.type === "store" && !markers.includes("entrance")) {
     markers.push("entrance");
