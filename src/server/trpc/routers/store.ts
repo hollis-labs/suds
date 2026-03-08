@@ -172,16 +172,38 @@ export const storeRouter = router({
       }
 
       // Check for existing store at this position
-      let [storeRow] = await ctx.db
-        .select()
-        .from(stores)
-        .where(
-          and(
-            eq(stores.characterId, character.id),
-            eq(stores.roomX, position.x),
-            eq(stores.roomY, position.y)
-          )
-        );
+      // World characters: look for shared store by buildingId first
+      const isWorldChar = !!character.worldId;
+      let storeRow: typeof stores.$inferSelect | undefined;
+
+      if (isWorldChar && character.currentBuildingId) {
+        const [shared] = await ctx.db
+          .select()
+          .from(stores)
+          .where(
+            and(
+              eq(stores.buildingId, character.currentBuildingId),
+              eq(stores.roomX, position.x),
+              eq(stores.roomY, position.y)
+            )
+          );
+        storeRow = shared;
+      }
+
+      // Fallback: legacy lookup
+      if (!storeRow) {
+        const [legacy] = await ctx.db
+          .select()
+          .from(stores)
+          .where(
+            and(
+              eq(stores.characterId, character.id),
+              eq(stores.roomX, position.x),
+              eq(stores.roomY, position.y)
+            )
+          );
+        storeRow = legacy;
+      }
 
       // Generate store if none exists
       if (!storeRow) {
@@ -195,15 +217,37 @@ export const storeRouter = router({
         const [inserted] = await ctx.db
           .insert(stores)
           .values({
-            characterId: character.id,
+            characterId: isWorldChar ? null : character.id,
             roomX: position.x,
             roomY: position.y,
             name: generated.name,
             inventory: generated.localInventory,
+            buildingId: isWorldChar ? character.currentBuildingId : null,
           })
           .returning();
 
         storeRow = inserted!;
+      }
+
+      // Restock if inventory is low (< 3 items) for shared stores
+      if (isWorldChar && storeRow) {
+        const inv = storeRow.inventory as StoreItem[];
+        const restockAge = storeRow.restockedAt
+          ? Date.now() - new Date(storeRow.restockedAt).getTime()
+          : Infinity;
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        if (inv.length < 3 || restockAge > oneDayMs) {
+          const depth = Math.abs(position.x) + Math.abs(position.y);
+          const freshStore = generateStore(character.level, depth, character.theme as Theme);
+          // Merge: keep existing items, add new ones up to a reasonable limit
+          const merged = [...inv, ...freshStore.localInventory].slice(0, 12);
+          await ctx.db
+            .update(stores)
+            .set({ inventory: merged, restockedAt: new Date() })
+            .where(eq(stores.id, storeRow.id));
+          storeRow = { ...storeRow, inventory: merged as unknown as typeof storeRow.inventory };
+        }
       }
 
       // Get marketplace items

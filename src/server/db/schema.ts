@@ -257,15 +257,21 @@ export const stores = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     characterId: uuid("character_id")
-      .notNull()
-      .references(() => characters.id, { onDelete: "cascade" }),
+      .references(() => characters.id, { onDelete: "cascade" }), // nullable for shared stores
     roomX: integer("room_x").notNull(),
     roomY: integer("room_y").notNull(),
     name: text("name").notNull(),
     inventory: jsonb("inventory").notNull(),
+    buildingId: uuid("building_id").references(() => buildings.id), // nullable — set for shared stores
+    restockedAt: timestamp("restocked_at", { mode: "date" }).defaultNow(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   },
-  (table) => [unique().on(table.characterId, table.roomX, table.roomY)]
+  (table) => [
+    // Legacy stores: unique per character + position
+    unique("stores_character_position").on(table.characterId, table.roomX, table.roomY),
+    // Shared stores: unique per building + position
+    unique("stores_building_position").on(table.buildingId, table.roomX, table.roomY),
+  ]
 );
 
 // ─── Marketplace Items ───────────────────────────────────────────────────────
@@ -282,14 +288,15 @@ export const marketplaceItems = pgTable("marketplace_items", {
 export const npcs = pgTable("npcs", {
   id: uuid("id").defaultRandom().primaryKey(),
   characterId: uuid("character_id")
-    .notNull()
-    .references(() => characters.id, { onDelete: "cascade" }),
+    .references(() => characters.id, { onDelete: "cascade" }), // nullable for shared NPCs
   roomX: integer("room_x").notNull(),
   roomY: integer("room_y").notNull(),
   name: text("name").notNull(),
   description: text("description"),
   dialogue: jsonb("dialogue").notNull(),
   questId: uuid("quest_id"),
+  buildingId: uuid("building_id").references(() => buildings.id), // nullable — set for shared NPCs
+  areaId: uuid("area_id").references(() => areas.id), // nullable — set for shared NPCs
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 

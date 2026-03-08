@@ -97,16 +97,52 @@ export const npcRouter = router({
       }
 
       // Check for existing NPC at this position
-      let [npcRow] = await ctx.db
-        .select()
-        .from(npcs)
-        .where(
-          and(
-            eq(npcs.characterId, character.id),
-            eq(npcs.roomX, position.x),
-            eq(npcs.roomY, position.y)
-          )
-        );
+      // World characters: look for shared NPC by buildingId/areaId first
+      const isWorldChar = !!character.worldId;
+      let npcRow: typeof npcs.$inferSelect | undefined;
+
+      if (isWorldChar) {
+        if (character.currentBuildingId) {
+          const [shared] = await ctx.db
+            .select()
+            .from(npcs)
+            .where(
+              and(
+                eq(npcs.buildingId, character.currentBuildingId),
+                eq(npcs.roomX, position.x),
+                eq(npcs.roomY, position.y)
+              )
+            );
+          npcRow = shared;
+        } else if (character.currentAreaId) {
+          const [shared] = await ctx.db
+            .select()
+            .from(npcs)
+            .where(
+              and(
+                eq(npcs.areaId, character.currentAreaId),
+                eq(npcs.roomX, position.x),
+                eq(npcs.roomY, position.y)
+              )
+            );
+          npcRow = shared;
+        }
+      }
+
+      // Fallback: legacy lookup
+      if (!npcRow) {
+        const [legacy] = await ctx.db
+          .select()
+          .from(npcs)
+          .where(
+            and(
+              eq(npcs.characterId, character.id),
+              eq(npcs.roomX, position.x),
+              eq(npcs.roomY, position.y)
+            )
+          );
+        npcRow = legacy;
+      }
 
       // Generate NPC if none exists
       if (!npcRow) {
@@ -126,12 +162,14 @@ export const npcRouter = router({
         const [inserted] = await ctx.db
           .insert(npcs)
           .values({
-            characterId: character.id,
+            characterId: isWorldChar ? null : character.id,
             roomX: position.x,
             roomY: position.y,
             name: generated.name,
             description: generated.description,
             dialogue: generated.dialogue,
+            buildingId: isWorldChar ? character.currentBuildingId : null,
+            areaId: isWorldChar ? character.currentAreaId : null,
           })
           .returning();
 
