@@ -1116,6 +1116,39 @@ export default function PlayCharacterPage() {
       if (e.ctrlKey || e.altKey) return;
       if (e.key === "Meta" || e.key === "Control" || e.key === "Alt" || e.key === "Shift") return;
 
+      // ── Escape: close drawer or go back one layer ──
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (drawerOpen) {
+          setDrawerOpen(false);
+        } else if (isWorldCharacterEarly) {
+          if (navigationLayer === "building") {
+            setNavigationLayer("area");
+            setScreen("exploring");
+          } else if (navigationLayer === "area") {
+            setNavigationLayer("region");
+            setScreen("region_map");
+          } else if (navigationLayer === "region") {
+            setNavigationLayer("world");
+            setScreen("world_map");
+          }
+        }
+        return;
+      }
+
+      // ── M: toggle world map (world characters only) ──
+      if ((e.key === "m" || e.key === "M") && isWorldCharacterEarly && screen !== "combat") {
+        e.preventDefault();
+        if (screen === "world_map") {
+          setScreen("exploring");
+          setNavigationLayer("area");
+        } else {
+          setScreen("world_map");
+          setNavigationLayer("world");
+        }
+        return;
+      }
+
       // ── Exploring keys (backup for window capture listener) ──
       if (screen === "exploring") {
         const action = EXPLORING_KEY_MAP[e.key];
@@ -1134,7 +1167,7 @@ export default function PlayCharacterPage() {
         }
       }
     },
-    [screen, handleAction, handleRespawn]
+    [screen, handleAction, handleRespawn, drawerOpen, isWorldCharacterEarly, navigationLayer, setDrawerOpen, setNavigationLayer, setScreen]
   );
 
   // ── Loading state ──
@@ -1391,7 +1424,7 @@ export default function PlayCharacterPage() {
 
   return (
     <div
-      className="h-screen w-screen overflow-hidden outline-none"
+      className="h-screen w-screen overflow-hidden outline-none flex justify-center"
       tabIndex={-1}
       ref={rootRef}
       onKeyDown={handleRootKeyDown}
@@ -1399,6 +1432,7 @@ export default function PlayCharacterPage() {
       // eslint-disable-next-line jsx-a11y/no-autofocus
       autoFocus
     >
+    <div className="w-full max-w-[1400px] h-full">
       <TerminalHUD
         className="h-full"
         topBar={<StatusBar player={player} />}
@@ -1712,6 +1746,7 @@ export default function PlayCharacterPage() {
 
       {/* ── Help Modal ── */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+    </div>
     </div>
   );
 }
