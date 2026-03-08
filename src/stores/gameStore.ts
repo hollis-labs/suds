@@ -10,6 +10,15 @@ import type {
   NavigationLayer,
 } from "@/lib/types";
 
+/** Cached names for breadcrumb navigation */
+export interface NavigationNames {
+  worldName?: string;
+  regionName?: string;
+  areaName?: string;
+  buildingName?: string;
+  floor?: number;
+}
+
 interface GameActions {
   setPlayer: (player: Player) => void;
   setCurrentRoom: (room: Room) => void;
@@ -22,10 +31,11 @@ interface GameActions {
   setScreen: (screen: GameState["screen"]) => void;
   setLoading: (loading: boolean) => void;
   setNavigationLayer: (layer: NavigationLayer) => void;
+  setNavigationNames: (names: Partial<NavigationNames>) => void;
   reset: () => void;
 }
 
-const initialState: GameState & { navigationLayer: NavigationLayer } = {
+const initialState: GameState & { navigationLayer: NavigationLayer; navigationNames: NavigationNames } = {
   player: null,
   currentRoom: null,
   mapViewport: null,
@@ -36,9 +46,10 @@ const initialState: GameState & { navigationLayer: NavigationLayer } = {
   isLoading: false,
   screen: "exploring",
   navigationLayer: "area",
+  navigationNames: {},
 };
 
-export const useGameStore = create<GameState & { navigationLayer: NavigationLayer } & GameActions>()((set) => ({
+export const useGameStore = create<GameState & { navigationLayer: NavigationLayer; navigationNames: NavigationNames } & GameActions>()((set) => ({
   ...initialState,
 
   setPlayer: (player) => set({ player }),
@@ -63,6 +74,9 @@ export const useGameStore = create<GameState & { navigationLayer: NavigationLaye
   setLoading: (loading) => set({ isLoading: loading }),
 
   setNavigationLayer: (layer) => set({ navigationLayer: layer }),
+
+  setNavigationNames: (names) =>
+    set((state) => ({ navigationNames: { ...state.navigationNames, ...names } })),
 
   reset: () => set(initialState),
 }));

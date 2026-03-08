@@ -25,6 +25,8 @@ import {
   RoomDetailDrawer,
 } from "@/components/game";
 import { TileMap } from "@/components/pixel/TileMap";
+import { Breadcrumb } from "@/components/pixel/Breadcrumb";
+import type { BreadcrumbSegment } from "@/components/pixel/Breadcrumb";
 import { buildTileFromRoom } from "@/lib/tile-types";
 import type { TileMapData, TileData } from "@/lib/tile-types";
 import { useGameStore } from "@/stores/gameStore";
@@ -230,6 +232,7 @@ export default function PlayCharacterPage() {
     activeStore,
     activeNPC,
     navigationLayer,
+    navigationNames,
     addToGameLog,
     setScreen,
     setActiveStore,
@@ -1203,6 +1206,57 @@ export default function PlayCharacterPage() {
                 <Map viewport={mapViewport} />
               )}
             </div>
+            {/* Breadcrumb for world characters */}
+            {isWorldCharacter && navigationNames.worldName && (
+              <Breadcrumb
+                segments={(() => {
+                  const segs: BreadcrumbSegment[] = [];
+                  // World
+                  segs.push({
+                    label: navigationNames.worldName ?? "World",
+                    onClick: navigationLayer !== "world"
+                      ? () => { setScreen("world_map"); setNavigationLayer("world"); }
+                      : undefined,
+                  });
+                  // Region
+                  if (navigationNames.regionName && (navigationLayer === "region" || navigationLayer === "area" || navigationLayer === "building")) {
+                    segs.push({
+                      label: navigationNames.regionName,
+                      onClick: navigationLayer !== "region"
+                        ? () => { setScreen("region_map"); setNavigationLayer("region"); }
+                        : undefined,
+                    });
+                  }
+                  // Area
+                  if (navigationNames.areaName && (navigationLayer === "area" || navigationLayer === "building")) {
+                    segs.push({
+                      label: navigationNames.areaName,
+                      onClick: navigationLayer !== "area"
+                        ? () => { setScreen("exploring"); setNavigationLayer("area"); }
+                        : undefined,
+                    });
+                  }
+                  // Building
+                  if (navigationNames.buildingName && navigationLayer === "building") {
+                    segs.push({ label: navigationNames.buildingName });
+                    if (navigationNames.floor !== undefined) {
+                      segs.push({ label: `Floor ${navigationNames.floor + 1}` });
+                    }
+                  }
+                  return segs;
+                })()}
+                onBack={
+                  navigationLayer === "region"
+                    ? () => { setScreen("world_map"); setNavigationLayer("world"); }
+                    : navigationLayer === "area"
+                      ? () => { setScreen("region_map"); setNavigationLayer("region"); }
+                      : navigationLayer === "building"
+                        ? () => { setScreen("exploring"); setNavigationLayer("area"); }
+                        : undefined
+                }
+                className="w-full"
+              />
+            )}
             {!inCombat && !isWorldCharacter && (
               <DPad
                 onMove={handleDPadMove}
