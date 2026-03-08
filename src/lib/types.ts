@@ -233,5 +233,7 @@ export interface GameState {
     | "lore"
     | "party"
     | "news"
-    | "about";
+    | "about"
+    | "world_map"
+    | "region_map";
 }
