@@ -327,7 +327,7 @@ export async function generateBuilding(
   const floorCount = options?.floorCountOverride ?? randInt(config.floorRange[0], config.floorRange[1]);
 
   const result = (await selectOrGenerate(db, {
-    type: "building" as never,
+    type: "building",
     theme,
     tags: ["world-gen", `building:${buildingType}`],
     generate: async () => {

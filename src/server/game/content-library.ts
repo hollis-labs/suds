@@ -4,7 +4,7 @@
 // Uses a weighted algorithm to decide whether to generate new content or
 // reuse existing library entries, reducing AI API calls over time.
 
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, gte, arrayContains } from "drizzle-orm";
 import { contentLibrary } from "@/server/db/schema";
 import { generateTemplateContent, type TemplateContentType } from "@/server/game/templates";
 
@@ -14,7 +14,15 @@ import { generateTemplateContent, type TemplateContentType } from "@/server/game
 
 type DbClient = typeof import("@/server/db").db;
 
-type ContentType = "room_description" | "npc_dialogue" | "lore_fragment" | "quest";
+type ContentType =
+  | "room_description"
+  | "npc_dialogue"
+  | "lore_fragment"
+  | "quest"
+  | "region"
+  | "area"
+  | "building"
+  | "floor_layout";
 
 export interface SelectOrGenerateOptions {
   type: ContentType;
@@ -77,10 +85,16 @@ export async function selectOrGenerate(
     return await generateAndStore(db, type, theme, tags, generate);
   }
 
-  // Step 3: Calculate reuse probability
+  // Step 3: Template-first lookup — prefer high-quality curated content
+  const templateHit = await selectTemplate(db, type, theme, tags);
+  if (templateHit !== null) {
+    return templateHit;
+  }
+
+  // Step 4: Calculate reuse probability
   const reuseChance = Math.min(0.8, count / (count + 10));
 
-  // Step 4: Roll dice
+  // Step 5: Roll dice
   if (Math.random() < reuseChance) {
     // Attempt to reuse from library
     const reused = await selectFromLibrary(db, type, theme, tags);
@@ -90,7 +104,7 @@ export async function selectOrGenerate(
     // If selection somehow failed, fall through to generate
   }
 
-  // Step 5: Generate new content
+  // Step 6: Generate new content
   return await generateAndStore(db, type, theme, tags, generate);
 }
 
@@ -234,4 +248,158 @@ async function selectFromLibrary(
     .catch(() => {});
 
   return fallback.entry.content as string | object;
+}
+
+/**
+ * Select a template entry (quality >= 4) for the given type and theme.
+ * Templates are high-quality curated content that should be preferred.
+ * Returns null if no templates exist or random chance skips (30% chance to skip
+ * templates to allow variety).
+ */
+async function selectTemplate(
+  db: DbClient,
+  type: ContentType,
+  theme: string,
+  tags: string[],
+): Promise<string | object | null> {
+  // 30% chance to skip templates for variety
+  if (Math.random() < 0.3) return null;
+
+  const templates = await db
+    .select()
+    .from(contentLibrary)
+    .where(
+      and(
+        eq(contentLibrary.type, type),
+        eq(contentLibrary.theme, theme),
+        gte(contentLibrary.quality, 4),
+      )
+    );
+
+  if (templates.length === 0) return null;
+
+  // Score by tag match, prefer less-used templates
+  const scored = templates.map((entry) => {
+    let weight = 1;
+    const entryTags = (entry.tags as string[]) ?? [];
+    const matchingTags = tags.filter((t) => entryTags.includes(t)).length;
+    if (matchingTags > 0) weight *= Math.pow(2, matchingTags);
+    weight *= 4 / (1 + (entry.usageCount ?? 0));
+    return { entry, weight };
+  });
+
+  const totalWeight = scored.reduce((sum, s) => sum + s.weight, 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const { entry, weight } of scored) {
+    roll -= weight;
+    if (roll <= 0) {
+      // Update usage tracking
+      db.update(contentLibrary)
+        .set({
+          usageCount: sql`${contentLibrary.usageCount} + 1`,
+          lastUsedAt: new Date(),
+        })
+        .where(eq(contentLibrary.id, entry.id))
+        .catch(() => {});
+      return entry.content as string | object;
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Template Management (for admin use)
+// ---------------------------------------------------------------------------
+
+/**
+ * Promote a content library entry to template status (quality = 5, tagged).
+ */
+export async function promoteToTemplate(
+  db: DbClient,
+  contentId: string,
+): Promise<void> {
+  const [entry] = await db
+    .select()
+    .from(contentLibrary)
+    .where(eq(contentLibrary.id, contentId));
+
+  if (!entry) throw new Error(`Content entry not found: ${contentId}`);
+
+  const existingTags = (entry.tags as string[]) ?? [];
+  const newTags = existingTags.includes("template")
+    ? existingTags
+    : [...existingTags, "template"];
+
+  await db
+    .update(contentLibrary)
+    .set({ quality: 5, tags: newTags })
+    .where(eq(contentLibrary.id, contentId));
+}
+
+/**
+ * Update a content library entry's quality rating.
+ */
+export async function updateContentQuality(
+  db: DbClient,
+  contentId: string,
+  quality: number,
+): Promise<void> {
+  const clamped = Math.max(1, Math.min(5, quality));
+  await db
+    .update(contentLibrary)
+    .set({ quality: clamped })
+    .where(eq(contentLibrary.id, contentId));
+}
+
+/**
+ * Get template statistics: counts, reuse rates, quality distribution.
+ */
+export async function getTemplateStats(
+  db: DbClient,
+): Promise<{
+  totalEntries: number;
+  templateCount: number;
+  byType: { type: string; total: number; templates: number }[];
+  averageQuality: number;
+  totalReuses: number;
+}> {
+  const [totalResult] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(contentLibrary);
+
+  const [templateResult] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(contentLibrary)
+    .where(gte(contentLibrary.quality, 4));
+
+  const byTypeRows = await db
+    .select({
+      type: contentLibrary.type,
+      total: sql<number>`count(*)::int`,
+      templates: sql<number>`count(*) filter (where ${contentLibrary.quality} >= 4)::int`,
+    })
+    .from(contentLibrary)
+    .groupBy(contentLibrary.type);
+
+  const [qualityResult] = await db
+    .select({
+      avg: sql<number>`coalesce(avg(${contentLibrary.quality}), 0)::float`,
+    })
+    .from(contentLibrary);
+
+  const [reuseResult] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${contentLibrary.usageCount}), 0)::int`,
+    })
+    .from(contentLibrary);
+
+  return {
+    totalEntries: totalResult?.count ?? 0,
+    templateCount: templateResult?.count ?? 0,
+    byType: byTypeRows,
+    averageQuality: qualityResult?.avg ?? 0,
+    totalReuses: reuseResult?.total ?? 0,
+  };
 }

@@ -178,7 +178,7 @@ export async function generateRegion(
   options?: GenerateRegionOptions,
 ): Promise<Omit<NewRegion, "id">> {
   const result = (await selectOrGenerate(db, {
-    type: "region" as never, // Cast needed until content-library types are expanded in Task 4
+    type: "region",
     theme,
     tags: ["world-gen", `biome:${theme}`],
     generate: async () => {

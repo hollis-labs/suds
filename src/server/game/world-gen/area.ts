@@ -265,7 +265,7 @@ export async function generateArea(
   const config = AREA_CONFIG[areaType];
 
   const result = (await selectOrGenerate(db, {
-    type: "area" as never,
+    type: "area",
     theme,
     tags: ["world-gen", `area:${areaType}`],
     generate: async () => {
