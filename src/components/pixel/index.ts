@@ -6,3 +6,4 @@ export { Breadcrumb } from "./Breadcrumb";
 export type { BreadcrumbSegment } from "./Breadcrumb";
 export { ContextDrawer } from "./ContextDrawer";
 export { PixelCard } from "./PixelCard";
+export { TileMap } from "./TileMap";

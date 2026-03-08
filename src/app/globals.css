@@ -236,6 +236,29 @@
   background: #555555;
 }
 
+/* Tile map visibility states */
+.tile-hidden {
+  background-color: #0a0a0a;
+}
+.tile-discovered {
+  filter: brightness(0.4) saturate(0.3);
+}
+.tile-visible {
+  /* Full color — no filter */
+}
+.tile-current {
+  box-shadow: inset 0 0 6px 1px rgba(51, 255, 51, 0.4);
+}
+
+/* Tile interaction feedback */
+@keyframes tile-flash-red {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: inset 0 0 8px 2px rgba(255, 0, 0, 0.5); }
+}
+.animate-tile-flash-red {
+  animation: tile-flash-red 0.3s ease-in-out;
+}
+
 /* Hide scrollbar for horizontal scroll areas */
 .scrollbar-none {
   -ms-overflow-style: none;
