@@ -33,7 +33,7 @@ import { useGameStore } from "@/stores/gameStore";
 import { GAME_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
-import type { Store, NPC, DialogueNode, GameItem, Direction, CombatAction, CombatState, Player } from "@/lib/types";
+import type { Store, NPC, DialogueNode, GameItem, Direction, CombatAction, CombatState, Player, NavigationLayer } from "@/lib/types";
 
 // ── Keyboard map (module-level constant) ──────────────────────────────
 const EXPLORING_KEY_MAP: Record<string, string> = {
@@ -268,6 +268,11 @@ export default function PlayCharacterPage() {
   // ── World navigation state ──
   const [currentRegionId, setCurrentRegionId] = useState<string | null>(null);
   const [currentBuildingId, setCurrentBuildingId] = useState<string | null>(null);
+
+  // ── Layer transition animation ──
+  const [layerTransitionClass, setLayerTransitionClass] = useState("");
+  const prevLayerRef = useRef<{ layer: NavigationLayer; screen: string }>({ layer: "area", screen: "exploring" });
+  const prevFloorRef = useRef<number | undefined>(undefined);
 
   // ── Load character data ──
   const characterQuery = trpc.character.get.useQuery(
@@ -1245,6 +1250,43 @@ export default function PlayCharacterPage() {
     return undefined;
   }, [navigationLayer, setScreen, setNavigationLayer]);
 
+  // ── Compute layer transition animation class ──
+  useEffect(() => {
+    const prev = prevLayerRef.current;
+    const prevFloor = prevFloorRef.current;
+    const curFloor = navigationNames.floor;
+    prevLayerRef.current = { layer: navigationLayer, screen };
+    prevFloorRef.current = curFloor;
+
+    // Floor change within same building
+    if (prev.layer === "building" && navigationLayer === "building" && prevFloor !== undefined && curFloor !== undefined && prevFloor !== curFloor) {
+      setLayerTransitionClass(curFloor > prevFloor ? "layer-enter-floor-down" : "layer-enter-floor-up");
+      return;
+    }
+
+    // Skip if layer didn't change
+    if (prev.layer === navigationLayer && prev.screen === screen) return;
+
+    const LAYER_DEPTH: Record<string, number> = { world: 0, region: 1, area: 2, building: 3 };
+    const prevDepth = LAYER_DEPTH[prev.layer] ?? 0;
+    const curDepth = LAYER_DEPTH[navigationLayer] ?? 0;
+
+    if (curDepth > prevDepth) {
+      // Zooming in
+      setLayerTransitionClass(navigationLayer === "building" ? "layer-enter-building" : "layer-enter-zoom-in");
+    } else if (curDepth < prevDepth) {
+      // Zooming out
+      setLayerTransitionClass("layer-enter-zoom-out");
+    } else {
+      setLayerTransitionClass("layer-enter-building"); // same-level transition, simple fade
+    }
+  }, [navigationLayer, screen, navigationNames.floor]);
+
+  // Clear animation class after animation ends
+  const handleTransitionEnd = useCallback(() => {
+    setLayerTransitionClass("");
+  }, []);
+
   // TileMap click handler — translate tile click to directional move
   const handleTileMove = useCallback(
     (nx: number, ny: number) => {
@@ -1346,7 +1388,7 @@ export default function PlayCharacterPage() {
             <div className="hidden md:block text-terminal-green-dim text-[10px] uppercase tracking-wider">
               {isWorldCharacter ? (isInBuilding ? "Building Interior" : "Area Map") : "Dungeon Map"}
             </div>
-            <div className="max-h-[30vh] md:max-h-none overflow-hidden">
+            <div className={cn("max-h-[30vh] md:max-h-none overflow-hidden", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {isWorldCharacter && tileMapData && player ? (
                 <TileMap
                   mapData={tileMapData}
@@ -1384,7 +1426,7 @@ export default function PlayCharacterPage() {
           <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
             {screen === "world_map" && worldMapQuery.data ? (
               /* ── World Map View ── */
-              <div className="flex-1 min-h-0 overflow-hidden">
+              <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
                 <WorldMapView
                   regions={worldMapQuery.data.regions}
                   currentRegionId={currentRegionId ?? undefined}
@@ -1395,7 +1437,7 @@ export default function PlayCharacterPage() {
               </div>
             ) : screen === "region_map" && regionMapQuery.data ? (
               /* ── Region Map View ── */
-              <div className="flex-1 min-h-0 overflow-hidden">
+              <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
                 <RegionMapView
                   regionName={regionMapQuery.data.region.name}
                   areas={regionMapQuery.data.areas}
@@ -1421,7 +1463,7 @@ export default function PlayCharacterPage() {
               /* ── Exploring View ── */
               <>
                 {/* Text panel (room desc + game log) */}
-                <div className="flex-1 min-h-0 overflow-hidden">
+                <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
                   <TextPanel
                     room={currentRoom}
                     gameLog={gameLog}
