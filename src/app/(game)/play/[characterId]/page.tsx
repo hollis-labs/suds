@@ -1714,6 +1714,7 @@ export default function PlayCharacterPage() {
                     room={currentRoom}
                     gameLog={gameLog}
                     isLoading={moveMutation.isPending}
+                    isPixelMode
                   />
                 </div>
 
