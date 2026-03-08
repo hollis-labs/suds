@@ -366,13 +366,36 @@ export async function enterBuilding(db: DbClient, characterId: string, userId: s
 
 // ─── exitBuilding ───────────────────────────────────────────────────────────
 
-export async function exitBuilding(db: DbClient, characterId: string, userId: string) {
-  const character = await getOwnedCharacter(db, characterId, userId);
+export async function exitBuilding(db: DbClient, characterId: string, userId: string, buildingId: string) {
+  await getOwnedCharacter(db, characterId, userId);
 
-  // The character's position is restored to the building's area position
-  // For now, reset to area center — the building's position on the area grid
-  // We'll set a simple center position until we track entrance position
-  const newPosition: Position = { x: 0, y: 0 };
+  // Look up the building to get its position on the area grid
+  const [building] = await db
+    .select()
+    .from(buildings)
+    .where(eq(buildings.id, buildingId));
+
+  let newPosition: Position;
+  if (building?.position) {
+    const pos = building.position as { x: number; y: number };
+    newPosition = { x: pos.x, y: pos.y };
+  } else {
+    // Fallback: if building not found or no position, use area center
+    // Look up the area to get grid dimensions
+    if (building) {
+      const [area] = await db
+        .select()
+        .from(areas)
+        .where(eq(areas.id, building.areaId));
+      if (area) {
+        newPosition = { x: Math.floor(area.gridWidth / 2), y: Math.floor(area.gridHeight / 2) };
+      } else {
+        newPosition = { x: 0, y: 0 };
+      }
+    } else {
+      newPosition = { x: 0, y: 0 };
+    }
+  }
 
   await db
     .update(characters)

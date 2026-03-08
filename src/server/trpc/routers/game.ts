@@ -1114,10 +1114,10 @@ export const gameRouter = router({
 
   // ─── Exit Building ─────────────────────────────────────────────────────────
   exitBuilding: protectedProcedure
-    .input(z.object({ characterId: z.string().uuid() }))
+    .input(z.object({ characterId: z.string().uuid(), buildingId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id!;
-      return exitBuilding(ctx.db, input.characterId, userId);
+      return exitBuilding(ctx.db, input.characterId, userId, input.buildingId);
     }),
 
   // ─── Change Floor ──────────────────────────────────────────────────────────
