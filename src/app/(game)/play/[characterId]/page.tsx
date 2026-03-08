@@ -443,7 +443,7 @@ export default function PlayCharacterPage() {
         });
       }
 
-      if (data.enterCombat && data.encounter) {
+      if (data.enterCombat && data.encounter && screen !== "combat") {
         addToGameLog("Enemies block your path!");
         // Start combat — always full-screen, NOT in drawer
         setDrawerOpen(false);

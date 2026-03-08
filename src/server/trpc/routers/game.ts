@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and, isNull, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
-import { characters, rooms, inventoryItems, areas } from "@/server/db/schema";
+import { characters, rooms, inventoryItems, areas, combatState as combatStateTable } from "@/server/db/schema";
 import { generateRoom } from "@/server/game/world";
 import { generateEncounter } from "@/server/game/encounters";
 import { computeMapViewport, directionToOffset, oppositeDirection, roomKey } from "@/server/game/map";
@@ -432,8 +432,14 @@ export const gameRouter = router({
 
       // Check for encounter — regenerate fresh on re-entry so initiative
       // is re-rolled and monsters reset (aggro cooldown on flee)
+      // BUT skip if combat is already active (prevents mid-fight resets)
       let encounter: MonsterEncounter | null = null;
-      if (room.hasEncounter && room.encounterData) {
+      const [activeCombat] = await ctx.db
+        .select({ id: combatStateTable.id })
+        .from(combatStateTable)
+        .where(eq(combatStateTable.characterId, character.id));
+
+      if (room.hasEncounter && room.encounterData && !activeCombat) {
         const theme = character.theme as Theme;
         encounter = generateEncounter(character.level, targetDepth, theme);
         // Persist the fresh encounter so combat.start picks it up
