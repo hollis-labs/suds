@@ -209,6 +209,27 @@ export interface MapViewport {
   height: number;
 }
 
+// Hierarchical position for new world system
+export interface HierarchicalPosition {
+  worldId: string;
+  regionId: string;
+  areaId: string;
+  buildingId?: string;
+  floor?: number;
+  x: number;
+  y: number;
+}
+
+/** Type guard: returns true if position is legacy flat {x, y} */
+export function isLegacyPosition(pos: Position | HierarchicalPosition): pos is Position {
+  return !("worldId" in pos);
+}
+
+/** Extract {x, y} from either position format */
+export function getXY(pos: Position | HierarchicalPosition): Position {
+  return { x: pos.x, y: pos.y };
+}
+
 // Direction
 export type Direction = "north" | "south" | "east" | "west";
 

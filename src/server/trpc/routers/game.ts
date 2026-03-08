@@ -281,6 +281,10 @@ export const gameRouter = router({
         newRoom.description = aiDescription as string;
 
         // Insert into DB — handle race condition from rapid key presses
+        // Include hierarchy columns for world characters
+        const hierarchyFields = character.worldId
+          ? { worldId: character.worldId }
+          : {};
         try {
           const [inserted] = await ctx.db
             .insert(rooms)
@@ -299,6 +303,7 @@ export const gameRouter = router({
               lootData,
               visited: true,
               roomFeatures: newRoom.roomFeatures,
+              ...hierarchyFields,
             })
             .returning();
 

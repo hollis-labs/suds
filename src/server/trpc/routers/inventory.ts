@@ -64,6 +64,7 @@ function buildPlayer(
     baseLevel: character.baseLevel,
     companion: (character.companion as Player["companion"]) ?? null,
     buffs: (character.buffs as PlayerBuff[]) ?? [],
+    worldId: character.worldId ?? null,
   };
 }
 
