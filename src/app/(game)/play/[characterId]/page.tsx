@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { TerminalHUD, TerminalModal, TerminalLoading } from "@/components/terminal";
 import {
   StatusBar,
-  Map,
+  Map, // TODO: Remove legacy Map component after one release cycle post-migration
   TextPanel,
   CombatPanel,
   DeathScreen,
@@ -1210,6 +1210,7 @@ export default function PlayCharacterPage() {
 
   // Determine if character uses new world system
   const isWorldCharacter = !!player?.worldId;
+  const legacyMapEnabled = process.env.NEXT_PUBLIC_LEGACY_MAP_ENABLED !== "false";
 
   // Build TileMapData from mapViewport for new-system characters
   const isInBuilding = navigationLayer === "building";
@@ -1471,7 +1472,18 @@ export default function PlayCharacterPage() {
                   onMove={handleTileMove}
                   keyboardEnabled={screen === "exploring" && !inCombat}
                 />
+              ) : !isWorldCharacter && !legacyMapEnabled ? (
+                <div className="flex items-center justify-center h-full p-4 text-center text-amber-400">
+                  <div>
+                    <p className="font-bold mb-2">Character Migration Needed</p>
+                    <p className="text-sm text-zinc-400">
+                      This character needs to be migrated to the shared world.
+                      Contact an administrator to run the migration.
+                    </p>
+                  </div>
+                </div>
               ) : (
+                /* TODO: Legacy MapPanel — remove after one release cycle */
                 <Map viewport={mapViewport} />
               )}
             </div>
@@ -1483,7 +1495,8 @@ export default function PlayCharacterPage() {
                 className="w-full"
               />
             )}
-            {!inCombat && !isWorldCharacter && (
+            {/* TODO: Remove legacy DPad after one release cycle post-migration */}
+            {!inCombat && !isWorldCharacter && legacyMapEnabled && (
               <DPad
                 onMove={handleDPadMove}
                 onSearch={handleDPadSearch}
