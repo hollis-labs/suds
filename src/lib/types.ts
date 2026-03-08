@@ -79,6 +79,7 @@ export interface Player {
   baseLevel: number;
   companion?: Companion | null;
   buffs?: PlayerBuff[];
+  worldId?: string | null;
 }
 
 // Room
@@ -210,6 +211,9 @@ export interface MapViewport {
 
 // Direction
 export type Direction = "north" | "south" | "east" | "west";
+
+// Navigation layer in the world hierarchy
+export type NavigationLayer = "world" | "region" | "area" | "building";
 
 // Game state for client store
 export interface GameState {

@@ -96,6 +96,7 @@ export const characterRouter = router({
         lastSafe: character.lastSafe as Player["lastSafe"],
         baseLevel: character.baseLevel,
         buffs: (character.buffs as Player["buffs"]) ?? [],
+        worldId: character.worldId ?? null,
       };
 
       return player;

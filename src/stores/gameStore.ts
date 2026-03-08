@@ -7,6 +7,7 @@ import type {
   CombatState,
   Store,
   NPC,
+  NavigationLayer,
 } from "@/lib/types";
 
 interface GameActions {
@@ -20,10 +21,11 @@ interface GameActions {
   clearGameLog: () => void;
   setScreen: (screen: GameState["screen"]) => void;
   setLoading: (loading: boolean) => void;
+  setNavigationLayer: (layer: NavigationLayer) => void;
   reset: () => void;
 }
 
-const initialState: GameState = {
+const initialState: GameState & { navigationLayer: NavigationLayer } = {
   player: null,
   currentRoom: null,
   mapViewport: null,
@@ -33,9 +35,10 @@ const initialState: GameState = {
   gameLog: [],
   isLoading: false,
   screen: "exploring",
+  navigationLayer: "area",
 };
 
-export const useGameStore = create<GameState & GameActions>()((set) => ({
+export const useGameStore = create<GameState & { navigationLayer: NavigationLayer } & GameActions>()((set) => ({
   ...initialState,
 
   setPlayer: (player) => set({ player }),
@@ -58,6 +61,8 @@ export const useGameStore = create<GameState & GameActions>()((set) => ({
   setScreen: (screen) => set({ screen }),
 
   setLoading: (loading) => set({ isLoading: loading }),
+
+  setNavigationLayer: (layer) => set({ navigationLayer: layer }),
 
   reset: () => set(initialState),
 }));
