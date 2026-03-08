@@ -279,6 +279,7 @@ export default function PlayCharacterPage() {
 
   // ── Layer transition animation ──
   const [layerTransitionClass, setLayerTransitionClass] = useState("");
+  const [mobileTab, setMobileTab] = useState<"room" | "map" | "log">("room");
   const prevLayerRef = useRef<{ layer: NavigationLayer; screen: string }>({ layer: "area", screen: "exploring" });
   const prevFloorRef = useRef<number | undefined>(undefined);
 
@@ -1642,11 +1643,44 @@ export default function PlayCharacterPage() {
           buffs={player.buffs}
         />
 
-        {/* Main content: stacked on mobile, side-by-side on md+ */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0">
-          {/* ── Left panel: DungeonMap + Breadcrumb ── */}
-          <div className="w-full md:w-[40%] shrink-0 flex flex-col md:border-r border-b md:border-b-0 border-[#1a3a1a] relative">
-            <div className={cn("overflow-hidden w-full flex-1", inCombat ? "max-h-[20dvh]" : "max-h-[55dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+        {/* ── Navigation loading overlay (shared) ── */}
+        {navLoadingMessage && (
+          <div className="absolute inset-0 z-30 bg-[#0a0f0a]/80 flex items-center justify-center">
+            <div className="text-[#1a8c1a] font-mono text-sm animate-pulse">{navLoadingMessage}</div>
+          </div>
+        )}
+
+        {/* ── Mobile tabs (<md) ── */}
+        {screen === "exploring" && !inCombat && (
+          <div className="md:hidden flex shrink-0 border-b border-[#1a3a1a] font-mono text-xs">
+            {(["room", "map", "log"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setMobileTab(tab)}
+                className={cn(
+                  "flex-1 py-2 text-center uppercase tracking-wider transition-colors",
+                  mobileTab === tab
+                    ? "text-[#33ff33] border-b-2 border-[#33ff33]"
+                    : "text-[#1a8c1a] hover:text-[#33ff33]",
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Main content area ── */}
+        <div className="flex flex-col md:flex-row xl:flex-row flex-1 min-h-0 relative">
+
+          {/* ── Map column (hidden on mobile unless Map tab, 40% on tablet, 30% on desktop) ── */}
+          <div className={cn(
+            "flex flex-col relative",
+            "md:w-[40%] xl:w-[30%] md:shrink-0 md:border-r border-[#1a3a1a]",
+            // Mobile: only show when map tab is active or not exploring
+            screen === "exploring" && !inCombat ? (mobileTab === "map" ? "flex-1 md:flex-initial" : "hidden md:flex") : "hidden md:flex",
+          )}>
+            <div className={cn("overflow-hidden w-full flex-1", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {(navigationLayer === "area" || navigationLayer === "building") && mapViewport && player ? (
                 <DungeonMap
                   ref={dungeonMapRef}
@@ -1658,15 +1692,26 @@ export default function PlayCharacterPage() {
                 />
               ) : null}
             </div>
-            {/* MiniMap overlay (top-right) */}
+            {/* MiniMap overlay (top-right, tablet+) */}
             {(navigationLayer === "area" || navigationLayer === "building") && mapViewport && !inCombat && (
-              <div className="absolute top-2 right-2 z-20">
+              <div className="absolute top-2 right-2 z-20 hidden md:block">
                 <MiniMap
                   viewport={mapViewport}
                   playerPosition={player.position}
                   currentRoomName={currentRoom?.name}
                   currentRoomDesc={currentRoom?.description}
                   onRoomClick={(x, y) => dungeonMapRef.current?.scrollToRoom(x, y)}
+                />
+              </div>
+            )}
+            {/* DPad below map on mobile */}
+            {screen === "exploring" && !inCombat && mobileTab === "map" && (
+              <div className="md:hidden shrink-0 py-2 flex justify-center">
+                <DPad
+                  onMove={handleDPadMove}
+                  onSearch={handleDPadSearch}
+                  disabled={moveMutation.isPending || searchMutation.isPending}
+                  availableExits={currentRoom?.exits ?? []}
                 />
               </div>
             )}
@@ -1680,14 +1725,12 @@ export default function PlayCharacterPage() {
             )}
           </div>
 
-          {/* ── Right panel: Game log + Actions / Combat / WorldMap / RegionMap ── */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative p-2 md:p-3">
-            {/* Navigation loading overlay */}
-            {navLoadingMessage && (
-              <div className="absolute inset-0 z-30 bg-[#0a0f0a]/80 flex items-center justify-center">
-                <div className="text-[#1a8c1a] font-mono text-sm animate-pulse">{navLoadingMessage}</div>
-              </div>
-            )}
+          {/* ── Center: Room+Log / Combat / WorldMap / RegionMap ── */}
+          <div className={cn(
+            "flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden p-2 md:p-3",
+            // Mobile: hide when map tab is active (unless combat/worldmap)
+            screen === "exploring" && !inCombat && mobileTab === "map" ? "hidden md:flex" : "flex",
+          )}>
             {screen === "world_map" && worldMapQuery.data ? (
               <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
                 <WorldMapView
@@ -1721,6 +1764,20 @@ export default function PlayCharacterPage() {
                 isPixelMode
                 className="flex-1 min-h-0"
               />
+            ) : mobileTab === "log" ? (
+              /* Mobile log tab: full game log */
+              <div className="flex-1 min-h-0 overflow-y-auto font-mono text-[11px] p-2 md:hidden" style={{ color: "#1a8c1a" }}>
+                {gameLog.length === 0 ? (
+                  <p className="italic" style={{ color: "#145214" }}>Awaiting adventure...</p>
+                ) : (
+                  gameLog.map((entry, i) => (
+                    <p key={i} className="py-0.5" style={{ color: i === gameLog.length - 1 ? "#c8e6c8" : "#1a8c1a" }}>
+                      <span style={{ color: i === gameLog.length - 1 ? "#ffaa00" : "#145214" }} className="mr-1">›</span>
+                      {entry}
+                    </p>
+                  ))
+                )}
+              </div>
             ) : (
               <>
                 {/* Room info + game log */}
@@ -1733,10 +1790,9 @@ export default function PlayCharacterPage() {
                   />
                 </div>
 
-                {/* Pixel action buttons with key badges */}
-                <div className="shrink-0 pt-2 border-t border-[#1a3a1a] mt-1 px-2 pb-1">
-                  <div className="flex flex-wrap gap-1.5 font-mono text-xs">
-                    {/* Context actions */}
+                {/* Action buttons — bottom on mobile/tablet, hidden on desktop (in sidebar) */}
+                <div className="xl:hidden shrink-0 pt-2 border-t border-[#1a3a1a] mt-1 px-2 pb-1">
+                  <div className="flex flex-wrap gap-1.5 justify-center font-mono text-xs">
                     <button onClick={(e) => { handleAction("search"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">X</span>Search
                     </button>
@@ -1760,7 +1816,6 @@ export default function PlayCharacterPage() {
                         <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#ffd700] text-[10px] font-bold">B</span>Shop
                       </button>
                     )}
-                    {/* Menu actions */}
                     <button onClick={(e) => { handleAction("inventory"); e.currentTarget.blur(); }} className="inline-flex items-center gap-1 px-2 py-1.5 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[10px] font-bold">I</span>Inv
                     </button>
@@ -1784,6 +1839,81 @@ export default function PlayCharacterPage() {
               </>
             )}
           </div>
+
+          {/* ── Desktop sidebar (xl+, 180px): Actions + DPad ── */}
+          {screen === "exploring" && !inCombat && (
+            <div className="hidden xl:flex w-[180px] shrink-0 flex-col border-l border-[#1a3a1a] p-2 font-mono text-xs gap-2 overflow-y-auto">
+              {/* Context actions */}
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "#1a8c1a" }}>Actions</div>
+                <button onClick={(e) => { handleAction("search"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">X</span>Search
+                </button>
+                {currentRoom?.type && ["safe_room", "shrine", "npc_room"].includes(currentRoom.type) && (
+                  <button onClick={(e) => { handleAction("rest"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">R</span>Rest
+                  </button>
+                )}
+                {currentRoom?.type === "shrine" && (
+                  <button onClick={(e) => { handleAction("interact_shrine"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#44aaff] hover:border-[#44aaff] transition-colors">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#aa66ff] text-[9px] font-bold">F</span>Shrine
+                  </button>
+                )}
+                {currentRoom?.type === "npc_room" && (
+                  <button onClick={(e) => { handleAction("talk"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#44aaff] hover:border-[#44aaff] transition-colors">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#44aaff] text-[9px] font-bold">T</span>Talk
+                  </button>
+                )}
+                {currentRoom?.type === "store" && (
+                  <button onClick={(e) => { handleAction("shop"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#ffd700] hover:border-[#ffd700] transition-colors">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#ffd700] text-[9px] font-bold">B</span>Shop
+                  </button>
+                )}
+              </div>
+
+              <div className="border-t border-[#1a3a1a]" />
+
+              {/* Panel buttons */}
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "#1a8c1a" }}>Panels</div>
+                <button onClick={(e) => { handleAction("inventory"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">I</span>Inventory
+                </button>
+                <button onClick={(e) => { handleAction("character"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">C</span>Character
+                </button>
+                <button onClick={(e) => { handleAction("lore"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">L</span>Codex
+                </button>
+                <button onClick={(e) => { handleAction("party"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#c8e6c8] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">P</span>Party
+                </button>
+                <button onClick={(e) => { handleAction("help"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#1a8c1a] hover:border-[#33ff33] hover:text-[#33ff33] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#33ff33] text-[9px] font-bold">?</span>Help
+                </button>
+                <button onClick={(e) => { handleAction("exit"); e.currentTarget.blur(); }} className="w-full inline-flex items-center gap-1 px-2 py-1 border border-[#1a3a1a] text-[#ff4444] hover:border-[#ff4444] transition-colors">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-[#1a3a1a] text-[#ff4444] text-[9px] font-bold">Q</span>Exit
+                </button>
+              </div>
+
+              <div className="border-t border-[#1a3a1a]" />
+
+              {/* DPad */}
+              <div className="flex justify-center pt-1">
+                <DPad
+                  onMove={handleDPadMove}
+                  onSearch={handleDPadSearch}
+                  disabled={moveMutation.isPending || searchMutation.isPending}
+                  availableExits={currentRoom?.exits ?? []}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop keyboard hints bar */}
+        <div className="hidden xl:block shrink-0 px-3 py-1 border-t border-[#1a3a1a]">
+          <KeyHintsBar screen={screen} roomType={currentRoom?.type} />
         </div>
 
         {/* Overlays and modals */}
