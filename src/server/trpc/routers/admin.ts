@@ -416,6 +416,86 @@ export const adminRouter = router({
     };
   }),
 
+  // ─── Generation Cost Dashboard (Sprint 4) ─────────────────────────────────
+
+  getGenerationCosts: adminProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Cost breakdown by feature/generation type
+    const byFeature = await ctx.db
+      .select({
+        feature: aiUsage.feature,
+        calls: count(),
+        inputTokens: sql<number>`coalesce(sum(${aiUsage.inputTokens}), 0)::int`,
+        outputTokens: sql<number>`coalesce(sum(${aiUsage.outputTokens}), 0)::int`,
+        avgDuration: sql<number>`coalesce(avg(${aiUsage.durationMs}), 0)::int`,
+      })
+      .from(aiUsage)
+      .groupBy(aiUsage.feature)
+      .orderBy(desc(sql`sum(${aiUsage.inputTokens}) + sum(${aiUsage.outputTokens})`));
+
+    // Daily breakdown (last 7 days)
+    const dailyBreakdown = await ctx.db
+      .select({
+        day: sql<string>`date_trunc('day', ${aiUsage.createdAt})::date::text`,
+        calls: count(),
+        inputTokens: sql<number>`coalesce(sum(${aiUsage.inputTokens}), 0)::int`,
+        outputTokens: sql<number>`coalesce(sum(${aiUsage.outputTokens}), 0)::int`,
+      })
+      .from(aiUsage)
+      .where(gte(aiUsage.createdAt, oneWeekAgo))
+      .groupBy(sql`date_trunc('day', ${aiUsage.createdAt})`)
+      .orderBy(desc(sql`date_trunc('day', ${aiUsage.createdAt})`));
+
+    // World-gen specific stats
+    const worldGenFeatures = [
+      "region_generation",
+      "area_generation",
+      "building_generation",
+    ];
+    const worldGenStats = byFeature.filter((f) =>
+      worldGenFeatures.includes(f.feature)
+    );
+    const worldGenTotal = worldGenStats.reduce(
+      (sum, f) => sum + f.inputTokens + f.outputTokens,
+      0,
+    );
+
+    // Template reuse stats from content library
+    const templateStats = await getTemplateStats(ctx.db);
+
+    const estimateCost = (input: number, output: number) =>
+      (input / 1_000_000) * 0.80 + (output / 1_000_000) * 4.0;
+
+    return {
+      byFeature: byFeature.map((f) => ({
+        ...f,
+        estimatedCost: estimateCost(f.inputTokens, f.outputTokens),
+      })),
+      dailyBreakdown: dailyBreakdown.map((d) => ({
+        ...d,
+        estimatedCost: estimateCost(d.inputTokens, d.outputTokens),
+      })),
+      worldGen: {
+        totalTokens: worldGenTotal,
+        estimatedCost: estimateCost(
+          worldGenStats.reduce((s, f) => s + f.inputTokens, 0),
+          worldGenStats.reduce((s, f) => s + f.outputTokens, 0),
+        ),
+        byType: worldGenStats,
+      },
+      templateReuse: {
+        totalEntries: templateStats.totalEntries,
+        templateCount: templateStats.templateCount,
+        totalReuses: templateStats.totalReuses,
+        averageQuality: templateStats.averageQuality,
+        estimatedTokensSaved: templateStats.totalReuses * 300, // rough estimate: ~300 tokens per reuse
+      },
+    };
+  }),
+
   getLeaderboard: protectedProcedure.query(async ({ ctx }) => {
     const topCharacters = await ctx.db
       .select({
