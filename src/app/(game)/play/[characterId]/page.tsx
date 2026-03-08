@@ -242,6 +242,7 @@ export default function PlayCharacterPage() {
     setMapViewport,
     setCombatState,
     setNavigationLayer,
+    setNavigationNames,
   } = useGameStore();
 
   // Ref to avoid stale player in keyboard handlers
@@ -263,6 +264,10 @@ export default function PlayCharacterPage() {
     statValue: number;
     newAbilities: string[];
   } | null>(null);
+
+  // ── World navigation state ──
+  const [currentRegionId, setCurrentRegionId] = useState<string | null>(null);
+  const [currentBuildingId, setCurrentBuildingId] = useState<string | null>(null);
 
   // ── Load character data ──
   const characterQuery = trpc.character.get.useQuery(
@@ -296,6 +301,86 @@ export default function PlayCharacterPage() {
       }
     }
   }, [mapQuery.data, setMapViewport, setCurrentRoom]);
+
+  // ── World navigation queries ──
+  const isWorldCharacterEarly = !!characterQuery.data?.worldId;
+
+  const worldMapQuery = trpc.game.getWorldMap.useQuery(
+    { characterId },
+    { enabled: screen === "world_map" && isWorldCharacterEarly }
+  );
+
+  const regionMapQuery = trpc.game.getRegionMap.useQuery(
+    { characterId, regionId: currentRegionId! },
+    { enabled: screen === "region_map" && !!currentRegionId }
+  );
+
+  // ── World navigation mutations ──
+  const travelToRegionMutation = trpc.game.travelToRegion.useMutation({
+    onSuccess(data) {
+      setCurrentRegionId(data.region.id);
+      setNavigationNames({ regionName: data.region.name });
+      setNavigationLayer("region");
+      setScreen("region_map");
+      addToGameLog(`You travel to ${data.region.name}.`);
+    },
+    onError(err) {
+      addToGameLog(`Cannot travel: ${err.message}`);
+    },
+  });
+
+  const travelToAreaMutation = trpc.game.travelToArea.useMutation({
+    onSuccess(data) {
+      setNavigationNames({ areaName: data.area.name, buildingName: undefined, floor: undefined });
+      setNavigationLayer("area");
+      setScreen("exploring");
+      addToGameLog(`You arrive at ${data.area.name}.`);
+      // Refetch map for new position
+      mapQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Cannot travel: ${err.message}`);
+    },
+  });
+
+  const enterBuildingMutation = trpc.game.enterBuilding.useMutation({
+    onSuccess(data) {
+      setCurrentBuildingId(data.building.id);
+      setNavigationNames({ buildingName: data.building.name, floor: data.floor });
+      setNavigationLayer("building");
+      setScreen("exploring");
+      addToGameLog(`You enter ${data.building.name}.`);
+      mapQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Cannot enter: ${err.message}`);
+    },
+  });
+
+  const exitBuildingMutation = trpc.game.exitBuilding.useMutation({
+    onSuccess() {
+      setCurrentBuildingId(null);
+      setNavigationNames({ buildingName: undefined, floor: undefined });
+      setNavigationLayer("area");
+      setScreen("exploring");
+      addToGameLog("You exit the building.");
+      mapQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Cannot exit: ${err.message}`);
+    },
+  });
+
+  const changeFloorMutation = trpc.game.changeFloor.useMutation({
+    onSuccess(data) {
+      setNavigationNames({ floor: data.floor });
+      addToGameLog(`You move to floor ${data.floor + 1} of ${data.buildingName}.`);
+      mapQuery.refetch();
+    },
+    onError(err) {
+      addToGameLog(`Cannot change floor: ${err.message}`);
+    },
+  });
 
   // ── Mutations ──
 
@@ -690,6 +775,10 @@ export default function PlayCharacterPage() {
         case "about":
           setScreen("about");
           break;
+        case "world_map":
+          setScreen("world_map");
+          setNavigationLayer("world");
+          break;
         case "exit":
           router.push("/characters");
           break;
@@ -704,7 +793,7 @@ export default function PlayCharacterPage() {
           addToGameLog(`Unknown action: ${action}`);
       }
     },
-    [addToGameLog, setScreen, moveMutation, searchMutation, restMutation, shrineMutation, dismissCompanionMutation, characterId, currentRoom, setNpcNodeId]
+    [addToGameLog, setScreen, setNavigationLayer, moveMutation, searchMutation, restMutation, shrineMutation, dismissCompanionMutation, characterId, currentRoom, setNpcNodeId]
   );
 
   // ── DPad handlers ──
@@ -1120,25 +1209,37 @@ export default function PlayCharacterPage() {
   );
 
   const handleTileClick = useCallback(
-    (_x: number, _y: number, tile: TileData) => {
-      // Click on building entrance → future enterBuilding
-      if (tile.markers.includes("entrance") && tile.buildingId) {
-        addToGameLog("You see a building entrance. (Enter building coming soon)");
+    (x: number, y: number, tile: TileData) => {
+      if (!player) return;
+      const isCurrentTile = x === player.position.x && y === player.position.y;
+
+      // Click on building entrance → enterBuilding (must be on the tile)
+      if (isCurrentTile && tile.markers.includes("entrance") && tile.buildingId) {
+        enterBuildingMutation.mutate({ characterId, buildingId: tile.buildingId });
         return;
       }
-      // Stairs up/down in building → future changeFloor
-      if (tile.markers.includes("stairs_up")) {
-        addToGameLog("You see stairs leading up. (Floor navigation coming soon)");
+      // Stairs up/down in building → changeFloor (must be on the tile)
+      if (isCurrentTile && tile.markers.includes("stairs_up") && currentBuildingId) {
+        changeFloorMutation.mutate({ characterId, direction: "up", currentFloor: navigationNames.floor ?? 0, buildingId: currentBuildingId });
         return;
       }
-      if (tile.markers.includes("stairs_down")) {
-        addToGameLog("You see stairs leading down. (Floor navigation coming soon)");
+      if (isCurrentTile && tile.markers.includes("stairs_down") && currentBuildingId) {
+        changeFloorMutation.mutate({ characterId, direction: "down", currentFloor: navigationNames.floor ?? 0, buildingId: currentBuildingId });
         return;
       }
       // Click on current tile → open room detail drawer
-      setDrawerOpen(true);
+      if (isCurrentTile) {
+        setDrawerOpen(true);
+        return;
+      }
+      // Adjacent walkable tile → move
+      const dx = x - player.position.x;
+      const dy = y - player.position.y;
+      if (Math.abs(dx) + Math.abs(dy) === 1 && tile.walkable && tile.visibility !== "hidden") {
+        handleTileMove(x, y);
+      }
     },
-    [addToGameLog]
+    [player, characterId, currentBuildingId, navigationNames.floor, enterBuildingMutation, changeFloorMutation, handleTileMove]
   );
 
   const showInventory = screen === "inventory";
@@ -1267,9 +1368,36 @@ export default function PlayCharacterPage() {
             )}
           </div>
 
-          {/* ── Right panel (65%): Text + Actions/Combat ── */}
+          {/* ── Right panel (65%): Text + Actions/Combat/WorldMap/RegionMap ── */}
           <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-            {inCombat && combatState ? (
+            {screen === "world_map" && worldMapQuery.data ? (
+              /* ── World Map View ── */
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <WorldMapView
+                  regions={worldMapQuery.data.regions}
+                  currentRegionId={currentRegionId ?? undefined}
+                  onSelectRegion={(regionId) => {
+                    travelToRegionMutation.mutate({ characterId, regionId });
+                  }}
+                />
+              </div>
+            ) : screen === "region_map" && regionMapQuery.data ? (
+              /* ── Region Map View ── */
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <RegionMapView
+                  regionName={regionMapQuery.data.region.name}
+                  areas={regionMapQuery.data.areas}
+                  currentAreaId={undefined}
+                  onSelectArea={(areaId) => {
+                    travelToAreaMutation.mutate({ characterId, areaId });
+                  }}
+                  onBack={() => {
+                    setScreen("world_map");
+                    setNavigationLayer("world");
+                  }}
+                />
+              </div>
+            ) : inCombat && combatState ? (
               /* ── Combat View ── */
               <CombatPanel
                 combatState={combatState}
