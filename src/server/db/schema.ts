@@ -171,6 +171,7 @@ export const characters = pgTable("characters", {
   companion: jsonb("companion"), // NPC adventurer companion, nullable
   buffs: jsonb("buffs").default([]).notNull(), // active buffs (shield, blessing)
   worldId: uuid("world_id").references(() => worlds.id), // nullable for legacy characters
+  currentFloor: integer("current_floor"), // nullable — set when inside a building
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });

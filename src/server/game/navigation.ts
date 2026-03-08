@@ -346,7 +346,7 @@ export async function enterBuilding(db: DbClient, characterId: string, userId: s
 
   await db
     .update(characters)
-    .set({ position: newPosition, updatedAt: new Date() })
+    .set({ position: newPosition, currentFloor: 0, updatedAt: new Date() })
     .where(eq(characters.id, characterId));
 
   return {
@@ -399,7 +399,7 @@ export async function exitBuilding(db: DbClient, characterId: string, userId: st
 
   await db
     .update(characters)
-    .set({ position: newPosition, updatedAt: new Date() })
+    .set({ position: newPosition, currentFloor: null, updatedAt: new Date() })
     .where(eq(characters.id, characterId));
 
   return { position: newPosition };
@@ -442,7 +442,7 @@ export async function changeFloor(
 
   await db
     .update(characters)
-    .set({ position: newPosition, updatedAt: new Date() })
+    .set({ position: newPosition, currentFloor: newFloor, updatedAt: new Date() })
     .where(eq(characters.id, characterId));
 
   return {
