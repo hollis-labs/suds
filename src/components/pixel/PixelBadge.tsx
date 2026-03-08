@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { SpriteIcon } from "./SpriteIcon";
 import type { SpriteId } from "@/lib/sprites";
 
-type BadgeType = "hp" | "mp" | "gold" | "level" | "attack" | "defense";
+type BadgeType = "hp" | "mp" | "gold" | "level" | "attack" | "defense" | "xp";
 
 interface PixelBadgeProps {
   type: BadgeType;
@@ -20,6 +20,7 @@ const BADGE_CONFIG: Record<BadgeType, { spriteId: SpriteId; color: string; label
   level: { spriteId: "ui_star", color: "text-green-400", label: "Lv" },
   attack: { spriteId: "ui_sword", color: "text-orange-400", label: "ATK" },
   defense: { spriteId: "ui_shield", color: "text-cyan-400", label: "DEF" },
+  xp: { spriteId: "ui_star", color: "text-violet-400", label: "XP" },
 };
 
 export function PixelBadge({ type, value, max, className }: PixelBadgeProps) {

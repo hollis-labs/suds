@@ -1657,6 +1657,12 @@ export default function PlayCharacterPage() {
           maxMp={player.mpMax}
           gold={player.gold}
           level={player.level}
+          name={player.name}
+          characterClass={player.class}
+          xp={player.xp}
+          xpNext={player.xpNext}
+          companion={player.companion}
+          buffs={player.buffs}
         />
 
         {/* Main content: stacked on mobile, side-by-side on md+ */}
