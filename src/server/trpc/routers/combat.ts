@@ -1128,6 +1128,7 @@ export const combatRouter = router({
                 log: fleeLog,
                 newRoom: fleeRoomData.room,
                 mapViewport: fleeRoomData.mapViewport,
+                chasedEncounterData: { monsters: chasingMonsters } as MonsterEncounter,
               };
             }
 
@@ -1181,8 +1182,10 @@ export const combatRouter = router({
 
             // Check for encounter in new room
             let newEncounter = false;
+            let newEncounterData: MonsterEncounter | null = null;
             if (fleeRoomData.room.hasEncounter && fleeRoomData.room.encounterData) {
               newEncounter = true;
+              newEncounterData = fleeRoomData.room.encounterData as MonsterEncounter;
             }
 
             // Roll for NPC adventurer encounter while fleeing
@@ -1232,6 +1235,7 @@ export const combatRouter = router({
               newRoom: fleeRoomData.room,
               mapViewport: fleeRoomData.mapViewport,
               newEncounter,
+              newEncounterData,
               adventurerMet: adventurerHelps ? adventurerMet : null,
             };
           }

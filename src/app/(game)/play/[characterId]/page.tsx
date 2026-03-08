@@ -28,6 +28,7 @@ import {
   RoomDetailDrawer,
   DungeonMap,
   MiniMap,
+  EncounterModal,
   RoomInfoPanel,
 } from "@/components/game";
 import { Breadcrumb } from "@/components/pixel/Breadcrumb";
@@ -263,6 +264,7 @@ export default function PlayCharacterPage() {
   } | null>(null);
   const [deathData, setDeathData] = useState<{ goldLost: number } | null>(null);
   const [pendingAdventurer, setPendingAdventurer] = useState<import("@/lib/types").Companion | null>(null);
+  const [pendingEncounter, setPendingEncounter] = useState<import("@/lib/types").MonsterEncounter | null>(null);
   const [levelUpData, setLevelUpData] = useState<{
     newLevel: number;
     hpGained: number;
@@ -445,9 +447,9 @@ export default function PlayCharacterPage() {
 
       if (data.enterCombat && data.encounter && screen !== "combat") {
         addToGameLog("Enemies block your path!");
-        // Start combat — always full-screen, NOT in drawer
+        // Show encounter title card instead of auto-starting combat
         setDrawerOpen(false);
-        combatStartMutation.mutate({ characterId });
+        setPendingEncounter(data.encounter as import("@/lib/types").MonsterEncounter);
       } else if (data.room.type === "store") {
         addToGameLog("You see a merchant's stall.");
         // Auto-open drawer for interactive rooms (world characters)
@@ -605,7 +607,11 @@ export default function PlayCharacterPage() {
             setScreen("exploring");
             addToGameLog("They're right behind you!");
             setTimeout(() => {
-              combatStartMutation.mutate({ characterId });
+              if ("chasedEncounterData" in data && data.chasedEncounterData) {
+                setPendingEncounter(data.chasedEncounterData as import("@/lib/types").MonsterEncounter);
+              } else {
+                combatStartMutation.mutate({ characterId });
+              }
             }, 1200);
           } else {
             // Clean escape
@@ -623,7 +629,11 @@ export default function PlayCharacterPage() {
             if ("newEncounter" in data && data.newEncounter) {
               setTimeout(() => {
                 addToGameLog("But something else lurks here...");
-                combatStartMutation.mutate({ characterId });
+                if ("newEncounterData" in data && data.newEncounterData) {
+                  setPendingEncounter(data.newEncounterData as import("@/lib/types").MonsterEncounter);
+                } else {
+                  combatStartMutation.mutate({ characterId });
+                }
               }, 1500);
             }
           }
@@ -1424,6 +1434,19 @@ export default function PlayCharacterPage() {
           onClose={handleLevelUpClose}
           levelData={levelUpData}
           isPixelMode={isWorldCharacter}
+        />
+      )}
+
+      {/* ── Encounter Title Card ── */}
+      {pendingEncounter && player && (
+        <EncounterModal
+          encounter={pendingEncounter}
+          playerName={player.name}
+          companion={player.companion}
+          onStartCombat={() => {
+            setPendingEncounter(null);
+            combatStartMutation.mutate({ characterId });
+          }}
         />
       )}
 
