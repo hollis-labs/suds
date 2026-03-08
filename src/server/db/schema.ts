@@ -170,6 +170,7 @@ export const characters = pgTable("characters", {
   baseLevel: integer("base_level").default(0).notNull(),
   companion: jsonb("companion"), // NPC adventurer companion, nullable
   buffs: jsonb("buffs").default([]).notNull(), // active buffs (shield, blessing)
+  worldId: uuid("world_id").references(() => worlds.id), // nullable for legacy characters
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });
@@ -223,6 +224,22 @@ export const rooms = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   },
   (table) => [unique().on(table.characterId, table.x, table.y)]
+);
+
+// ─── Fog of War ─────────────────────────────────────────────────────────────
+
+export const fogOfWar = pgTable(
+  "fog_of_war",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    characterId: uuid("character_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(), // "region" | "area" | "room"
+    entityId: uuid("entity_id").notNull(),
+    discoveredAt: timestamp("discovered_at", { mode: "date" }).defaultNow(),
+  },
+  (table) => [unique().on(table.characterId, table.entityType, table.entityId)]
 );
 
 // ─── Stores ──────────────────────────────────────────────────────────────────
@@ -494,3 +511,6 @@ export type NewArea = InferInsertModel<typeof areas>;
 
 export type Building = InferSelectModel<typeof buildings>;
 export type NewBuilding = InferInsertModel<typeof buildings>;
+
+export type FogOfWar = InferSelectModel<typeof fogOfWar>;
+export type NewFogOfWar = InferInsertModel<typeof fogOfWar>;
