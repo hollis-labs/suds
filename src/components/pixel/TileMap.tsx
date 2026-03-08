@@ -6,6 +6,7 @@ import { SpriteIcon } from "./SpriteIcon";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import type { TileMapData, TileData, TileVisibility } from "@/lib/tile-types";
 import { MARKER_SPRITE } from "@/lib/tile-types";
+import { TileTooltip } from "./TileTooltip";
 
 interface TileMapProps {
   mapData: TileMapData;
@@ -121,51 +122,53 @@ function TileCell({
   const isClickable = tile.visibility !== "hidden" && (isAdjacentWalkable || isPlayer);
 
   return (
-    <div
-      className={cn(
-        "relative",
-        visClass,
-        isPlayer && "tile-current",
-        flashKey > 0 && "animate-tile-flash-red",
-        isClickable ? "cursor-pointer" : "cursor-default"
-      )}
-      style={{ width: tileSize, height: tileSize }}
-      onClick={onClick}
-      role="gridcell"
-      aria-label={tile.visibility !== "hidden" ? `Tile ${tile.x},${tile.y}` : "Hidden"}
-    >
-      {tile.visibility !== "hidden" && (
-        <SpriteIcon
-          spriteId={tile.spriteId}
-          size={tileSize}
-          className="absolute inset-0"
-        />
-      )}
-
-      {visibleMarkers.map((marker, i) => (
-        <div
-          key={`${marker}-${i}`}
-          className="absolute z-10"
-          style={{
-            right: 0,
-            bottom: i * Math.round(tileSize * 0.15),
-          }}
-        >
+    <TileTooltip tile={tile}>
+      <div
+        className={cn(
+          "relative",
+          visClass,
+          isPlayer && "tile-current",
+          flashKey > 0 && "animate-tile-flash-red",
+          isClickable ? "cursor-pointer" : "cursor-default"
+        )}
+        style={{ width: tileSize, height: tileSize }}
+        onClick={onClick}
+        role="gridcell"
+        aria-label={tile.visibility !== "hidden" ? `Tile ${tile.x},${tile.y}` : "Hidden"}
+      >
+        {tile.visibility !== "hidden" && (
           <SpriteIcon
-            spriteId={MARKER_SPRITE[marker]}
-            size={Math.round(tileSize * 0.6)}
+            spriteId={tile.spriteId}
+            size={tileSize}
+            className="absolute inset-0"
           />
-        </div>
-      ))}
+        )}
 
-      {isPlayer && tile.visibility !== "hidden" && (
-        <SpriteIcon
-          spriteId="marker_player"
-          size={Math.round(tileSize * 0.8)}
-          className="absolute z-20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ease-out"
-        />
-      )}
-    </div>
+        {visibleMarkers.map((marker, i) => (
+          <div
+            key={`${marker}-${i}`}
+            className="absolute z-10"
+            style={{
+              right: 0,
+              bottom: i * Math.round(tileSize * 0.15),
+            }}
+          >
+            <SpriteIcon
+              spriteId={MARKER_SPRITE[marker]}
+              size={Math.round(tileSize * 0.6)}
+            />
+          </div>
+        ))}
+
+        {isPlayer && tile.visibility !== "hidden" && (
+          <SpriteIcon
+            spriteId="marker_player"
+            size={Math.round(tileSize * 0.8)}
+            className="absolute z-20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 ease-out"
+          />
+        )}
+      </div>
+    </TileTooltip>
   );
 }
 
