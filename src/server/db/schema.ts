@@ -77,6 +77,17 @@ export const invites = pgTable("invites", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 
+// ─── Worlds ─────────────────────────────────────────────────────────────────
+
+export const worlds = pgTable("worlds", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  theme: text("theme").notNull(),
+  seed: text("seed"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
 // ─── Characters ──────────────────────────────────────────────────────────────
 
 export const characters = pgTable("characters", {
@@ -410,3 +421,6 @@ export type NewContentLibraryEntry = InferInsertModel<typeof contentLibrary>;
 
 export type NewsPost = InferSelectModel<typeof newsPosts>;
 export type NewNewsPost = InferInsertModel<typeof newsPosts>;
+
+export type World = InferSelectModel<typeof worlds>;
+export type NewWorld = InferInsertModel<typeof worlds>;
