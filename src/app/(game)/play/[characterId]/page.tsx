@@ -26,6 +26,8 @@ import {
   WorldMapView,
   RegionMapView,
   RoomDetailDrawer,
+  DungeonMap,
+  MiniMap,
 } from "@/components/game";
 import { TileMap } from "@/components/pixel/TileMap";
 import { Breadcrumb } from "@/components/pixel/Breadcrumb";
@@ -1388,6 +1390,14 @@ export default function PlayCharacterPage() {
     [player, characterId, currentBuildingId, navigationNames.floor, enterBuildingMutation, changeFloorMutation, handleTileMove]
   );
 
+  // DungeonMap room click handler — opens drawer for current room
+  const handleDungeonRoomClick = useCallback(
+    (_x: number, _y: number, _room: import("@/lib/types").Room) => {
+      setDrawerOpen(true);
+    },
+    []
+  );
+
   const showInventory = screen === "inventory";
   const showCharacter = screen === "character";
   const showStore = screen === "store";
@@ -1444,7 +1454,7 @@ export default function PlayCharacterPage() {
     <>
       {/* ── Death Screen Overlay ── */}
       {isDead && deathData && (
-        <DeathScreen goldLost={deathData.goldLost} onRespawn={handleRespawn} />
+        <DeathScreen goldLost={deathData.goldLost} onRespawn={handleRespawn} isPixelMode={isWorldCharacter} />
       )}
 
       {/* ── Victory Screen Overlay ── */}
@@ -1454,6 +1464,7 @@ export default function PlayCharacterPage() {
           goldGained={victoryData.gold}
           loot={victoryData.items}
           onContinue={handleVictoryContinue}
+          isPixelMode={isWorldCharacter}
         />
       )}
 
@@ -1463,6 +1474,7 @@ export default function PlayCharacterPage() {
           open={true}
           onClose={handleLevelUpClose}
           levelData={levelUpData}
+          isPixelMode={isWorldCharacter}
         />
       )}
 
@@ -1639,22 +1651,30 @@ export default function PlayCharacterPage() {
 
         {/* Main content: stacked on mobile, side-by-side on md+ */}
         <div className="flex flex-col md:flex-row flex-1 min-h-0">
-          {/* ── Left panel: TileMap + Breadcrumb ── */}
-          <div className="w-full md:w-[40%] shrink-0 flex flex-col items-center md:border-r border-b md:border-b-0 border-gray-700">
+          {/* ── Left panel: DungeonMap + Breadcrumb ── */}
+          <div className="w-full md:w-[40%] shrink-0 flex flex-col md:border-r border-b md:border-b-0 border-[#1a3a1a] relative">
             <div className={cn("overflow-hidden w-full flex-1", inCombat ? "max-h-[20dvh]" : "max-h-[55dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
-              {tileMapData && player ? (
-                <TileMap
-                  mapData={tileMapData}
+              {(navigationLayer === "area" || navigationLayer === "building") && mapViewport && player ? (
+                <DungeonMap
+                  viewport={mapViewport}
                   playerPosition={player.position}
-                  viewportWidth={Math.min(tileMapData.width, 11)}
-                  viewportHeight={Math.min(tileMapData.height, 9)}
-                  tileSize={32}
-                  onTileClick={handleTileClick}
-                  onMove={handleTileMove}
-                  keyboardEnabled={screen === "exploring" && !inCombat}
+                  onRoomClick={handleDungeonRoomClick}
+                  onMoveToRoom={handleTileMove}
+                  className="w-full h-full"
                 />
               ) : null}
             </div>
+            {/* MiniMap overlay (top-right) */}
+            {(navigationLayer === "area" || navigationLayer === "building") && mapViewport && !inCombat && (
+              <div className="absolute top-2 right-2 z-20">
+                <MiniMap
+                  viewport={mapViewport}
+                  playerPosition={player.position}
+                  currentRoomName={currentRoom?.name}
+                  currentRoomDesc={currentRoom?.description}
+                />
+              </div>
+            )}
             {/* Breadcrumb */}
             {navigationNames.worldName && (
               <Breadcrumb
