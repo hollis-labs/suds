@@ -104,7 +104,12 @@ const TileCell = memo(function TileCell({
     return (
       <div
         className="tile-hidden"
-        style={{ width: tileSize, height: tileSize }}
+        style={{
+          width: tileSize,
+          height: tileSize,
+          outline: "1px solid rgba(255,255,255,0.04)",
+          outlineOffset: "-1px",
+        }}
       />
     );
   }
@@ -125,13 +130,18 @@ const TileCell = memo(function TileCell({
     <TileTooltip tile={tile}>
       <div
         className={cn(
-          "relative",
+          "relative box-border",
           visClass,
           isPlayer && "tile-current",
           flashKey > 0 && "animate-tile-flash-red",
           isClickable ? "cursor-pointer" : "cursor-default"
         )}
-        style={{ width: tileSize, height: tileSize }}
+        style={{
+          width: tileSize,
+          height: tileSize,
+          outline: "1px solid rgba(255,255,255,0.04)",
+          outlineOffset: "-1px",
+        }}
         onClick={onClick}
         role="gridcell"
         aria-label={tile.visibility !== "hidden" ? `Tile ${tile.x},${tile.y}` : "Hidden"}
@@ -285,7 +295,7 @@ export function TileMap({
 
   return (
     <div
-      className={cn("inline-block bg-[#0a0a0a] overflow-hidden select-none", className)}
+      className={cn("inline-block bg-[#0a0a0a] overflow-hidden select-none border-2 border-gray-700", className)}
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(${viewportWidth}, ${tileSize}px)`,
