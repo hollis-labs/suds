@@ -13,6 +13,15 @@ import type { Theme, RoomType } from "@/lib/constants";
 import { generateRoomDescriptionAI, generateLoreFragmentAI } from "@/server/game/ai";
 import { selectOrGenerate } from "@/server/game/content-library";
 import { logGameEvent } from "@/server/game/events";
+import {
+  getWorldMap,
+  getRegionMap,
+  travelToRegion,
+  travelToArea,
+  enterBuilding,
+  exitBuilding,
+  changeFloor,
+} from "@/server/game/navigation";
 import itemsData from "@/server/gamedata/items.json";
 import type {
   Player,
@@ -1056,5 +1065,66 @@ export const gameRouter = router({
       const room = buildRoom(baseRoom);
 
       return { player, room };
+    }),
+
+  // ─── World Map ──────────────────────────────────────────────────────────────
+  getWorldMap: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return getWorldMap(ctx.db, input.characterId, userId);
+    }),
+
+  // ─── Region Map ─────────────────────────────────────────────────────────────
+  getRegionMap: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid(), regionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return getRegionMap(ctx.db, input.characterId, userId, input.regionId);
+    }),
+
+  // ─── Travel to Region ──────────────────────────────────────────────────────
+  travelToRegion: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid(), regionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return travelToRegion(ctx.db, input.characterId, userId, input.regionId);
+    }),
+
+  // ─── Travel to Area ────────────────────────────────────────────────────────
+  travelToArea: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid(), areaId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return travelToArea(ctx.db, input.characterId, userId, input.areaId);
+    }),
+
+  // ─── Enter Building ────────────────────────────────────────────────────────
+  enterBuilding: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid(), buildingId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return enterBuilding(ctx.db, input.characterId, userId, input.buildingId);
+    }),
+
+  // ─── Exit Building ─────────────────────────────────────────────────────────
+  exitBuilding: protectedProcedure
+    .input(z.object({ characterId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return exitBuilding(ctx.db, input.characterId, userId);
+    }),
+
+  // ─── Change Floor ──────────────────────────────────────────────────────────
+  changeFloor: protectedProcedure
+    .input(z.object({
+      characterId: z.string().uuid(),
+      direction: z.enum(["up", "down"]),
+      currentFloor: z.number().int().min(0),
+      buildingId: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id!;
+      return changeFloor(ctx.db, input.characterId, userId, input.direction, input.currentFloor, input.buildingId);
     }),
 });
