@@ -1,0 +1,1 @@
+export { SpriteIcon } from "./SpriteIcon";
