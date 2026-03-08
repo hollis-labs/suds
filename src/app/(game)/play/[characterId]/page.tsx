@@ -40,6 +40,7 @@ import { GAME_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import type { Store, NPC, DialogueNode, GameItem, Direction, CombatAction, CombatState, Player, NavigationLayer } from "@/lib/types";
+import type { DungeonMapHandle } from "@/components/game/DungeonMap";
 
 // ── Keyboard map (module-level constant) ──────────────────────────────
 const EXPLORING_KEY_MAP: Record<string, string> = {
@@ -253,6 +254,7 @@ export default function PlayCharacterPage() {
 
   // Ref to avoid stale player in keyboard handlers
   const playerRef = useRef(player);
+  const dungeonMapRef = useRef<DungeonMapHandle>(null);
   playerRef.current = player;
 
   // ── Victory / Death / LevelUp overlay state ──
@@ -1647,6 +1649,7 @@ export default function PlayCharacterPage() {
             <div className={cn("overflow-hidden w-full flex-1", inCombat ? "max-h-[20dvh]" : "max-h-[55dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {(navigationLayer === "area" || navigationLayer === "building") && mapViewport && player ? (
                 <DungeonMap
+                  ref={dungeonMapRef}
                   viewport={mapViewport}
                   playerPosition={player.position}
                   onRoomClick={handleDungeonRoomClick}
@@ -1663,6 +1666,7 @@ export default function PlayCharacterPage() {
                   playerPosition={player.position}
                   currentRoomName={currentRoom?.name}
                   currentRoomDesc={currentRoom?.description}
+                  onRoomClick={(x, y) => dungeonMapRef.current?.scrollToRoom(x, y)}
                 />
               </div>
             )}

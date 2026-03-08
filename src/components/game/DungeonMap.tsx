@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect, useCallback, memo } from "react";
+import { useMemo, useRef, useEffect, useCallback, useImperativeHandle, forwardRef, memo } from "react";
 import { cn } from "@/lib/utils";
 import type { MapViewport, MapCell, Room } from "@/lib/types";
 
@@ -38,6 +38,10 @@ export interface DungeonMapProps {
   onRoomClick: (x: number, y: number, room: Room) => void;
   onMoveToRoom: (x: number, y: number) => void;
   className?: string;
+}
+
+export interface DungeonMapHandle {
+  scrollToRoom: (x: number, y: number) => void;
 }
 
 // ── Icon components (pure SVG, no sprites/emoji) ───────────────────────
@@ -205,13 +209,13 @@ const RoomRect = memo(function RoomRect({
 });
 
 // ── DungeonMap Component ───────────────────────────────────────────────
-export function DungeonMap({
+export const DungeonMap = forwardRef<DungeonMapHandle, DungeonMapProps>(function DungeonMap({
   viewport,
   playerPosition,
   onRoomClick,
   onMoveToRoom,
   className,
-}: DungeonMapProps) {
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Collect all rooms from the viewport cells
@@ -283,17 +287,55 @@ export function DungeonMap({
     };
   }, [rooms]);
 
-  // Auto-scroll to center on current room
+  // Scroll helper: center a world-coordinate room in the viewport
+  const scrollToWorldRoom = useCallback(
+    (wx: number, wy: number, smooth = true) => {
+      const el = containerRef.current;
+      if (!el) return;
+      const px = (wx - bounds.minX) * CELL_W + ROOM_W / 2 + 10; // +10 for padding
+      const py = (wy - bounds.minY) * CELL_H + ROOM_H / 2 + 10;
+      el.scrollTo({
+        left: px - el.clientWidth / 2,
+        top: py - el.clientHeight / 2,
+        behavior: smooth ? "smooth" : "instant",
+      });
+    },
+    [bounds.minX, bounds.minY],
+  );
+
+  // Expose scrollToRoom for external callers (e.g. MiniMap click)
+  useImperativeHandle(ref, () => ({
+    scrollToRoom: (x: number, y: number) => scrollToWorldRoom(x, y, true),
+  }), [scrollToWorldRoom]);
+
+  // Dead-zone scrolling: only scroll when player is within 1 room of viewport edge
+  const prevPlayerRef = useRef({ x: playerPosition.x, y: playerPosition.y });
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const px = (playerPosition.x - bounds.minX) * CELL_W + ROOM_W / 2;
-    const py = (playerPosition.y - bounds.minY) * CELL_H + ROOM_H / 2;
-    el.scrollTo({
-      left: px - el.clientWidth / 2,
-      top: py - el.clientHeight / 2,
-      behavior: "smooth",
-    });
+    const isFirst = prevPlayerRef.current.x === playerPosition.x && prevPlayerRef.current.y === playerPosition.y;
+    prevPlayerRef.current = { x: playerPosition.x, y: playerPosition.y };
+
+    const px = (playerPosition.x - bounds.minX) * CELL_W + ROOM_W / 2 + 10;
+    const py = (playerPosition.y - bounds.minY) * CELL_H + ROOM_H / 2 + 10;
+
+    // Check if player is near the edge of the visible viewport
+    const marginX = CELL_W; // 1 room distance
+    const marginY = CELL_H;
+    const visLeft = el.scrollLeft + marginX;
+    const visRight = el.scrollLeft + el.clientWidth - marginX;
+    const visTop = el.scrollTop + marginY;
+    const visBottom = el.scrollTop + el.clientHeight - marginY;
+
+    const needsScroll = isFirst || px < visLeft || px > visRight || py < visTop || py > visBottom;
+
+    if (needsScroll) {
+      el.scrollTo({
+        left: px - el.clientWidth / 2,
+        top: py - el.clientHeight / 2,
+        behavior: isFirst ? "instant" : "smooth",
+      });
+    }
   }, [playerPosition.x, playerPosition.y, bounds.minX, bounds.minY]);
 
   const handleRoomClick = useCallback(
@@ -410,4 +452,4 @@ export function DungeonMap({
       </div>
     </div>
   );
-}
+});
