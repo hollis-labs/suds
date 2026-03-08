@@ -1641,7 +1641,7 @@ export default function PlayCharacterPage() {
         <div className="flex flex-col md:flex-row flex-1 min-h-0">
           {/* ── Left panel: TileMap + Breadcrumb ── */}
           <div className="w-full md:w-[40%] shrink-0 flex flex-col items-center md:border-r border-b md:border-b-0 border-gray-700">
-            <div className={cn("overflow-hidden w-full flex-1", inCombat ? "max-h-[20dvh]" : "max-h-[60dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
+            <div className={cn("overflow-hidden w-full flex-1", inCombat ? "max-h-[20dvh]" : "max-h-[55dvh]", "md:max-h-none", screen === "exploring" && layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
               {tileMapData && player ? (
                 <TileMap
                   mapData={tileMapData}
@@ -1666,7 +1666,7 @@ export default function PlayCharacterPage() {
           </div>
 
           {/* ── Right panel: Game log + Actions / Combat / WorldMap / RegionMap ── */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative p-2 md:p-3">
             {/* Navigation loading overlay */}
             {navLoadingMessage && (
               <div className="absolute inset-0 z-30 bg-gray-950/80 flex items-center justify-center">
