@@ -88,6 +88,23 @@ export const worlds = pgTable("worlds", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 
+// ─── Regions ────────────────────────────────────────────────────────────────
+
+export const regions = pgTable("regions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  worldId: uuid("world_id")
+    .notNull()
+    .references(() => worlds.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  theme: text("theme").notNull(),
+  position: jsonb("position").notNull(), // {x, y} on world map
+  connections: text("connections").array().default([]).notNull(), // region IDs
+  metadata: jsonb("metadata").default({}).notNull(), // landmarks, faction, flavor
+  generatedBy: text("generated_by").notNull(), // "seed" | "ai" | "template"
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
+
 // ─── Characters ──────────────────────────────────────────────────────────────
 
 export const characters = pgTable("characters", {
@@ -424,3 +441,6 @@ export type NewNewsPost = InferInsertModel<typeof newsPosts>;
 
 export type World = InferSelectModel<typeof worlds>;
 export type NewWorld = InferInsertModel<typeof worlds>;
+
+export type Region = InferSelectModel<typeof regions>;
+export type NewRegion = InferInsertModel<typeof regions>;
