@@ -297,13 +297,30 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Loading / skeleton tiles ── */
+@keyframes tile-shimmer {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+  100% { opacity: 0.3; }
+}
+.tile-skeleton {
+  background-color: #1a1a1a;
+  animation: tile-shimmer 1.5s ease-in-out infinite;
+}
+
+.loading-overlay {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+}
+
 /* Respect prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .layer-enter-zoom-in,
   .layer-enter-zoom-out,
   .layer-enter-building,
   .layer-enter-floor-down,
-  .layer-enter-floor-up {
+  .layer-enter-floor-up,
+  .tile-skeleton {
     animation: none !important;
   }
 }

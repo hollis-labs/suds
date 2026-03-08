@@ -1209,6 +1209,29 @@ export default function PlayCharacterPage() {
     return { width, height, tiles };
   }, [isWorldCharacter, mapViewport, player, isInBuilding]);
 
+  // ── Navigation loading state ──
+  const navLoadingMessage = useMemo(() => {
+    if (travelToRegionMutation.isPending) return `Traveling to ${navigationNames.regionName ?? "region"}...`;
+    if (travelToAreaMutation.isPending) return `Exploring ${navigationNames.areaName ?? "area"}...`;
+    if (enterBuildingMutation.isPending) return `Entering ${navigationNames.buildingName ?? "building"}...`;
+    if (exitBuildingMutation.isPending) return "Exiting building...";
+    if (changeFloorMutation.isPending) return `Moving to floor ${(navigationNames.floor ?? 0) + 1}...`;
+    if (worldMapQuery.isFetching && !worldMapQuery.data) return "Loading world map...";
+    if (regionMapQuery.isFetching && !regionMapQuery.data) return "Loading region map...";
+    return null;
+  }, [
+    travelToRegionMutation.isPending,
+    travelToAreaMutation.isPending,
+    enterBuildingMutation.isPending,
+    exitBuildingMutation.isPending,
+    changeFloorMutation.isPending,
+    worldMapQuery.isFetching,
+    worldMapQuery.data,
+    regionMapQuery.isFetching,
+    regionMapQuery.data,
+    navigationNames,
+  ]);
+
   // Breadcrumb segments (extracted from inline IIFE for clarity)
   const breadcrumbSegments = useMemo<BreadcrumbSegment[]>(() => {
     const segs: BreadcrumbSegment[] = [];
@@ -1423,7 +1446,13 @@ export default function PlayCharacterPage() {
           </div>
 
           {/* ── Right panel (65%): Text + Actions/Combat/WorldMap/RegionMap ── */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
+            {/* Navigation loading overlay */}
+            {navLoadingMessage && (
+              <div className="absolute inset-0 z-30 loading-overlay flex items-center justify-center">
+                <TerminalLoading message={navLoadingMessage} />
+              </div>
+            )}
             {screen === "world_map" && worldMapQuery.data ? (
               /* ── World Map View ── */
               <div className={cn("flex-1 min-h-0 overflow-hidden", layerTransitionClass)} onAnimationEnd={handleTransitionEnd}>
