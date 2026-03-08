@@ -307,13 +307,27 @@ export default function PlayCharacterPage() {
 
   const worldMapQuery = trpc.game.getWorldMap.useQuery(
     { characterId },
-    { enabled: screen === "world_map" && isWorldCharacterEarly }
+    { enabled: isWorldCharacterEarly }
   );
 
   const regionMapQuery = trpc.game.getRegionMap.useQuery(
     { characterId, regionId: currentRegionId! },
     { enabled: screen === "region_map" && !!currentRegionId }
   );
+
+  // ── Populate navigation names on initial world map load ──
+  const navNamesInitialized = useRef(false);
+  useEffect(() => {
+    if (navNamesInitialized.current) return;
+    if (!worldMapQuery.data || !isWorldCharacterEarly) return;
+    navNamesInitialized.current = true;
+    const worldName = worldMapQuery.data.world.name;
+    const firstRegion = worldMapQuery.data.regions.find((r) => r.discovered);
+    setNavigationNames({ worldName, regionName: firstRegion?.name });
+    if (firstRegion) {
+      setCurrentRegionId(firstRegion.id);
+    }
+  }, [worldMapQuery.data, isWorldCharacterEarly, setNavigationNames]);
 
   // ── World navigation mutations ──
   const travelToRegionMutation = trpc.game.travelToRegion.useMutation({
@@ -1190,6 +1204,47 @@ export default function PlayCharacterPage() {
     return { width, height, tiles };
   }, [isWorldCharacter, mapViewport, player, isInBuilding]);
 
+  // Breadcrumb segments (extracted from inline IIFE for clarity)
+  const breadcrumbSegments = useMemo<BreadcrumbSegment[]>(() => {
+    const segs: BreadcrumbSegment[] = [];
+    segs.push({
+      label: navigationNames.worldName ?? "World",
+      onClick: navigationLayer !== "world"
+        ? () => { setScreen("world_map"); setNavigationLayer("world"); }
+        : undefined,
+    });
+    if (navigationNames.regionName && (navigationLayer === "region" || navigationLayer === "area" || navigationLayer === "building")) {
+      segs.push({
+        label: navigationNames.regionName,
+        onClick: navigationLayer !== "region"
+          ? () => { setScreen("region_map"); setNavigationLayer("region"); }
+          : undefined,
+      });
+    }
+    if (navigationNames.areaName && (navigationLayer === "area" || navigationLayer === "building")) {
+      segs.push({
+        label: navigationNames.areaName,
+        onClick: navigationLayer !== "area"
+          ? () => { setScreen("exploring"); setNavigationLayer("area"); }
+          : undefined,
+      });
+    }
+    if (navigationNames.buildingName && navigationLayer === "building") {
+      segs.push({ label: navigationNames.buildingName });
+      if (navigationNames.floor !== undefined) {
+        segs.push({ label: `Floor ${navigationNames.floor + 1}` });
+      }
+    }
+    return segs;
+  }, [navigationNames, navigationLayer, setScreen, setNavigationLayer]);
+
+  const breadcrumbOnBack = useMemo(() => {
+    if (navigationLayer === "region") return () => { setScreen("world_map"); setNavigationLayer("world"); };
+    if (navigationLayer === "area") return () => { setScreen("region_map"); setNavigationLayer("region"); };
+    if (navigationLayer === "building") return () => { setScreen("exploring"); setNavigationLayer("area"); };
+    return undefined;
+  }, [navigationLayer, setScreen, setNavigationLayer]);
+
   // TileMap click handler — translate tile click to directional move
   const handleTileMove = useCallback(
     (nx: number, ny: number) => {
@@ -1310,51 +1365,8 @@ export default function PlayCharacterPage() {
             {/* Breadcrumb for world characters */}
             {isWorldCharacter && navigationNames.worldName && (
               <Breadcrumb
-                segments={(() => {
-                  const segs: BreadcrumbSegment[] = [];
-                  // World
-                  segs.push({
-                    label: navigationNames.worldName ?? "World",
-                    onClick: navigationLayer !== "world"
-                      ? () => { setScreen("world_map"); setNavigationLayer("world"); }
-                      : undefined,
-                  });
-                  // Region
-                  if (navigationNames.regionName && (navigationLayer === "region" || navigationLayer === "area" || navigationLayer === "building")) {
-                    segs.push({
-                      label: navigationNames.regionName,
-                      onClick: navigationLayer !== "region"
-                        ? () => { setScreen("region_map"); setNavigationLayer("region"); }
-                        : undefined,
-                    });
-                  }
-                  // Area
-                  if (navigationNames.areaName && (navigationLayer === "area" || navigationLayer === "building")) {
-                    segs.push({
-                      label: navigationNames.areaName,
-                      onClick: navigationLayer !== "area"
-                        ? () => { setScreen("exploring"); setNavigationLayer("area"); }
-                        : undefined,
-                    });
-                  }
-                  // Building
-                  if (navigationNames.buildingName && navigationLayer === "building") {
-                    segs.push({ label: navigationNames.buildingName });
-                    if (navigationNames.floor !== undefined) {
-                      segs.push({ label: `Floor ${navigationNames.floor + 1}` });
-                    }
-                  }
-                  return segs;
-                })()}
-                onBack={
-                  navigationLayer === "region"
-                    ? () => { setScreen("world_map"); setNavigationLayer("world"); }
-                    : navigationLayer === "area"
-                      ? () => { setScreen("region_map"); setNavigationLayer("region"); }
-                      : navigationLayer === "building"
-                        ? () => { setScreen("exploring"); setNavigationLayer("area"); }
-                        : undefined
-                }
+                segments={breadcrumbSegments}
+                onBack={breadcrumbOnBack}
                 className="w-full"
               />
             )}
