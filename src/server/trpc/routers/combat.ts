@@ -609,6 +609,14 @@ export const combatRouter = router({
 
       const encounter = currentRoom.encounterData as MonsterEncounter;
 
+      // Validate encounter has monsters
+      if (!encounter.monsters || !Array.isArray(encounter.monsters) || encounter.monsters.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Encounter has no monsters",
+        });
+      }
+
       // Build player for combat engine
       const items = await ctx.db
         .select()

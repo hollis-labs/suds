@@ -849,7 +849,10 @@ export function initCombat(
 
   const extra = createCombatExtra();
   // Initial aggro = average monster level, clamped 2-8
-  const avgLevel = encounter.monsters.reduce((s, m) => s + m.level, 0) / encounter.monsters.length;
+  const monsterCount = encounter.monsters.length;
+  const avgLevel = monsterCount > 0
+    ? encounter.monsters.reduce((s, m) => s + m.level, 0) / monsterCount
+    : 1;
   extra.aggro = Math.min(8, Math.max(2, Math.round(avgLevel)));
 
   return { state, extra };
