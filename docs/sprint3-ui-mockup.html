@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SUDS v2 — Sprint 3 UI Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwindcss.config = {
+  theme: {
+    extend: {
+      colors: {
+        term: {
+          bg: '#0a0f0a',
+          'bg-alt': '#0d140d',
+          green: '#33ff33',
+          'green-dim': '#1a8c1a',
+          'green-muted': '#145214',
+          border: '#1a3a1a',
+          'border-bright': '#2a5a2a',
+          amber: '#ffaa00',
+          red: '#ff4444',
+          blue: '#44aaff',
+          purple: '#aa66ff',
+          gold: '#ffd700',
+          white: '#c8e6c8',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  body { font-family: 'JetBrains Mono', monospace; }
+  .terminal-glow { text-shadow: 0 0 8px rgba(51, 255, 51, 0.4); }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: #0a0f0a; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #1a3a1a; border-radius: 2px; }
+
+  /* Tab indicator */
+  .tab-active { border-bottom: 2px solid #33ff33; color: #33ff33; }
+  .tab-inactive { border-bottom: 2px solid transparent; color: #1a8c1a; }
+
+  /* Map tile styling */
+  .map-tile {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .map-tile-visited { border-color: #1a3a1a; background: #0d140d; }
+  .map-tile-current { border-color: #33ff33; background: #0a1f0a; box-shadow: 0 0 8px rgba(51,255,51,0.15); }
+  .map-tile-fog { border-color: #0d140d; background: #080c08; }
+  .map-tile-empty { border-color: transparent; background: transparent; }
+
+  /* Connection lines */
+  .conn-h { width: 8px; height: 2px; background: #1a3a1a; align-self: center; }
+  .conn-v { width: 2px; height: 8px; background: #1a3a1a; justify-self: center; margin: 0 auto; }
+  .conn-active-h { background: #1a8c1a; }
+  .conn-active-v { background: #1a8c1a; }
+
+  /* Compact status pills */
+  .stat-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px; border-radius: 4px;
+    font-size: 10px; line-height: 1;
+    background: #0d140d; border: 1px solid #1a3a1a;
+  }
+
+  /* Room type icons */
+  .room-icon { font-size: 16px; line-height: 1; }
+
+  /* DPad */
+  .dpad-btn {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: #0d140d; border: 1px solid #1a3a1a;
+    color: #1a8c1a; font-size: 18px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .dpad-btn:active { background: #1a3a1a; color: #33ff33; }
+
+  /* Action button */
+  .action-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 14px;
+    background: #0d140d; border: 1px solid #1a3a1a;
+    color: #1a8c1a; font-size: 12px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    white-space: nowrap;
+  }
+  .action-btn:active { background: #1a3a1a; color: #33ff33; border-color: #33ff33; }
+  .action-btn .key-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 3px;
+    background: #1a3a1a; color: #33ff33; font-size: 10px; font-weight: bold;
+  }
+
+  /* View switcher for mockup */
+  .view-switcher {
+    position: fixed; top: 8px; right: 8px; z-index: 100;
+    display: flex; gap: 4px;
+  }
+  .view-btn {
+    padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;
+    background: #1a3a1a; color: #33ff33; border: 1px solid #2a5a2a;
+  }
+  .view-btn.active { background: #33ff33; color: #0a0f0a; }
+</style>
+</head>
+<body class="bg-term-bg text-term-white m-0 p-0 overflow-hidden">
+
+<!-- ===== MOCKUP VIEW SWITCHER (not part of game UI) ===== -->
+<div class="view-switcher">
+  <button class="view-btn active" onclick="setView('mobile')" id="btn-mobile">Mobile</button>
+  <button class="view-btn" onclick="setView('tablet')" id="btn-tablet">Tablet</button>
+  <button class="view-btn" onclick="setView('desktop')" id="btn-desktop">Desktop</button>
+  <button class="view-btn" onclick="setView('combat-m')" id="btn-combat-m">Combat</button>
+</div>
+
+<!-- ===== MOBILE EXPLORING VIEW ===== -->
+<div id="view-mobile" class="mx-auto" style="max-width: 390px; height: 100vh;">
+  <div class="flex flex-col h-full border border-term-border">
+
+    <!-- TOP BAR: Compact identity + stats -->
+    <div class="shrink-0 px-3 py-1.5 border-b border-term-border bg-term-bg-alt">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-term-green terminal-glow font-bold text-xs">SUDS</span>
+          <span class="text-term-border">|</span>
+          <span class="text-term-green text-xs">Grimshaw</span>
+          <span class="text-term-green-dim text-[10px]">Lv.7 Rogue</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="stat-pill"><span class="text-term-gold">$</span><span class="text-term-gold">342</span></span>
+        </div>
+      </div>
+      <!-- HP / MP inline bars -->
+      <div class="flex items-center gap-3 mt-1">
+        <div class="flex items-center gap-1 flex-1">
+          <span class="text-[10px] text-term-green-dim w-6">HP</span>
+          <div class="flex-1 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-green rounded-sm" style="width: 72%"></div>
+          </div>
+          <span class="text-[10px] text-term-green w-10 text-right">36/50</span>
+        </div>
+        <div class="flex items-center gap-1 flex-1">
+          <span class="text-[10px] text-term-green-dim w-6">MP</span>
+          <div class="flex-1 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-blue rounded-sm" style="width: 45%"></div>
+          </div>
+          <span class="text-[10px] text-term-blue w-10 text-right">9/20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABBED CONTENT AREA -->
+    <div class="flex-1 min-h-0 flex flex-col">
+
+      <!-- Tab bar -->
+      <div class="shrink-0 flex border-b border-term-border bg-term-bg-alt px-1">
+        <button class="tab-active px-3 py-1.5 text-[11px] uppercase tracking-wider" onclick="switchTab('room')">Room</button>
+        <button class="tab-inactive px-3 py-1.5 text-[11px] uppercase tracking-wider" onclick="switchTab('map')">Map</button>
+        <button class="tab-inactive px-3 py-1.5 text-[11px] uppercase tracking-wider" onclick="switchTab('log')">Log</button>
+      </div>
+
+      <!-- Tab: Room (default) -->
+      <div id="tab-room" class="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 space-y-3">
+        <!-- Room header -->
+        <div>
+          <div class="flex items-baseline gap-2">
+            <h2 class="text-term-green terminal-glow text-sm font-bold">The Sunken Crypt</h2>
+            <span class="text-term-border-bright text-[10px] uppercase tracking-wider">Chamber</span>
+          </div>
+          <p class="text-term-green-dim text-xs leading-relaxed mt-1.5">
+            Water seeps through cracks in the ancient stone ceiling, pooling in shallow depressions across the floor. Faded runes line the walls, their meaning lost to centuries of decay. The air is thick with the scent of damp earth and something else... something metallic.
+          </p>
+        </div>
+
+        <!-- Exits as directional chips -->
+        <div class="flex items-center gap-2">
+          <span class="text-term-green-dim text-[10px] uppercase tracking-wider">Exits:</span>
+          <div class="flex gap-1.5">
+            <span class="stat-pill text-term-green cursor-pointer hover:border-term-green">[W] North</span>
+            <span class="stat-pill text-term-green cursor-pointer hover:border-term-green">[D] East</span>
+            <span class="stat-pill text-term-green cursor-pointer hover:border-term-green">[S] South</span>
+          </div>
+        </div>
+
+        <!-- Room features -->
+        <div class="text-xs text-term-green-dim border-l-2 border-term-border pl-2">
+          You notice something on the ground...
+        </div>
+
+        <!-- Mini map preview (inline, tappable to switch to Map tab) -->
+        <div class="border border-term-border rounded p-2 bg-term-bg-alt" onclick="switchTab('map')" style="cursor:pointer">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] text-term-green-dim uppercase tracking-wider">Nearby</span>
+            <span class="text-[10px] text-term-border-bright">Tap to expand</span>
+          </div>
+          <div class="flex items-center justify-center gap-0.5">
+            <span class="inline-block w-5 h-5 border border-term-border bg-term-bg-alt text-center text-[10px] text-term-green-dim leading-5">#</span>
+            <span class="inline-block w-2 h-0.5 bg-term-green-muted"></span>
+            <span class="inline-block w-5 h-5 border border-term-green bg-term-bg text-center text-[10px] text-term-green font-bold leading-5 terminal-glow">@</span>
+            <span class="inline-block w-2 h-0.5 bg-term-green-muted"></span>
+            <span class="inline-block w-5 h-5 border border-term-border bg-term-bg-alt text-center text-[10px] text-term-green-dim leading-5">$</span>
+          </div>
+          <div class="flex justify-center mt-0.5">
+            <span class="inline-block w-0.5 h-2 bg-term-green-muted"></span>
+          </div>
+          <div class="flex justify-center">
+            <span class="inline-block w-5 h-5 border border-term-border bg-term-bg-alt text-center text-[10px] text-term-green-dim leading-5">?</span>
+          </div>
+        </div>
+
+        <!-- Recent log (last 2-3 entries) -->
+        <div class="space-y-0.5">
+          <span class="text-[10px] text-term-green-dim uppercase tracking-wider">Recent</span>
+          <p class="text-[11px] text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Sunken Crypt</p>
+          <p class="text-[11px] text-term-green"><span class="text-term-amber mr-1">&rsaquo;</span>You found 12 gold pieces!</p>
+        </div>
+      </div>
+
+      <!-- Tab: Map (hidden by default) -->
+      <div id="tab-map" class="flex-1 min-h-0 overflow-auto p-3 hidden">
+        <div class="flex flex-col items-center gap-1">
+          <!-- Map grid (visual tiles instead of ASCII) -->
+          <div class="grid gap-0.5" style="grid-template-columns: repeat(5, 40px);">
+            <!-- Row 1 -->
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-empty"></div>
+            <!-- Row 2 -->
+            <div class="map-tile map-tile-visited"><span class="text-term-green-dim">#</span></div>
+            <div class="map-tile map-tile-visited relative">
+              <span class="text-term-green-dim">#</span>
+              <!-- Connection indicator -->
+            </div>
+            <div class="map-tile map-tile-current"><span class="text-term-green font-bold terminal-glow">@</span></div>
+            <div class="map-tile map-tile-visited"><span class="text-term-gold">$</span></div>
+            <div class="map-tile map-tile-empty"></div>
+            <!-- Row 3 -->
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-visited"><span class="text-term-blue">?</span></div>
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-empty"></div>
+            <!-- Row 4 -->
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+            <div class="map-tile map-tile-empty"></div>
+            <div class="map-tile map-tile-empty"></div>
+          </div>
+
+          <!-- Map legend -->
+          <div class="flex flex-wrap gap-3 mt-3 text-[10px] text-term-green-dim justify-center">
+            <span><span class="text-term-green font-bold">@</span> You</span>
+            <span><span class="text-term-green-dim">#</span> Room</span>
+            <span><span class="text-term-gold">$</span> Store</span>
+            <span><span class="text-term-blue">?</span> NPC</span>
+            <span><span class="text-term-red">!</span> Boss</span>
+            <span><span class="text-term-purple">^</span> Shrine</span>
+          </div>
+
+          <!-- DPad integrated into map tab -->
+          <div class="mt-4">
+            <div class="grid grid-cols-3 gap-1.5" style="width: 140px;">
+              <div></div>
+              <button class="dpad-btn">N</button>
+              <div></div>
+              <button class="dpad-btn">W</button>
+              <button class="dpad-btn text-term-amber text-sm">X</button>
+              <button class="dpad-btn">E</button>
+              <div></div>
+              <button class="dpad-btn">S</button>
+              <div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Log (hidden by default) -->
+      <div id="tab-log" class="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 hidden">
+        <div class="space-y-1 text-[11px]">
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You awaken in the dungeon entrance...</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move North</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Moss-Covered Hall</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&#128269;</span>You search the room and find nothing</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move East</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Forgotten Armory</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&#10024;</span>You found a Rusty Longsword!</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move East</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Merchant's Alcove</p>
+          <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move South</p>
+          <p class="text-term-green"><span class="text-term-amber mr-1">&rsaquo;</span>You enter The Sunken Crypt</p>
+          <p class="text-term-green"><span class="text-term-amber mr-1">&#10024;</span>You found 12 gold pieces!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM: Action buttons (always visible) -->
+    <div class="shrink-0 border-t border-term-border bg-term-bg-alt px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div class="flex gap-1.5 overflow-x-auto scrollbar-thin">
+        <button class="action-btn flex-1"><span class="key-badge">X</span>Search</button>
+        <button class="action-btn flex-1"><span class="key-badge">I</span>Items</button>
+        <button class="action-btn flex-1"><span class="key-badge">C</span>Stats</button>
+        <button class="action-btn"><span class="key-badge">R</span>Rest</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TABLET VIEW ===== -->
+<div id="view-tablet" class="mx-auto hidden" style="max-width: 768px; height: 100vh;">
+  <div class="flex flex-col h-full border border-term-border">
+
+    <!-- TOP BAR -->
+    <div class="shrink-0 px-4 py-2 border-b border-term-border bg-term-bg-alt">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-term-green terminal-glow font-bold text-sm">SUDS</span>
+          <span class="text-term-border">|</span>
+          <span class="text-term-green text-sm">Grimshaw</span>
+          <span class="text-term-green-dim text-xs">Lv.7 Rogue</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- HP bar -->
+          <div class="flex items-center gap-1">
+            <span class="text-[10px] text-term-green-dim">HP</span>
+            <div class="w-20 h-2.5 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+              <div class="h-full bg-term-green rounded-sm" style="width: 72%"></div>
+            </div>
+            <span class="text-[10px] text-term-green">36/50</span>
+          </div>
+          <!-- MP bar -->
+          <div class="flex items-center gap-1">
+            <span class="text-[10px] text-term-green-dim">MP</span>
+            <div class="w-16 h-2.5 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+              <div class="h-full bg-term-blue rounded-sm" style="width: 45%"></div>
+            </div>
+            <span class="text-[10px] text-term-blue">9/20</span>
+          </div>
+          <span class="stat-pill"><span class="text-term-gold">$</span><span class="text-term-gold">342</span></span>
+          <span class="stat-pill"><span class="text-term-purple">XP</span><span class="text-term-purple">680/1000</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN: Map left, Text right (40/60 split) -->
+    <div class="flex-1 min-h-0 flex flex-row">
+
+      <!-- Left: Map + DPad -->
+      <div class="w-[40%] border-r border-term-border flex flex-col items-center justify-center gap-4 p-4">
+        <span class="text-[10px] text-term-green-dim uppercase tracking-wider">Dungeon Map</span>
+        <div class="grid gap-0.5" style="grid-template-columns: repeat(5, 40px);">
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-green-dim">#</span></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-green-dim">#</span></div>
+          <div class="map-tile map-tile-current"><span class="text-term-green font-bold terminal-glow">@</span></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-gold">$</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-blue">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap gap-2 text-[10px] text-term-green-dim justify-center">
+          <span><span class="text-term-green font-bold">@</span> You</span>
+          <span><span class="text-term-green-dim">#</span> Room</span>
+          <span><span class="text-term-gold">$</span> Store</span>
+          <span><span class="text-term-blue">?</span> NPC</span>
+          <span><span class="text-term-red">!</span> Boss</span>
+          <span><span class="text-term-purple">^</span> Shrine</span>
+        </div>
+
+        <!-- DPad -->
+        <div class="grid grid-cols-3 gap-1.5" style="width: 140px;">
+          <div></div>
+          <button class="dpad-btn">N</button>
+          <div></div>
+          <button class="dpad-btn">W</button>
+          <button class="dpad-btn text-term-amber text-sm">X</button>
+          <button class="dpad-btn">E</button>
+          <div></div>
+          <button class="dpad-btn">S</button>
+          <div></div>
+        </div>
+      </div>
+
+      <!-- Right: Room + Log -->
+      <div class="flex-1 min-h-0 flex flex-col p-4">
+        <!-- Room info -->
+        <div class="shrink-0 space-y-2 pb-3">
+          <div class="flex items-baseline gap-2">
+            <h2 class="text-term-green terminal-glow text-sm font-bold">The Sunken Crypt</h2>
+            <span class="text-term-border-bright text-[10px] uppercase tracking-wider">Chamber</span>
+          </div>
+          <p class="text-term-green-dim text-xs leading-relaxed">
+            Water seeps through cracks in the ancient stone ceiling, pooling in shallow depressions across the floor. Faded runes line the walls, their meaning lost to centuries of decay.
+          </p>
+          <div class="flex items-center gap-2">
+            <span class="text-term-green-dim text-[10px]">Exits:</span>
+            <span class="stat-pill text-term-green cursor-pointer">[W] North</span>
+            <span class="stat-pill text-term-green cursor-pointer">[D] East</span>
+            <span class="stat-pill text-term-green cursor-pointer">[S] South</span>
+          </div>
+        </div>
+
+        <div class="border-t border-term-border my-1"></div>
+
+        <!-- Game log -->
+        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+          <div class="space-y-0.5 text-[11px]">
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You awaken in the dungeon entrance...</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move North</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Moss-Covered Hall</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&#128269;</span>You search the room and find nothing</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move East</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Forgotten Armory</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&#10024;</span>You found a Rusty Longsword!</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move East</p>
+            <p class="text-term-green"><span class="text-term-amber mr-1">&rsaquo;</span>You enter The Sunken Crypt</p>
+            <p class="text-term-green"><span class="text-term-amber mr-1">&#10024;</span>You found 12 gold pieces!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM: Actions -->
+    <div class="shrink-0 border-t border-term-border bg-term-bg-alt px-3 py-2">
+      <div class="flex gap-2 justify-center">
+        <button class="action-btn"><span class="key-badge">X</span>Search</button>
+        <button class="action-btn"><span class="key-badge">I</span>Inventory</button>
+        <button class="action-btn"><span class="key-badge">C</span>Character</button>
+        <button class="action-btn"><span class="key-badge">R</span>Rest</button>
+        <button class="action-btn"><span class="key-badge">L</span>Codex</button>
+        <button class="action-btn"><span class="key-badge">P</span>Party</button>
+        <button class="action-btn"><span class="key-badge">?</span>Help</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DESKTOP VIEW ===== -->
+<div id="view-desktop" class="mx-auto hidden" style="max-width: 1200px; height: 100vh;">
+  <div class="flex flex-col h-full border border-term-border">
+
+    <!-- TOP BAR: Full info -->
+    <div class="shrink-0 px-4 py-2 border-b border-term-border bg-term-bg-alt">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-term-green terminal-glow font-bold text-sm">SUDS</span>
+          <span class="text-term-border">|</span>
+          <span class="text-term-green text-sm">Grimshaw</span>
+          <span class="text-term-green-dim text-xs">Lv.7 Rogue</span>
+          <span class="text-term-green-dim text-[10px]">Pos (3,2)</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1">
+            <span class="text-xs text-term-green-dim">HP</span>
+            <div class="w-24 h-2.5 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+              <div class="h-full bg-term-green rounded-sm transition-all" style="width: 72%"></div>
+            </div>
+            <span class="text-xs text-term-green">36/50</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="text-xs text-term-green-dim">MP</span>
+            <div class="w-20 h-2.5 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+              <div class="h-full bg-term-blue rounded-sm transition-all" style="width: 45%"></div>
+            </div>
+            <span class="text-xs text-term-blue">9/20</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="text-xs text-term-green-dim">XP</span>
+            <div class="w-16 h-2.5 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+              <div class="h-full bg-term-purple rounded-sm transition-all" style="width: 68%"></div>
+            </div>
+            <span class="text-xs text-term-purple">680/1000</span>
+          </div>
+          <span class="text-xs text-term-gold">Gold: 342</span>
+          <span class="text-xs text-term-blue">Ally: Lyra (18/22)</span>
+          <span class="text-xs text-term-blue">Shield: 8</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN: 3-column layout -->
+    <div class="flex-1 min-h-0 flex flex-row">
+
+      <!-- Left column: Map -->
+      <div class="w-[30%] border-r border-term-border flex flex-col items-center justify-center gap-4 p-4">
+        <span class="text-[10px] text-term-green-dim uppercase tracking-wider">Dungeon Map</span>
+
+        <!-- Larger map grid for desktop -->
+        <div class="grid gap-0.5" style="grid-template-columns: repeat(7, 40px);">
+          <!-- Row 1 -->
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <!-- Row 2 -->
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-green-dim">#</span></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-green-dim">#</span></div>
+          <div class="map-tile map-tile-current"><span class="text-term-green font-bold terminal-glow">@</span></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-gold">$</span></div>
+          <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <!-- Row 3 -->
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-blue">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <!-- Row 4 -->
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-fog"><span class="text-term-border text-xs">?</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <!-- Row 5 -->
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-visited"><span class="text-term-red">!</span></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+          <div class="map-tile map-tile-empty"></div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap gap-3 text-[10px] text-term-green-dim justify-center">
+          <span><span class="text-term-green font-bold">@</span> You</span>
+          <span><span class="text-term-green-dim">#</span> Room</span>
+          <span><span class="text-term-gold">$</span> Store</span>
+          <span><span class="text-term-blue">?</span> NPC</span>
+          <span><span class="text-term-red">!</span> Boss</span>
+          <span><span class="text-term-purple">^</span> Shrine</span>
+          <span><span class="text-term-amber">~</span> Trap</span>
+        </div>
+      </div>
+
+      <!-- Center column: Room + Log -->
+      <div class="flex-1 min-h-0 flex flex-col p-4">
+        <div class="shrink-0 space-y-2 pb-3">
+          <div class="flex items-baseline gap-2">
+            <h2 class="text-term-green terminal-glow text-base font-bold">The Sunken Crypt</h2>
+            <span class="text-term-border-bright text-[10px] uppercase tracking-wider">Chamber</span>
+          </div>
+          <p class="text-term-green-dim text-xs leading-relaxed">
+            Water seeps through cracks in the ancient stone ceiling, pooling in shallow depressions across the floor. Faded runes line the walls, their meaning lost to centuries of decay. The air is thick with the scent of damp earth and something else... something metallic.
+          </p>
+          <div class="flex items-center gap-2">
+            <span class="text-term-green-dim text-[10px]">Exits:</span>
+            <span class="stat-pill text-term-green cursor-pointer hover:border-term-green">[W] North</span>
+            <span class="stat-pill text-term-green cursor-pointer hover:border-term-green">[D] East</span>
+            <span class="stat-pill text-term-green cursor-pointer hover:border-term-green">[S] South</span>
+          </div>
+          <div class="text-xs text-term-amber">You notice something on the ground...</div>
+        </div>
+
+        <div class="border-t border-term-border my-1"></div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+          <div class="space-y-0.5 text-[11px]">
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You awaken in the dungeon entrance...</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move North</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Moss-Covered Hall</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&#128269;</span>You search the room and find nothing</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move East</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rsaquo;</span>You enter The Forgotten Armory</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&#10024;</span>You found a Rusty Longsword!</p>
+            <p class="text-term-green-dim"><span class="text-term-border mr-1">&rarr;</span>You move South</p>
+            <p class="text-term-green"><span class="text-term-amber mr-1">&rsaquo;</span>You enter The Sunken Crypt</p>
+            <p class="text-term-green"><span class="text-term-amber mr-1">&#10024;</span>You found 12 gold pieces!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column: Quick Actions sidebar -->
+      <div class="w-[180px] border-l border-term-border flex flex-col gap-2 p-3 bg-term-bg-alt">
+        <span class="text-[10px] text-term-green-dim uppercase tracking-wider text-center">Actions</span>
+        <button class="action-btn justify-start"><span class="key-badge">X</span>Search Room</button>
+        <button class="action-btn justify-start"><span class="key-badge">R</span>Rest</button>
+        <div class="border-t border-term-border my-1"></div>
+        <span class="text-[10px] text-term-green-dim uppercase tracking-wider text-center">Panels</span>
+        <button class="action-btn justify-start"><span class="key-badge">I</span>Inventory</button>
+        <button class="action-btn justify-start"><span class="key-badge">C</span>Character</button>
+        <button class="action-btn justify-start"><span class="key-badge">L</span>Codex</button>
+        <button class="action-btn justify-start"><span class="key-badge">P</span>Party</button>
+        <button class="action-btn justify-start"><span class="key-badge">N</span>News</button>
+        <div class="border-t border-term-border my-1"></div>
+        <span class="text-[10px] text-term-green-dim uppercase tracking-wider text-center">Movement</span>
+        <div class="grid grid-cols-3 gap-1 mx-auto" style="width: 120px;">
+          <div></div>
+          <button class="dpad-btn" style="width:36px;height:36px;font-size:14px;">N</button>
+          <div></div>
+          <button class="dpad-btn" style="width:36px;height:36px;font-size:14px;">W</button>
+          <div></div>
+          <button class="dpad-btn" style="width:36px;height:36px;font-size:14px;">E</button>
+          <div></div>
+          <button class="dpad-btn" style="width:36px;height:36px;font-size:14px;">S</button>
+          <div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM BAR: Keyboard hints (desktop only shows hints, not buttons) -->
+    <div class="shrink-0 px-4 py-1.5 border-t border-term-border bg-term-bg-alt text-[10px] text-term-green-dim opacity-60">
+      <span class="text-term-green">[WASD/Arrows]</span> Move
+      <span class="text-term-border mx-2">|</span>
+      <span class="text-term-green">[X]</span> Search
+      <span class="text-term-border mx-2">|</span>
+      <span class="text-term-green">[I]</span> Inventory
+      <span class="text-term-border mx-2">|</span>
+      <span class="text-term-green">[C]</span> Character
+      <span class="text-term-border mx-2">|</span>
+      <span class="text-term-green">[L]</span> Codex
+      <span class="text-term-border mx-2">|</span>
+      <span class="text-term-green">[R]</span> Rest
+      <span class="text-term-border mx-2">|</span>
+      <span class="text-term-green">[?]</span> Help
+    </div>
+  </div>
+</div>
+
+<!-- ===== MOBILE COMBAT VIEW ===== -->
+<div id="view-combat-m" class="mx-auto hidden" style="max-width: 390px; height: 100vh;">
+  <div class="flex flex-col h-full border border-term-border">
+
+    <!-- TOP BAR: Compact -->
+    <div class="shrink-0 px-3 py-1.5 border-b border-term-border bg-term-bg-alt">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-term-red font-bold text-xs animate-pulse">COMBAT</span>
+          <span class="text-term-border">|</span>
+          <span class="text-term-green text-xs">Grimshaw</span>
+        </div>
+        <span class="text-[10px] text-term-green-dim">Round 3</span>
+      </div>
+      <div class="flex items-center gap-3 mt-1">
+        <div class="flex items-center gap-1 flex-1">
+          <span class="text-[10px] text-term-green-dim w-6">HP</span>
+          <div class="flex-1 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-amber rounded-sm" style="width: 38%"></div>
+          </div>
+          <span class="text-[10px] text-term-amber w-10 text-right">19/50</span>
+        </div>
+        <div class="flex items-center gap-1 flex-1">
+          <span class="text-[10px] text-term-green-dim w-6">MP</span>
+          <div class="flex-1 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-blue rounded-sm" style="width: 30%"></div>
+          </div>
+          <span class="text-[10px] text-term-blue w-10 text-right">6/20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Combatants -->
+    <div class="shrink-0 px-3 py-2 border-b border-term-border space-y-1.5">
+      <!-- Monster 1 -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-term-red text-sm">&#9760;</span>
+          <span class="text-term-red text-xs font-bold">Skeletal Knight</span>
+          <span class="text-[10px] text-term-green-dim">Lv.6</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-16 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-red rounded-sm" style="width: 55%"></div>
+          </div>
+          <span class="text-[10px] text-term-red">22/40</span>
+        </div>
+      </div>
+      <!-- Monster 2 -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-term-red text-sm">&#9760;</span>
+          <span class="text-term-red text-xs font-bold">Shadow Imp</span>
+          <span class="text-[10px] text-term-green-dim">Lv.4</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-16 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-red rounded-sm" style="width: 80%"></div>
+          </div>
+          <span class="text-[10px] text-term-red">16/20</span>
+        </div>
+      </div>
+      <!-- Companion -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-term-blue text-sm">&#9876;</span>
+          <span class="text-term-blue text-xs font-bold">Lyra</span>
+          <span class="text-[10px] text-term-green-dim">Ally</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-16 h-2 bg-term-bg rounded-sm overflow-hidden border border-term-border">
+            <div class="h-full bg-term-blue rounded-sm" style="width: 70%"></div>
+          </div>
+          <span class="text-[10px] text-term-blue">15/22</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Combat log -->
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3">
+      <div class="space-y-1 text-[11px]">
+        <p class="text-term-green-dim"><span class="text-term-red mr-1">&#9876;</span>Skeletal Knight attacks you for <span class="text-term-red">8 damage</span></p>
+        <p class="text-term-green-dim"><span class="text-term-green mr-1">&#9876;</span>You attack Skeletal Knight for <span class="text-term-green">12 damage</span></p>
+        <p class="text-term-green-dim"><span class="text-term-blue mr-1">&#9876;</span>Lyra attacks Shadow Imp for <span class="text-term-blue">4 damage</span></p>
+        <p class="text-term-green-dim"><span class="text-term-red mr-1">&#9876;</span>Shadow Imp attacks Lyra for <span class="text-term-red">3 damage</span></p>
+        <p class="text-term-amber"><span class="text-term-amber mr-1">&#9876;</span>Round 3 — Your turn!</p>
+      </div>
+    </div>
+
+    <!-- Combat actions -->
+    <div class="shrink-0 border-t border-term-border bg-term-bg-alt px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div class="grid grid-cols-3 gap-1.5">
+        <button class="action-btn flex-col py-3"><span class="key-badge">1</span><span class="text-[10px]">Attack</span></button>
+        <button class="action-btn flex-col py-3"><span class="key-badge">2</span><span class="text-[10px]">Defend</span></button>
+        <button class="action-btn flex-col py-3"><span class="key-badge">3</span><span class="text-[10px]">Cast</span></button>
+        <button class="action-btn flex-col py-3"><span class="key-badge">4</span><span class="text-[10px]">Flee</span></button>
+        <button class="action-btn flex-col py-3"><span class="key-badge">5</span><span class="text-[10px]">Use Item</span></button>
+        <button class="action-btn flex-col py-3 opacity-30"><span class="key-badge">6</span><span class="text-[10px]">--</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setView(view) {
+  document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('view-' + view).classList.remove('hidden');
+  document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('btn-' + view).classList.add('active');
+}
+
+function switchTab(tab) {
+  ['room', 'map', 'log'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll('[onclick^="switchTab"]').forEach(btn => {
+    btn.className = btn.textContent.trim().toLowerCase() === tab
+      ? 'tab-active px-3 py-1.5 text-[11px] uppercase tracking-wider'
+      : 'tab-inactive px-3 py-1.5 text-[11px] uppercase tracking-wider';
+  });
+}
+</script>
+
+</body>
+</html>

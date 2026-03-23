@@ -1,0 +1,14 @@
+# Project agentrc config — suds-v2
+agentrc_version: 2.2.0
+
+agents:
+  suds-frontend:
+    name: Suds Frontend Developer
+    description: Next.js/React development for the Suds MUD game
+    roles: [frontend, react]
+    context: agents/frontend.md
+
+  suds-reviewer:
+    name: Suds Code Reviewer
+    description: Code review for Suds PRs
+    roles: [code-review]
